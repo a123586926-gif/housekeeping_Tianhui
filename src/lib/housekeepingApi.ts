@@ -103,3 +103,24 @@ export function updateRoomAdministration(
     method: "PATCH", body: jsonBody({ roomId, changes }),
   });
 }
+
+/** Staging-only QA. The account remains disabled until a separate secure PIN provisioning flow exists. */
+export function createQaCleaner(name: string): Promise<{ cleanerId: number }> {
+  return request("/api/data/cleaners", {
+    method: "POST", body: jsonBody({ name }),
+  });
+}
+
+/** Staging-only QA; only prefixed test identities may be renamed. */
+export function renameQaCleaner(cleanerId: number, name: string): Promise<{ ok: boolean }> {
+  return request("/api/data/cleaners", {
+    method: "PATCH", body: jsonBody({ action: "rename", cleanerId, name }),
+  });
+}
+
+/** Staging-only QA; immediately disables and revokes any outstanding sessions. */
+export function disableQaCleaner(cleanerId: number): Promise<{ ok: boolean }> {
+  return request("/api/data/cleaners", {
+    method: "PATCH", body: jsonBody({ action: "disable", cleanerId }),
+  });
+}
