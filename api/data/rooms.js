@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { adminDb, allowSameOrigin, getSession, json } from "../_lib/auth.js";
 
 const MAX_ROOMS_PER_EVENT = 120;
@@ -35,35 +36,96 @@ function statusOf(checklist) {
   if (count === checklist.length) return "completed";
   return "in_progress";
 }
+const PHOTO_BUCKET = "hk-qa-cleaning-photos";
+const PHOTO_MAX_BYTES = 2 * 1024 * 1024;
+const PHOTO_FIELDS = { flooring: "floor_photo", bathroom: "bathroom_photo" };
+
+function decodePhoto(base64, mime) {
+  if (typeof base64 !== "string" || base64.length > Math.ceil(PHOTO_MAX_BYTES * 4 / 3) + 8 ||
+      !/^[A-Za-z0-9+/]+={0,2}$/.test(base64)) return null;
+  if (!["image/jpeg", "image/png", "image/webp"].includes(mime)) return null;
+  const bytes = Buffer.from(base64, "base64");
+  if (!bytes.length || bytes.length > PHOTO_MAX_BYTES) return null;
+  const matches = mime === "image/jpeg"
+    ? bytes.length >= 4 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff
+    : mime === "image/png"
+      ? bytes.length >= 8 && bytes.subarray(0,8).equals(Buffer.from([137,80,78,71,13,10,26,10]))
+      : bytes.length >= 12 && bytes.toString("ascii",0,4) === "RIFF" && bytes.toString("ascii",8,12) === "WEBP";
+  return matches ? bytes : null;
+}
+
+async function uploadPhoto(req, res, db, session) {
+  const body = req.body || {};
+  const roomId = validId(body.roomId);
+  const itemId = body.itemId;
+  if (!roomId || typeof itemId !== "string" || !/^[a-z0-9_-]{1,40}$/.test(itemId))
+    return bad(res);
+  const bytes = decodePhoto(body.base64, body.mime);
+  if (!bytes) return json(res, 400, { error: "Only valid JPEG, PNG or WebP under 2 MB allowed" });
+  const cleanerId = session.user.role === "cleaner"
+    ? Number(session.user.id.slice("cleaner-".length)) : null;
+  if (session.user.role !== "admin" && (!Number.isSafeInteger(cleanerId) || cleanerId < 1))
+    return json(res, 403, { error: "Forbidden" });
+  const { data: room, error: readError } = await db.from("event_rooms")
+    .select("id, cleaner_id, checklist").eq("id",roomId).maybeSingle();
+  if (readError) throw readError;
+  if (!room) return json(res, 404, { error: "Room not found" });
+  if (session.user.role === "cleaner" && room.cleaner_id !== cleanerId)
+    return json(res, 403, { error: "Not assigned to this room" });
+  const items = room.checklist;
+  const itemIndex = Array.isArray(items) ? items.findIndex(i => i.id === itemId) : -1;
+  if (itemIndex < 0 || items[itemIndex]?.requiredPhoto !== true)
+    return json(res, 400, { error: "This item does not require a photo" });
+
+  const ext = body.mime === "image/jpeg" ? "jpg" : body.mime === "image/png" ? "png" : "webp";
+  const photoPath = `room-${roomId}/${itemId}/${randomUUID()}.${ext}`;
+  const { error: uploadError } = await db.storage.from(PHOTO_BUCKET).upload(photoPath,bytes,{
+    contentType:body.mime, upsert:false, cacheControl:"0",
+  });
+  if (uploadError) return json(res, 503, { error: "Photo storage unavailable" });
+  const nextChecklist = items.map((item,i) => i === itemIndex ? { ...item, photo:true } : item);
+  const field = PHOTO_FIELDS[itemId] || "final_photo";
+  let mutation = db.from("event_rooms").update({
+    checklist: nextChecklist, [field]: photoPath,
+  }).eq("id",roomId);
+  if (session.user.role === "cleaner") mutation=mutation.eq("cleaner_id",cleanerId);
+  const { data: updated, error: updateError } = await mutation.select("id").maybeSingle();
+  if (updateError || !updated) {
+    await db.storage.from(PHOTO_BUCKET).remove([photoPath]);
+    return json(res, updateError ? 503 : 403, {
+      error: updateError ? "Unable to save photo reference" : "Room assignment changed",
+    });
+  }
+  return json(res, 200, { ok: true, roomId, itemId, photoStored:true });
+}
 function bad(res) { return json(res, 400, { error: "Invalid room update" }); }
 
 export default async function handler(req, res) {
-  if (req.method !== "PATCH") return json(res, 405, { error: "Method not allowed" });
+  if (!["PATCH", "POST"].includes(req.method)) return json(res, 405, { error: "Method not allowed" });
   if (!allowSameOrigin(req)) return json(res, 403, { error: "Origin rejected" });
-  const body = req.body || {};
-  const roomId = validId(body.roomId);
-  if (!roomId || !body.changes || typeof body.changes !== "object" ||
-      Array.isArray(body.changes)) return bad(res);
-
-  const changes = body.changes;
-  const keys = Object.keys(changes);
-  const allowed = new Set(["occupant", "assignedTo", "checklist"]);
-  if (!keys.length || keys.some(key => !allowed.has(key))) return bad(res);
-  if ("occupant" in changes && !validText(changes.occupant, 3000)) return bad(res);
-  if ("assignedTo" in changes && !validText(changes.assignedTo, 120)) return bad(res);
-  if ("checklist" in changes && !validChecklist(changes.checklist)) return bad(res);
-
   try {
     const session = await getSession(req);
     if (!session) return json(res, 401, { error: "Not authenticated" });
     const { role, id: userId } = session.user;
     const cleanerId = role === "cleaner" ? Number(userId.slice("cleaner-".length)) : null;
     if (role !== "admin" && role !== "cleaner") return json(res, 403, { error: "Forbidden" });
+    const db = adminDb();
+    if (req.method === "POST") return await uploadPhoto(req,res,db,session);
+    const body = req.body || {};
+    const roomId = validId(body.roomId);
+    if (!roomId || !body.changes || typeof body.changes !== "object" ||
+        Array.isArray(body.changes)) return bad(res);
+    const changes = body.changes;
+    const keys = Object.keys(changes);
+    const allowed = new Set(["occupant","assignedTo","checklist"]);
+    if (!keys.length || keys.some(key => !allowed.has(key))) return bad(res);
+    if ("occupant" in changes && !validText(changes.occupant,3000)) return bad(res);
+    if ("assignedTo" in changes && !validText(changes.assignedTo,120)) return bad(res);
+    if ("checklist" in changes && !validChecklist(changes.checklist)) return bad(res);
     if (role === "cleaner" && keys.some(key => key !== "checklist")) {
       return json(res, 403, { error: "Cleaners can only update checklists" });
     }
 
-    const db = adminDb();
     const { data: existing, error: fetchError } = await db.from("event_rooms")
       .select("id, cleaner_id, checklist, event_id").eq("id", roomId).maybeSingle();
     if (fetchError) throw fetchError;
