@@ -166,6 +166,47 @@ export default function AuthSandbox() {
     } finally { setQaBusy(false); }
   }
 
+  async function qaCheckAdminWrite() {
+    if (!user || user.role !== "cleaner" || qaBusy) return;
+    setQaBusy(true);
+    setQaResult("");
+    try {
+      const response = await fetch("/api/data/event-create", {
+        method: "POST", credentials: "same-origin",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ event: {
+          event_date: "2026-11-30", event_name: "不應新增的權限測試活動",
+          event_type: "一般活動", notes: "",
+        } }),
+      });
+      setQaResult(response.status === 403
+        ? "通過：房務人員不能新增活動（HTTP 403）"
+        : `未通過：新增活動回傳 HTTP ${response.status}，請勿上線`);
+    } catch (cause) {
+      setQaResult(cause instanceof Error ? cause.message : "測試失敗");
+    } finally { setQaBusy(false); }
+  }
+
+  async function qaCheckOccupantWrite() {
+    if (!user || user.role !== "cleaner" || qaBusy || !overview) return;
+    const ownRoom = overview.eventRooms[0];
+    if (!ownRoom) { setQaResult("沒有可測試的自有房間"); return; }
+    setQaBusy(true);
+    setQaResult("");
+    try {
+      const response = await fetch("/api/data/rooms", {
+        method: "PATCH", credentials: "same-origin",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ roomId: ownRoom.id, changes: { occupant: "不得成功的虛構變更" } }),
+      });
+      setQaResult(response.status === 403
+        ? "通過：房務人員不能修改入住者資料（HTTP 403）"
+        : `未通過：修改入住者回傳 HTTP ${response.status}，請勿上線`);
+    } catch (cause) {
+      setQaResult(cause instanceof Error ? cause.message : "測試失敗");
+    } finally { setQaBusy(false); }
+  }
+
   async function login() {
     if (busy || !selectedId || !pin) return;
     setBusy(true);
@@ -259,6 +300,8 @@ export default function AuthSandbox() {
                         <button disabled={qaBusy} className="w-full rounded-lg bg-[#8d8768] p-3 text-sm text-white disabled:opacity-50" onClick={() => void qaUpdateOwnRoom()}>測試更新自己的清潔項目（預期 200）</button>
                         <button disabled={qaBusy} className="w-full rounded-lg border border-[#b9aa90] p-3 text-sm disabled:opacity-50" onClick={() => void qaAttemptOtherRoom()}>測試修改其他人房間（預期 403）</button>
                         <button disabled={qaBusy} className="w-full rounded-lg border border-[#b9aa90] p-3 text-sm disabled:opacity-50" onClick={() => void qaCheckAdminOnly()}>測試讀取管理員名單（預期 403）</button>
+                        <button disabled={qaBusy} className="w-full rounded-lg border border-[#b9aa90] p-3 text-sm disabled:opacity-50" onClick={() => void qaCheckOccupantWrite()}>測試修改入住者資料（預期 403）</button>
+                        <button disabled={qaBusy} className="w-full rounded-lg border border-[#b9aa90] p-3 text-sm disabled:opacity-50" onClick={() => void qaCheckAdminWrite()}>測試越權新增活動（預期 403）</button>
                         {qaResult && <p role="status" className="rounded-lg bg-white p-2 text-sm">{qaResult}</p>}
                       </div>
                     )}
