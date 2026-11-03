@@ -11,6 +11,7 @@ export default function QaPhotoUpload({ rooms, onUploaded }: {
   const [file,setFile] = useState<File|null>(null);
   const [busy,setBusy] = useState(false);
   const [message,setMessage] = useState("");
+  const [viewUrl,setViewUrl] = useState("");
   const room = rooms.find(r=>String(r.id)===roomId);
   const items = room?.checklist?.filter(i=>i.requiredPhoto===true)||[];
   const item = items.find(i=>i.id===itemId);
@@ -34,8 +35,8 @@ export default function QaPhotoUpload({ rooms, onUploaded }: {
         setMessage("照片連結格式不正確");
         return;
       }
-      window.open(data.signedUrl,"_blank","noopener,noreferrer");
-      setMessage("已取得僅短暫有效的私人照片檢視連結");
+      setViewUrl(data.signedUrl);
+      setMessage("已取得 60 秒有效的私人照片檢視連結，請點下方連結查看");
     } catch(cause) {
       setMessage(cause instanceof Error ? cause.message : "照片檢視失敗");
     } finally {setBusy(false);}
@@ -46,7 +47,7 @@ export default function QaPhotoUpload({ rooms, onUploaded }: {
       setMessage("檔案必須為 JPEG、PNG 或 WebP，且不超過 2 MB");
       return;
     }
-    setBusy(true);setMessage("");
+    setBusy(true);setMessage("");setViewUrl("");
     try {
       const bytes = new Uint8Array(await file.arrayBuffer());
       let binary = "";
@@ -99,6 +100,10 @@ export default function QaPhotoUpload({ rooms, onUploaded }: {
       className="w-full rounded-xl bg-[#8d8768] p-2.5 text-sm text-white disabled:opacity-50">
       {busy?"處理中…":item?.photo?"更換測試照片":"上傳測試照片"}
     </button>
+    {viewUrl && <a href={viewUrl} target="_blank" rel="noopener noreferrer"
+      className="block rounded-xl border border-[#8d8768] bg-white p-2.5 text-center text-sm text-[#75684f] underline">
+      開啟私人照片（60 秒內有效）
+    </a>}
     {message&&<p role="status" className="rounded-xl bg-white p-2 text-sm">{message}</p>}
   </section>;
 }
