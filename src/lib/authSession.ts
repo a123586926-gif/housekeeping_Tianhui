@@ -91,14 +91,14 @@ export async function signOutSession(): Promise<void> {
 
 /** Only admins may provision explicitly marked QA identities. PIN is never persisted. */
 export async function provisionQaPin(cleanerId: number, newPin: string): Promise<void> {
-  await request<{ok:boolean}>("/api/auth/pin", {
+  await request<{ok:boolean}>("/api/auth/session", {
     method: "POST", body: JSON.stringify({ cleanerId, newPin }),
   });
 }
 
 /** Requires existing PIN; on success all sessions are revoked and the cookie cleared. */
 export async function changeOwnPin(oldPin: string, newPin: string): Promise<void> {
-  await request<{ok:boolean,signedOut:boolean}>("/api/auth/pin", {
+  await request<{ok:boolean,signedOut:boolean}>("/api/auth/session", {
     method: "PATCH", body: JSON.stringify({ oldPin, newPin }),
   });
 }
