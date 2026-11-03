@@ -1,10 +1,41 @@
-import { getSession, json } from "../_lib/auth.js";
+import { adminDb, allowSameOrigin, cookieString, getSession, json } from "../_lib/auth.js";
 
+const pinIsStrong = value => typeof value === "string" && /^[0-9]{8,32}$/.test(value);
+
+// GET remains unchanged. POST and PATCH are session-protected PIN operations.
+// Consolidated into this existing function to stay under Vercel Hobby limits.
 export default async function handler(req, res) {
-  if (req.method !== "GET") return json(res, 405, { error: "Method not allowed" });
+  if (!["GET", "POST", "PATCH"].includes(req.method)) return json(res, 405, { error: "Method not allowed" });
+  if (req.method !== "GET" && !allowSameOrigin(req)) return json(res, 403, { error: "Origin rejected" });
   try {
     const session = await getSession(req);
-    if (!session) return json(res, 200, { authenticated: false });
+    if (!session) return json(res, req.method === "GET" ? 200 : 401,
+      req.method === "GET" ? { authenticated: false } : { error: "Not authenticated" });
+    if (req.method !== "GET") {
+      const body = req.body || {};
+      const db = adminDb();
+      if (req.method === "POST") {
+        if (session.user.role !== "admin") return json(res, 403, { error: "Admin required" });
+        if (!Number.isSafeInteger(body.cleanerId) || body.cleanerId < 1 || !pinIsStrong(body.newPin))
+          return json(res, 400, { error: "Use an 8-32 digit PIN for QA account" });
+        const { data, error } = await db.rpc("hk_qa_provision_pin", {
+          p_cleaner_id: body.cleanerId, p_new_pin: body.newPin,
+        });
+        if (error) return json(res, 503, { error: "Unable to provision QA account" });
+        if (data !== true) return json(res, 403, { error: "Only QA accounts may be provisioned" });
+        return json(res, 200, { ok: true, cleanerId: body.cleanerId });
+      }
+      if (typeof body.oldPin !== "string" || body.oldPin.length < 4 || body.oldPin.length > 128 ||
+          !pinIsStrong(body.newPin) || body.newPin === body.oldPin)
+        return json(res, 400, { error: "Invalid PIN change request" });
+      const { data, error } = await db.rpc("hk_change_own_pin", {
+        p_user_id: session.user.id, p_old_pin: body.oldPin, p_new_pin: body.newPin,
+      });
+      if (error) return json(res, 503, { error: "PIN service unavailable" });
+      if (data !== true) return json(res, 401, { error: "Current PIN incorrect or account locked" });
+      res.setHeader("Set-Cookie", cookieString("", 0));
+      return json(res, 200, { ok: true, signedOut: true });
+    }
     return json(res, 200, {
       authenticated: true, user: session.user, expiresAt: session.expiresAt,
     });
