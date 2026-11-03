@@ -1,0 +1,24 @@
+name: Housekeeping auth branch checks
+on:
+  push:
+    branches:
+      - feature/remember-login-30d
+  pull_request:
+    branches:
+      - main
+permissions:
+  contents: read
+jobs:
+  test-and-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - name: Check helper regression tests
+        run: node --test tests/auth-validators.test.js tests/default-rooms.test.js
+      - name: Build existing React application
+        run: npm run build
