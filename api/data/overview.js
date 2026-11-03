@@ -35,7 +35,7 @@ export default async function handler(req, res) {
     const assignedEventIds = new Set((eventRooms || []).map(room => room.event_id));
     const permittedEvents = session.user.role === "admin"
       ? events
-      : events.filter(e => assignedEventIds.has(e.id));
+      : events.filter(e => assignedEventIds.has(e.id)).map(e => ({ ...e, notes: "" }));
     const calendarEvents = (events || []).map(event => ({
       id: event.id,
       date: event.event_date,
