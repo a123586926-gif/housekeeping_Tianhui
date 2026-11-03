@@ -93,8 +93,8 @@ export default function QaAdminCleaners() {
           <div className="flex gap-2">
             <button disabled={busy} className="rounded-lg border px-3 py-1.5 text-xs"
               onClick={() => {setEditId(person.id);setName(person.name);setError("");}}>改名</button>
-            <button disabled={busy || !person.is_active} onClick={() => void disable(person)}
-              className="rounded-lg border border-red-200 px-3 py-1.5 text-xs text-red-700 disabled:opacity-50">停用</button>
+            <button disabled={busy} onClick={() => void disable(person)}
+              className="rounded-lg border border-red-200 px-3 py-1.5 text-xs text-red-700 disabled:opacity-50">確認停用</button>
           </div>
         </div>
       ))}
