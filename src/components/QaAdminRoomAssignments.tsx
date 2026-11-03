@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { getCleaners, updateRoomAdministration, type CleanerInfo, type DbEventRoom } from "../lib/housekeepingApi";
 
-type Props = { rooms: DbEventRoom[]; onUpdated: () => Promise<void> };
+type RoomForAssignment = Pick<DbEventRoom, "id" | "building" | "floor" | "room_no" | "assigned_to" | "occupant">;
+type Props = { rooms: RoomForAssignment[]; onUpdated: () => Promise<void> };
 
 /**
  * Admin-only room assignment QA. Only rendered for an authenticated admin
