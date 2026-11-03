@@ -19,9 +19,9 @@ export default async function handler(req, res) {
     ).order("id", { ascending: true });
 
     // Cleaner identities can only read rooms explicitly assigned to them.
-    // The server, not a query parameter supplied by the browser, selects owner.
+    // Use stable cleaner ID rather than display name to avoid name collisions.
     if (session.user.role === "cleaner") {
-      roomsQuery = roomsQuery.eq("assigned_to", session.user.name);
+      roomsQuery = roomsQuery.eq("cleaner_id", Number(session.user.id.slice("cleaner-".length)));
     } else if (session.user.role !== "admin") {
       return json(res, 403, { error: "Forbidden" });
     }
