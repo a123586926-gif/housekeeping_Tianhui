@@ -23,3 +23,14 @@ Current src/App.tsx uses a public Supabase publishable key and direct .from(...)
 
 ## Next non-destructive user evidence
 In Supabase > Database > Policies, open e.g. events_insert_all and events_select_all (do NOT save) and capture Applied to / USING / WITH CHECK, redacting personally identifying values and any secrets. Alternatively query pg_policies in SQL Editor as read-only, but no SQL execution is necessary for screenshot method.
+
+## Confirmed policy expressions (2026-11-03 additional screenshots)
+- `public.events` / `events_select_all`: target role `anon`, `USING (true)` — unrestricted row visibility for anonymous role.
+- `public.events` / `events_insert_all`: target role `anon`, `WITH CHECK (true)` — anonymous inserts can pass RLS (subject to grants and table constraints).
+- Anonymous role has separate SELECT/INSERT/UPDATE/DELETE policies listed on `cleaners`, `event_rooms`, `rooms`, and `events`; their remaining expressions have not been inspected.
+- **Do not edit these policies before the protected API migration is fully implemented and verified.**
+
+## Staged additions
+- `api/auth/accounts.js` returns account selector labels without PIN data.
+- `api/data/overview.js` is a read-only endpoint requiring server-validated sessions and restricting cleaner room results to their assigned rooms.
+- Neither endpoint is yet used by the current UI. Existing browser requests remain unprotected by these new endpoints.
