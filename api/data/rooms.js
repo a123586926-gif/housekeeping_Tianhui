@@ -56,7 +56,8 @@ export default async function handler(req, res) {
   try {
     const session = await getSession(req);
     if (!session) return json(res, 401, { error: "Not authenticated" });
-    const { role, name } = session.user;
+    const { role, id: userId } = session.user;
+    const cleanerId = role === "cleaner" ? Number(userId.slice("cleaner-".length)) : null;
     if (role !== "admin" && role !== "cleaner") return json(res, 403, { error: "Forbidden" });
     if (role === "cleaner" && keys.some(key => key !== "checklist")) {
       return json(res, 403, { error: "Cleaners can only update checklists" });
@@ -64,10 +65,10 @@ export default async function handler(req, res) {
 
     const db = adminDb();
     const { data: existing, error: fetchError } = await db.from("event_rooms")
-      .select("id, assigned_to, checklist, event_id").eq("id", roomId).maybeSingle();
+      .select("id, cleaner_id, checklist, event_id").eq("id", roomId).maybeSingle();
     if (fetchError) throw fetchError;
     if (!existing) return json(res, 404, { error: "Room not found" });
-    if (role === "cleaner" && existing.assigned_to !== name) {
+    if (role === "cleaner" && existing.cleaner_id !== cleanerId) {
       return json(res, 403, { error: "Room not assigned to this cleaner" });
     }
 
@@ -123,7 +124,7 @@ export default async function handler(req, res) {
     let updateQuery = db.from("event_rooms")
       .update(payload).eq("id", roomId);
     if (role === "cleaner") {
-      updateQuery = updateQuery.eq("assigned_to", name);
+      updateQuery = updateQuery.eq("cleaner_id", cleanerId);
     }
     const { data: updated, error: updateError } = await updateQuery
       .select("id, event_id, status, progress").maybeSingle();
