@@ -4,8 +4,19 @@ import { readSession, signInWithPin, signOutSession, type AuthenticatedUser } fr
 type AccountLabel = { id: string; name: string };
 type SessionState = "checking" | "signedOut" | "signedIn" | "error";
 type CalendarEvent = { id: number; date: string; name: string; requiresCleaning: boolean };
-type AssignedRoom = { id: number; event_id: number; building: string; floor: string; room_no: string; assigned_to: string; status: string };
+type ChecklistItem = { id: string; done: boolean; photo: boolean; subItems: { id: string; done: boolean }[] };
+type AssignedRoom = { id: number; event_id: number; building: string; floor: string; room_no: string; assigned_to: string; status: string; checklist: ChecklistItem[] };
 type Overview = { calendarEvents: CalendarEvent[]; eventRooms: AssignedRoom[] };
+
+async function patchChecklist(roomId: number, checklist: ChecklistItem[]): Promise<number> {
+  const response = await fetch("/api/data/rooms", {
+    method: "PATCH",
+    credentials: "same-origin",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ roomId, changes: { checklist } }),
+  });
+  return response.status;
+}
 
 async function readOverview(): Promise<Overview> {
   const response = await fetch("/api/data/overview", { cache: "no-store", credentials: "same-origin" });
@@ -47,6 +58,8 @@ export default function AuthSandbox() {
   const [overview, setOverview] = useState<Overview | null>(null);
   const [overviewError, setOverviewError] = useState("");
   const [loadingOverview, setLoadingOverview] = useState(false);
+  const [qaBusy, setQaBusy] = useState(false);
+  const [qaResult, setQaResult] = useState("");
 
   const refresh = useCallback(async () => {
     setState("checking");
@@ -98,6 +111,61 @@ export default function AuthSandbox() {
     return () => { active = false; };
   }, []);
 
+  async function qaUpdateOwnRoom() {
+    if (!overview || !user || user.role !== "cleaner" || qaBusy) return;
+    const room = overview.eventRooms.find(room => Array.isArray(room.checklist) && room.checklist.length > 0);
+    if (!room) { setQaResult("沒有可測試的已分配房間"); return; }
+    const next = room.checklist.map((item, i) => i === 0
+      ? { ...item, done: !item.done, subItems: item.subItems.map(sub => ({ ...sub })) }
+      : item);
+    setQaBusy(true);
+    setQaResult("");
+    try {
+      const status = await patchChecklist(room.id, next);
+      const refreshed = await readOverview();
+      setOverview(refreshed);
+      const changed = refreshed.eventRooms.find(x => x.id === room.id)?.checklist?.[0]?.done === next[0].done;
+      setQaResult(status === 200 && changed ? "通過：自己的房間已成功更新（HTTP 200）" : `未通過：HTTP ${status}；更新驗證 ${changed ? "一致" : "不一致"}`);
+    } catch (cause) {
+      setQaResult(cause instanceof Error ? cause.message : "操作失敗");
+    } finally { setQaBusy(false); }
+  }
+
+  async function qaAttemptOtherRoom() {
+    if (!user || user.role !== "cleaner" || qaBusy) return;
+    // Only fictitious QA fixtures in the isolated sandbox database.
+    const otherRoomId = user.id === "cleaner-901" ? 9302
+      : user.id === "cleaner-902" ? 9301 : null;
+    if (!otherRoomId) { setQaResult("此帳號沒有配置越權測試案例"); return; }
+    const dummyChecklist = [{ id: "wipe", done: true, photo: false, subItems: [] }];
+    setQaBusy(true);
+    setQaResult("");
+    try {
+      const status = await patchChecklist(otherRoomId, dummyChecklist);
+      setQaResult(status === 403
+        ? "通過：伺服器拒絕操作其他人房間（HTTP 403）"
+        : `未通過：越權請求回傳 HTTP ${status}，請勿上線`);
+    } catch (cause) {
+      setQaResult(cause instanceof Error ? cause.message : "操作失敗");
+    } finally { setQaBusy(false); }
+  }
+
+  async function qaCheckAdminOnly() {
+    if (!user || user.role !== "cleaner" || qaBusy) return;
+    setQaBusy(true);
+    setQaResult("");
+    try {
+      const response = await fetch("/api/data/cleaners", {
+        credentials: "same-origin", cache: "no-store",
+      });
+      setQaResult(response.status === 403
+        ? "通過：房務人員不能取得管理員專用名單（HTTP 403）"
+        : `未通過：管理員 API 回傳 HTTP ${response.status}，請勿上線`);
+    } catch (cause) {
+      setQaResult(cause instanceof Error ? cause.message : "操作失敗");
+    } finally { setQaBusy(false); }
+  }
+
   async function login() {
     if (busy || !selectedId || !pin) return;
     setBusy(true);
@@ -130,6 +198,7 @@ export default function AuthSandbox() {
       setUser(null);
       setExpiry("");
       setPin("");
+      setQaResult("");
       setState("signedOut");
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "登出失敗；請不要假設工作階段已失效");
@@ -183,6 +252,16 @@ export default function AuthSandbox() {
                       ))}
                       {overview.eventRooms.length === 0 && <p className="text-sm">沒有分配的測試房間</p>}
                     </div>
+                    {user.role === "cleaner" && (
+                      <div className="space-y-2 rounded-xl border border-[#d5c8b1] bg-[#f8f2e8] p-3">
+                        <h3 className="font-semibold">房務人員操作權限驗收</h3>
+                        <p className="text-xs text-[#847663]">僅在虛構測試資料庫執行。第一次操作會變更一間自己的測試房間清潔狀態；另兩項應被伺服器拒絕。</p>
+                        <button disabled={qaBusy} className="w-full rounded-lg bg-[#8d8768] p-3 text-sm text-white disabled:opacity-50" onClick={() => void qaUpdateOwnRoom()}>測試更新自己的清潔項目（預期 200）</button>
+                        <button disabled={qaBusy} className="w-full rounded-lg border border-[#b9aa90] p-3 text-sm disabled:opacity-50" onClick={() => void qaAttemptOtherRoom()}>測試修改其他人房間（預期 403）</button>
+                        <button disabled={qaBusy} className="w-full rounded-lg border border-[#b9aa90] p-3 text-sm disabled:opacity-50" onClick={() => void qaCheckAdminOnly()}>測試讀取管理員名單（預期 403）</button>
+                        {qaResult && <p role="status" className="rounded-lg bg-white p-2 text-sm">{qaResult}</p>}
+                      </div>
+                    )}
                   </>
                 )}
               </section>
