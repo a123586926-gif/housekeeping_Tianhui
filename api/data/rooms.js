@@ -54,6 +54,27 @@ function decodePhoto(base64, mime) {
   return matches ? bytes : null;
 }
 
+async function viewPhoto(req, res, db, session) {
+  const roomId = validId(req.query?.roomId);
+  const itemId = req.query?.itemId;
+  if (!roomId || !["flooring", "bathroom"].includes(itemId)) return bad(res);
+  const field = PHOTO_FIELDS[itemId];
+  const cleanerId = session.user.role === "cleaner"
+    ? Number(session.user.id.slice("cleaner-".length)) : null;
+  let query = db.from("event_rooms")
+    .select("id,cleaner_id,floor_photo,bathroom_photo").eq("id",roomId);
+  if (session.user.role === "cleaner") query = query.eq("cleaner_id",cleanerId);
+  const {data:room,error} = await query.maybeSingle();
+  if(error) throw error;
+  if(!room) return json(res,403,{error:"Room not accessible"});
+  const path = room[field];
+  if(typeof path !== "string" || !path.startsWith(`room-${roomId}/${itemId}/`))
+    return json(res,404,{error:"Photo not found"});
+  const {data:signed,error:signError} = await db.storage.from(PHOTO_BUCKET).createSignedUrl(path,60);
+  if(signError || !signed?.signedUrl) return json(res,503,{error:"Photo unavailable"});
+  return json(res,200,{signedUrl:signed.signedUrl,expiresIn:60});
+}
+
 async function uploadPhoto(req, res, db, session) {
   const body = req.body || {};
   const roomId = validId(body.roomId);
@@ -67,7 +88,7 @@ async function uploadPhoto(req, res, db, session) {
   if (session.user.role !== "admin" && (!Number.isSafeInteger(cleanerId) || cleanerId < 1))
     return json(res, 403, { error: "Forbidden" });
   const { data: room, error: readError } = await db.from("event_rooms")
-    .select("id, cleaner_id, checklist").eq("id",roomId).maybeSingle();
+    .select("id, cleaner_id, checklist, floor_photo, bathroom_photo, final_photo").eq("id",roomId).maybeSingle();
   if (readError) throw readError;
   if (!room) return json(res, 404, { error: "Room not found" });
   if (session.user.role === "cleaner" && room.cleaner_id !== cleanerId)
@@ -85,10 +106,14 @@ async function uploadPhoto(req, res, db, session) {
   if (uploadError) return json(res, 503, { error: "Photo storage unavailable" });
   const nextChecklist = items.map((item,i) => i === itemIndex ? { ...item, photo:true } : item);
   const field = PHOTO_FIELDS[itemId] || "final_photo";
+  const previousPhoto = room[field];
   let mutation = db.from("event_rooms").update({
     checklist: nextChecklist, [field]: photoPath,
   }).eq("id",roomId);
   if (session.user.role === "cleaner") mutation=mutation.eq("cleaner_id",cleanerId);
+  mutation = previousPhoto == null ? mutation.is(field,null) : mutation.eq(field,previousPhoto);
+  // Only save when the checklist has not changed since it was read.
+  mutation = mutation.eq("checklist",JSON.stringify(items));
   const { data: updated, error: updateError } = await mutation.select("id").maybeSingle();
   if (updateError || !updated) {
     await db.storage.from(PHOTO_BUCKET).remove([photoPath]);
@@ -96,13 +121,21 @@ async function uploadPhoto(req, res, db, session) {
       error: updateError ? "Unable to save photo reference" : "Room assignment changed",
     });
   }
+  if(typeof previousPhoto === "string" &&
+     previousPhoto.startsWith(`room-${roomId}/${itemId}/`) &&
+     previousPhoto !== photoPath) {
+    // Failure to remove a displaced object is safe but should be flagged
+    // for later manual orphan reconciliation.
+    const {error:cleanupError} = await db.storage.from(PHOTO_BUCKET).remove([previousPhoto]);
+    if(cleanupError) console.error("QA photo cleanup needs reconciliation", {roomId,itemId});
+  }
   return json(res, 200, { ok: true, roomId, itemId, photoStored:true });
 }
 function bad(res) { return json(res, 400, { error: "Invalid room update" }); }
 
 export default async function handler(req, res) {
-  if (!["PATCH", "POST"].includes(req.method)) return json(res, 405, { error: "Method not allowed" });
-  if (!allowSameOrigin(req)) return json(res, 403, { error: "Origin rejected" });
+  if (!["PATCH", "POST", "GET"].includes(req.method)) return json(res, 405, { error: "Method not allowed" });
+  if (req.method !== "GET" && !allowSameOrigin(req)) return json(res, 403, { error: "Origin rejected" });
   try {
     const session = await getSession(req);
     if (!session) return json(res, 401, { error: "Not authenticated" });
@@ -111,6 +144,7 @@ export default async function handler(req, res) {
     if (role !== "admin" && role !== "cleaner") return json(res, 403, { error: "Forbidden" });
     const db = adminDb();
     if (req.method === "POST") return await uploadPhoto(req,res,db,session);
+    if (req.method === "GET") return await viewPhoto(req,res,db,session);
     const body = req.body || {};
     const roomId = validId(body.roomId);
     if (!roomId || !body.changes || typeof body.changes !== "object" ||
