@@ -118,9 +118,17 @@ export default async function handler(req, res) {
       payload.cleaning_status = status === "completed" ? "已完成" : status === "in_progress" ? "進行中" : "未開始";
       payload.cleaning_progress = progress;
     }
-    const { data: updated, error: updateError } = await db.from("event_rooms")
-      .update(payload).eq("id", roomId).select("id, event_id, status, progress").single();
+    // Repeat ownership constraint in the UPDATE itself. A reassignment between
+    // the earlier read and this write must not permit a stale cleaner to write.
+    let updateQuery = db.from("event_rooms")
+      .update(payload).eq("id", roomId);
+    if (role === "cleaner") {
+      updateQuery = updateQuery.eq("assigned_to", name);
+    }
+    const { data: updated, error: updateError } = await updateQuery
+      .select("id, event_id, status, progress").maybeSingle();
     if (updateError) throw updateError;
+    if (!updated) return json(res, 403, { error: "Room assignment changed; update rejected" });
     return json(res, 200, { room: updated });
   } catch {
     return json(res, 503, { error: "Unable to update room" });
