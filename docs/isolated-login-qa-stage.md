@@ -2,12 +2,13 @@
 
 ## What is now implemented
 - `src/AuthSandbox.tsx` provides a standalone UI that calls `/api/auth/accounts`, `/api/auth/login`, `/api/auth/session`, and `/api/auth/logout`.
-- `src/main.tsx` chooses the sandbox **only when** `VITE_AUTH_SANDBOX=enabled` is set at build time; otherwise it mounts the original `App.tsx` unchanged.
+- `vite.config.ts` switches the HTML entry to `src/authSandboxMain.tsx` **only when** `VITE_AUTH_SANDBOX=enabled` is set at build time; otherwise the normal `src/main.tsx` mounts the original `App.tsx` unchanged. This ensures the auth-only bundle does not import the legacy UI or its hardcoded PIN.
 - The sandbox never imports or mounts the room/activity/cleaner UI and never directly connects to Supabase browser tables.
 - The sandbox never stores PIN or session tokens. The browser only receives the server-issued HttpOnly cookie.
 - Session restore is checked at page initialization. F5 should preserve identity and the original absolute expiry. Logout must revoke the session.
 
 ## Release gate — do NOT switch production yet
+0. Confirm the preview build output excludes the legacy App chunk, and inspect the resulting HTML module entry. Never put Production Supabase public URL/key into the preview sandbox bundle.
 1. Create a separate test Supabase project with no real guest/personnel data; install the audited `hk_auth_*` schema and functions there, not the conflicting `housekeeping_auth_*` draft. Reconcile duplicate draft families before any real migration.
 2. Provision a dedicated TEST admin account with a fresh PIN entered privately, never in chat/GitHub.
 3. Configure the Vercel **Preview only** secret environment variables `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` for the TEST Supabase project; never prefix the service key with `VITE_`.
