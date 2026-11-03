@@ -3,7 +3,7 @@ import react from '@vitejs/plugin-react'
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), 'VITE_')
-  const sandbox = env.VITE_AUTH_SANDBOX === 'enabled'
+  const sandbox = env.VITE_AUTH_SANDBOX === 'enabled' && process.env.VERCEL_ENV !== 'production'
   // Select a different HTML entry during BUILD so legacy App.tsx is not
   // included in the auth-only QA bundle at all.
   return {
