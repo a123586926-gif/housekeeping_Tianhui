@@ -1,13 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { readSession, signInWithPin, signOutSession, type AuthenticatedUser } from "./lib/authSession";
-import SharedActivityCalendar from "./components/SharedActivityCalendar";
-import QaAdminEvents from "./components/QaAdminEvents";
-import QaAdminRoomAssignments from "./components/QaAdminRoomAssignments";
-import QaAdminCleaners from "./components/QaAdminCleaners";
-import QaChangePin from "./components/QaChangePin";
-import QaPhotoUpload from "./components/QaPhotoUpload";
-import QaRoomChecklist from "./components/QaRoomChecklist";
 import type { DbEvent } from "./lib/housekeepingApi";
+import SecureHousekeepingDashboard from "./components/SecureHousekeepingDashboard";
 
 type AccountLabel = { id: string; name: string };
 type SessionState = "checking" | "signedOut" | "signedIn" | "error";
@@ -15,16 +9,6 @@ type CalendarEvent = { id: number; date: string; name: string; requiresCleaning:
 type ChecklistItem = { id: string; label?: string; description?: string; requiredPhoto?: boolean; done: boolean; photo: boolean; subItems: { id: string; label?: string; done: boolean }[] };
 type AssignedRoom = { id: number; event_id: number; building: string; floor: string; room_no: string; assigned_to: string; occupant: string; progress: number; status: string; checklist: ChecklistItem[] };
 type Overview = { calendarEvents: CalendarEvent[]; eventRooms: AssignedRoom[]; events: DbEvent[] };
-
-async function patchChecklist(roomId: number, checklist: ChecklistItem[]): Promise<number> {
-  const response = await fetch("/api/data/rooms", {
-    method: "PATCH",
-    credentials: "same-origin",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ roomId, changes: { checklist } }),
-  });
-  return response.status;
-}
 
 async function readOverview(): Promise<Overview> {
   const response = await fetch("/api/data/overview", { cache: "no-store", credentials: "same-origin" });
@@ -123,26 +107,6 @@ export default function AuthSandbox() {
     const data = await readOverview();
     setOverview(data);
     setOverviewError("");
-  }
-
-  async function qaUpdateOwnRoom() {
-    if (!overview || !user || user.role !== "cleaner" || qaBusy) return;
-    const room = overview.eventRooms.find(room => Array.isArray(room.checklist) && room.checklist.length > 0);
-    if (!room) { setQaResult("沒有可測試的已分配房間"); return; }
-    const next = room.checklist.map((item, i) => i === 0
-      ? { ...item, done: !item.done, subItems: item.subItems.map(sub => ({ ...sub })) }
-      : item);
-    setQaBusy(true);
-    setQaResult("");
-    try {
-      const status = await patchChecklist(room.id, next);
-      const refreshed = await readOverview();
-      setOverview(refreshed);
-      const changed = refreshed.eventRooms.find(x => x.id === room.id)?.checklist?.[0]?.done === next[0].done;
-      setQaResult(status === 200 && changed ? "通過：自己的房間已成功更新（HTTP 200）" : `未通過：HTTP ${status}；更新驗證 ${changed ? "一致" : "不一致"}`);
-    } catch (cause) {
-      setQaResult(cause instanceof Error ? cause.message : "操作失敗");
-    } finally { setQaBusy(false); }
   }
 
   async function qaAttemptOtherRoom() {
@@ -277,48 +241,27 @@ export default function AuthSandbox() {
           )}
           {state === "signedIn" && user && (
             <>
-              <p role="status">目前登入：{user.name}（{user.role === "admin" ? "管理員" : "打掃人員"}）</p>
-              <p className="text-sm">固定到期時間：{new Date(expiry).toLocaleString("zh-TW")}</p>
-              <p className="text-xs text-[#847663]">請按 F5 確認能否恢復登入，且到期時間沒有改變。</p>
-              <button disabled={busy} className="w-full rounded-xl bg-[#8d8768] px-3 py-2 text-white disabled:opacity-50" onClick={() => void logout()}>登出</button>
-              <section className="mt-5 space-y-4 border-t border-[#dfd2bd] pt-4">
-                <h2 className="text-lg font-semibold">活動日曆（所有已登入人員可查看）</h2>
-                {loadingOverview && <p role="status">正在讀取測試活動…</p>}
-                {overviewError && <p role="alert" className="rounded-lg bg-red-50 p-2 text-sm text-red-800">{overviewError}</p>}
-                {overview && (
-                  <>
-                    <SharedActivityCalendar events={overview.calendarEvents} isAdmin={user.role === "admin"} />
-                    {user.role === "admin" && <QaAdminEvents events={overview.events} onUpdated={refreshOverview} />}
-                    {user.role === "admin" && <QaAdminRoomAssignments rooms={overview.eventRooms} onUpdated={refreshOverview} />}
-                    {user.role === "admin" && <QaAdminCleaners />}
-                    {user.role === "cleaner" && user.name.startsWith("【權限驗收】") && <QaChangePin onChanged={refresh} />}
-                    {user.role === "cleaner" && user.name.startsWith("【權限驗收】") && <QaPhotoUpload rooms={overview.eventRooms} onUploaded={refreshOverview} />}
-                    <QaRoomChecklist rooms={overview.eventRooms} editable={user.role === "cleaner"} onUpdated={refreshOverview} />
-                    <h2 className="pt-3 text-lg font-semibold">{user.role === "admin" ? "全部測試房間" : "我被分配的房間"}</h2>
-                    <div className="space-y-2">
-                      {overview.eventRooms.map(room => (
-                        <div key={room.id} className="rounded-xl border border-[#e2d8c8] bg-white p-3 text-sm">
-                          {room.building}棟　{room.floor}　{room.room_no} 房
-                          <span className="ml-2 text-xs text-[#847663]">指派：{room.assigned_to}</span>
-                        </div>
-                      ))}
-                      {overview.eventRooms.length === 0 && <p className="text-sm">沒有分配的測試房間</p>}
-                    </div>
-                    {user.role === "cleaner" && (
-                      <div className="space-y-2 rounded-xl border border-[#d5c8b1] bg-[#f8f2e8] p-3">
-                        <h3 className="font-semibold">房務人員操作權限驗收</h3>
-                        <p className="text-xs text-[#847663]">僅在虛構測試資料庫執行。第一次操作會變更一間自己的測試房間清潔狀態；另兩項應被伺服器拒絕。</p>
-                        <button disabled={qaBusy} className="w-full rounded-lg bg-[#8d8768] p-3 text-sm text-white disabled:opacity-50" onClick={() => void qaUpdateOwnRoom()}>測試更新自己的清潔項目（預期 200）</button>
-                        <button disabled={qaBusy} className="w-full rounded-lg border border-[#b9aa90] p-3 text-sm disabled:opacity-50" onClick={() => void qaAttemptOtherRoom()}>測試修改其他人房間（預期 403）</button>
-                        <button disabled={qaBusy} className="w-full rounded-lg border border-[#b9aa90] p-3 text-sm disabled:opacity-50" onClick={() => void qaCheckAdminOnly()}>測試讀取管理員名單（預期 403）</button>
-                        <button disabled={qaBusy} className="w-full rounded-lg border border-[#b9aa90] p-3 text-sm disabled:opacity-50" onClick={() => void qaCheckOccupantWrite()}>測試修改入住者資料（預期 403）</button>
-                        <button disabled={qaBusy} className="w-full rounded-lg border border-[#b9aa90] p-3 text-sm disabled:opacity-50" onClick={() => void qaCheckAdminWrite()}>測試越權新增活動（預期 403）</button>
-                        {qaResult && <p role="status" className="rounded-lg bg-white p-2 text-sm">{qaResult}</p>}
-                      </div>
-                    )}
-                  </>
+              {loadingOverview && <p role="status">正在讀取房務資料…</p>}
+              {overviewError && <p role="alert" className="rounded-xl bg-red-50 p-3 text-sm text-red-800">{overviewError}</p>}
+              {overview && <SecureHousekeepingDashboard
+                user={user}
+                expiry={expiry}
+                overview={overview}
+                onRefresh={refreshOverview}
+                onSignOut={logout}
+                onPinChanged={refresh}
+              >
+                {user.role === "cleaner" && (
+                  <div className="space-y-2 rounded-xl border border-[#d5c8b1] bg-[#f8f2e8] p-3">
+                    <h3 className="text-sm font-semibold">舊版權限回歸測試</h3>
+                    <button disabled={qaBusy} className="w-full rounded-lg border p-2 text-sm" onClick={() => void qaAttemptOtherRoom()}>禁止操作其他人的房間（預期 403）</button>
+                    <button disabled={qaBusy} className="w-full rounded-lg border p-2 text-sm" onClick={() => void qaCheckAdminOnly()}>禁止讀取管理員人員名單（預期 403）</button>
+                    <button disabled={qaBusy} className="w-full rounded-lg border p-2 text-sm" onClick={() => void qaCheckOccupantWrite()}>禁止修改入住者（預期 403）</button>
+                    <button disabled={qaBusy} className="w-full rounded-lg border p-2 text-sm" onClick={() => void qaCheckAdminWrite()}>禁止新增活動（預期 403）</button>
+                    {qaResult && <p role="status" className="rounded-lg bg-white p-2 text-sm">{qaResult}</p>}
+                  </div>
                 )}
-              </section>
+              </SecureHousekeepingDashboard>}
             </>
           )}
           {state === "signedOut" && (
