@@ -5,12 +5,13 @@ import QaAdminEvents from "./components/QaAdminEvents";
 import QaAdminRoomAssignments from "./components/QaAdminRoomAssignments";
 import QaAdminCleaners from "./components/QaAdminCleaners";
 import QaChangePin from "./components/QaChangePin";
+import QaPhotoUpload from "./components/QaPhotoUpload";
 import type { DbEvent } from "./lib/housekeepingApi";
 
 type AccountLabel = { id: string; name: string };
 type SessionState = "checking" | "signedOut" | "signedIn" | "error";
 type CalendarEvent = { id: number; date: string; name: string; requiresCleaning: boolean };
-type ChecklistItem = { id: string; done: boolean; photo: boolean; subItems: { id: string; done: boolean }[] };
+type ChecklistItem = { id: string; label?: string; requiredPhoto?: boolean; done: boolean; photo: boolean; subItems: { id: string; done: boolean }[] };
 type AssignedRoom = { id: number; event_id: number; building: string; floor: string; room_no: string; assigned_to: string; occupant: string; status: string; checklist: ChecklistItem[] };
 type Overview = { calendarEvents: CalendarEvent[]; eventRooms: AssignedRoom[]; events: DbEvent[] };
 
@@ -290,6 +291,7 @@ export default function AuthSandbox() {
                     {user.role === "admin" && <QaAdminRoomAssignments rooms={overview.eventRooms} onUpdated={refreshOverview} />}
                     {user.role === "admin" && <QaAdminCleaners />}
                     {user.role === "cleaner" && user.name.startsWith("【權限驗收】") && <QaChangePin onChanged={refresh} />}
+                    {user.role === "cleaner" && user.name.startsWith("【權限驗收】") && <QaPhotoUpload rooms={overview.eventRooms} onUploaded={refreshOverview} />}
                     <h2 className="pt-3 text-lg font-semibold">{user.role === "admin" ? "全部測試房間" : "我被分配的房間"}</h2>
                     <div className="space-y-2">
                       {overview.eventRooms.map(room => (
