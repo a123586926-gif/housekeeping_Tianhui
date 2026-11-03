@@ -1,0 +1,26 @@
+name: Housekeeping authentication branch checks
+
+on:
+  push:
+    branches:
+      - feature/remember-login-30d
+  workflow_dispatch:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - run: node --check server/auth-core.mjs
+      - run: node --check api/auth/login.mjs
+      - run: node --check api/auth/session.mjs
+      - run: node --check api/auth/logout.mjs
+      - run: node --test tests/auth-core.test.mjs
