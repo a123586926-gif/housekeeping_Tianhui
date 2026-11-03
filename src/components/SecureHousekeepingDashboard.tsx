@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { CalendarDays, ClipboardList, Home, Users, ShieldCheck, Camera, BarChart3, ArrowLeft } from "lucide-react";
+import { CalendarDays, ClipboardList, Home, Users, ShieldCheck, Camera } from "lucide-react";
 import SharedActivityCalendar from "./SharedActivityCalendar";
 import QaAdminEvents from "./QaAdminEvents";
 import QaAdminRoomAssignments from "./QaAdminRoomAssignments";
