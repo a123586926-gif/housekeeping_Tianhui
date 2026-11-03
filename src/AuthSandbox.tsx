@@ -1,13 +1,15 @@
 import { useCallback, useEffect, useState } from "react";
 import { readSession, signInWithPin, signOutSession, type AuthenticatedUser } from "./lib/authSession";
 import SharedActivityCalendar from "./components/SharedActivityCalendar";
+import QaAdminEvents from "./components/QaAdminEvents";
+import type { DbEvent } from "./lib/housekeepingApi";
 
 type AccountLabel = { id: string; name: string };
 type SessionState = "checking" | "signedOut" | "signedIn" | "error";
 type CalendarEvent = { id: number; date: string; name: string; requiresCleaning: boolean };
 type ChecklistItem = { id: string; done: boolean; photo: boolean; subItems: { id: string; done: boolean }[] };
 type AssignedRoom = { id: number; event_id: number; building: string; floor: string; room_no: string; assigned_to: string; status: string; checklist: ChecklistItem[] };
-type Overview = { calendarEvents: CalendarEvent[]; eventRooms: AssignedRoom[] };
+type Overview = { calendarEvents: CalendarEvent[]; eventRooms: AssignedRoom[]; events: DbEvent[] };
 
 async function patchChecklist(roomId: number, checklist: ChecklistItem[]): Promise<number> {
   const response = await fetch("/api/data/rooms", {
@@ -23,10 +25,10 @@ async function readOverview(): Promise<Overview> {
   const response = await fetch("/api/data/overview", { cache: "no-store", credentials: "same-origin" });
   if (!response.ok) throw new Error(`房務資料讀取失敗（HTTP ${response.status}）`);
   const data = await response.json() as Partial<Overview>;
-  if (!Array.isArray(data.calendarEvents) || !Array.isArray(data.eventRooms)) {
+  if (!Array.isArray(data.calendarEvents) || !Array.isArray(data.eventRooms) || !Array.isArray(data.events)) {
     throw new Error("測試資料格式不正確");
   }
-  return { calendarEvents: data.calendarEvents, eventRooms: data.eventRooms };
+  return { calendarEvents: data.calendarEvents, eventRooms: data.eventRooms, events: data.events };
 }
 
 async function readAccounts(): Promise<AccountLabel[]> {
@@ -111,6 +113,12 @@ export default function AuthSandbox() {
       });
     return () => { active = false; };
   }, []);
+
+  async function refreshOverview() {
+    const data = await readOverview();
+    setOverview(data);
+    setOverviewError("");
+  }
 
   async function qaUpdateOwnRoom() {
     if (!overview || !user || user.role !== "cleaner" || qaBusy) return;
@@ -275,6 +283,7 @@ export default function AuthSandbox() {
                 {overview && (
                   <>
                     <SharedActivityCalendar events={overview.calendarEvents} isAdmin={user.role === "admin"} />
+                    {user.role === "admin" && <QaAdminEvents events={overview.events} onUpdated={refreshOverview} />}
                     <h2 className="pt-3 text-lg font-semibold">{user.role === "admin" ? "全部測試房間" : "我被分配的房間"}</h2>
                     <div className="space-y-2">
                       {overview.eventRooms.map(room => (
