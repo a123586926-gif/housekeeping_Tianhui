@@ -9,7 +9,7 @@ type AccountLabel = { id: string; name: string };
 type SessionState = "checking" | "signedOut" | "signedIn" | "error";
 type CalendarEvent = { id: number; date: string; name: string; requiresCleaning: boolean };
 type ChecklistItem = { id: string; done: boolean; photo: boolean; subItems: { id: string; done: boolean }[] };
-type AssignedRoom = { id: number; event_id: number; building: string; floor: string; room_no: string; assigned_to: string; status: string; checklist: ChecklistItem[] };
+type AssignedRoom = { id: number; event_id: number; building: string; floor: string; room_no: string; assigned_to: string; occupant: string; status: string; checklist: ChecklistItem[] };
 type Overview = { calendarEvents: CalendarEvent[]; eventRooms: AssignedRoom[]; events: DbEvent[] };
 
 async function patchChecklist(roomId: number, checklist: ChecklistItem[]): Promise<number> {
