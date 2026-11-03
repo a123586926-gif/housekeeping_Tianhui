@@ -41,6 +41,21 @@ export default function QaPhotoUpload({ rooms, onUploaded }: {
       setMessage(cause instanceof Error ? cause.message : "照片檢視失敗");
     } finally {setBusy(false);}
   }
+  async function testDeniedView() {
+    if (busy) return;
+    setBusy(true);setMessage("");setViewUrl("");
+    try {
+      // Room 9301 is assigned to another test cleaner, not cleaner-1.
+      const response = await fetch("/api/data/rooms?roomId=9301&itemId=flooring", {
+        method:"GET", credentials:"same-origin", cache:"no-store",
+      });
+      setMessage(response.status === 403
+        ? "通過：伺服器拒絕查看其他人房間照片（HTTP 403）"
+        : `未通過：越權查看回傳 HTTP ${response.status}`);
+    } catch(cause) {
+      setMessage(cause instanceof Error ? cause.message : "無法完成權限測試");
+    } finally {setBusy(false);}
+  }
   async function upload() {
     if (!room || !item || !file || busy) return;
     if (file.size > 2*1024*1024 || !["image/jpeg","image/png","image/webp"].includes(file.type)) {
@@ -99,6 +114,10 @@ export default function QaPhotoUpload({ rooms, onUploaded }: {
     <button disabled={busy||!file||!item} onClick={()=>void upload()}
       className="w-full rounded-xl bg-[#8d8768] p-2.5 text-sm text-white disabled:opacity-50">
       {busy?"處理中…":item?.photo?"更換測試照片":"上傳測試照片"}
+    </button>
+    <button disabled={busy} onClick={()=>void testDeniedView()}
+      className="w-full rounded-xl border border-[#d8c9af] p-2.5 text-sm disabled:opacity-50">
+      驗證不能查看其他房務人員的房間照片（預期 403）
     </button>
     {viewUrl && <a href={viewUrl} target="_blank" rel="noopener noreferrer"
       className="block rounded-xl border border-[#8d8768] bg-white p-2.5 text-center text-sm text-[#75684f] underline">
