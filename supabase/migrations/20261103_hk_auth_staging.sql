@@ -1,6 +1,7 @@
 -- Housekeeping authentication staging migration.
 -- DO NOT run against production until backup, RLS audit and staged test are completed.
 -- New tables only; does not modify existing events, event_rooms, rooms, or cleaners.
+create schema if not exists extensions;
 create extension if not exists pgcrypto with schema extensions;
 
 create table if not exists public.hk_auth_accounts (
