@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { readSession, signInWithPin, signOutSession, type AuthenticatedUser } from "./lib/authSession";
+import SharedActivityCalendar from "./components/SharedActivityCalendar";
 
 type AccountLabel = { id: string; name: string };
 type SessionState = "checking" | "signedOut" | "signedIn" | "error";
@@ -273,16 +274,7 @@ export default function AuthSandbox() {
                 {overviewError && <p role="alert" className="rounded-lg bg-red-50 p-2 text-sm text-red-800">{overviewError}</p>}
                 {overview && (
                   <>
-                    <div className="space-y-2">
-                      {overview.calendarEvents.map(event => (
-                        <div key={event.id} className="flex items-start justify-between gap-2 rounded-xl border border-[#e2d8c8] bg-white p-3">
-                          <div><div className="text-sm font-semibold">{event.date}　{event.name}</div>
-                          <div className="text-xs text-[#847663]">僅供查看，不提供活動編輯</div></div>
-                          <span className="shrink-0 text-xs">{event.requiresCleaning ? "需清潔" : "不需清潔"}</span>
-                        </div>
-                      ))}
-                      {overview.calendarEvents.length === 0 && <p className="text-sm">尚無測試活動</p>}
-                    </div>
+                    <SharedActivityCalendar events={overview.calendarEvents} isAdmin={user.role === "admin"} />
                     <h2 className="pt-3 text-lg font-semibold">{user.role === "admin" ? "全部測試房間" : "我被分配的房間"}</h2>
                     <div className="space-y-2">
                       {overview.eventRooms.map(room => (
