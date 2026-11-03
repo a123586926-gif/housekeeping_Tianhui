@@ -40,7 +40,7 @@ export default async function handler(req, res) {
       id: event.id,
       date: event.event_date,
       name: event.event_name,
-      requiresCleaning: event.event_type === "活動",
+      requiresCleaning: event.event_type !== "一般活動",
     }));
 
     return json(res, 200, {
