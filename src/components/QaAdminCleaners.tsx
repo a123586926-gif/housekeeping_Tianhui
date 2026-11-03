@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { provisionQaPin } from "../lib/authSession";
 import {
   createQaCleaner, renameQaCleaner, disableQaCleaner,
   getCleaners, type CleanerInfo,
@@ -13,6 +14,8 @@ export default function QaAdminCleaners() {
   const [busy,setBusy] = useState(false);
   const [message,setMessage] = useState("");
   const [error,setError] = useState("");
+  const [provisionId,setProvisionId] = useState<number | null>(null);
+  const [newPin,setNewPin] = useState("");
 
   const refresh = useCallback(async () => {
     const data = await getCleaners();
@@ -64,6 +67,24 @@ export default function QaAdminCleaners() {
     } finally {setBusy(false);}
   }
 
+  async function provision() {
+    if (!provisionId || !/^[0-9]{8,32}$/.test(newPin) || busy) return;
+    setBusy(true);
+    setMessage("");
+    setError("");
+    try {
+      await provisionQaPin(provisionId,newPin);
+      setMessage(`測試身分 #${provisionId} 已設定新 PIN 並啟用；舊工作階段全部撤銷`);
+      setProvisionId(null);
+      await refresh();
+    } catch(cause) {
+      setError(cause instanceof Error ? cause.message : "PIN 設定失敗");
+    } finally {
+      setNewPin("");
+      setBusy(false);
+    }
+  }
+
   return (
     <section className="space-y-3 rounded-[24px] border border-[#d8c9af] bg-[#f9f4ec] p-4">
       <h2 className="text-[16px] font-semibold text-[#514735]">管理員｜測試房務人員管理</h2>
@@ -93,11 +114,30 @@ export default function QaAdminCleaners() {
           <div className="flex gap-2">
             <button disabled={busy} className="rounded-lg border px-3 py-1.5 text-xs"
               onClick={() => {setEditId(person.id);setName(person.name);setError("");}}>改名</button>
+            <button disabled={busy} onClick={() => { setProvisionId(person.id); setNewPin(""); setError(""); }}
+              className="rounded-lg border border-[#8d8768] px-3 py-1.5 text-xs text-[#75684f]">設定 PIN</button>
             <button disabled={busy} onClick={() => void disable(person)}
               className="rounded-lg border border-red-200 px-3 py-1.5 text-xs text-red-700 disabled:opacity-50">確認停用</button>
           </div>
         </div>
       ))}
+      {provisionId !== null && (
+        <div className="rounded-xl border border-[#d8c9af] bg-white p-3">
+          <p className="text-sm font-semibold">測試人員 #{provisionId}｜設定 PIN 並啟用</p>
+          <p className="my-1 text-xs text-[#847663]">只能設定標記為「{PREFIX}」的虛構帳號。請輸入全新 8–32 位數字 PIN，不要使用正式 PIN。</p>
+          <input type="password" inputMode="numeric" autoComplete="new-password"
+            value={newPin} onChange={event => setNewPin(event.target.value)}
+            className="mt-2 w-full rounded-xl border border-[#ddd4c6] bg-white p-2.5"
+            placeholder="新測試 PIN（8–32 位數字）" aria-label="測試人員新 PIN"/>
+          <div className="mt-2 flex gap-2">
+            <button disabled={busy || !/^[0-9]{8,32}$/.test(newPin)}
+              onClick={() => void provision()}
+              className="flex-1 rounded-xl bg-[#8d8768] p-2 text-xs text-white disabled:opacity-50">設定並啟用</button>
+            <button disabled={busy} onClick={() => {setProvisionId(null);setNewPin("");}}
+              className="rounded-xl border px-3 text-xs">取消</button>
+          </div>
+        </div>
+      )}
       {message && <p role="status" className="rounded-xl bg-white p-2 text-sm">{message}</p>}
       {error && <p role="alert" className="rounded-xl border border-red-200 bg-white p-2 text-sm text-red-700">{error}</p>}
     </section>
