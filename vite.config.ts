@@ -35,9 +35,21 @@ export default defineConfig(({ mode }) => {
         transformIndexHtml: {
           order: 'pre' as const,
           handler(html: string) {
+            // The isolated feature branch already has a dedicated sandbox
+            // entry in index.html. Treat that as valid rather than failing
+            // when build metadata starts working as intended.
+            if (html.includes('/src/authSandboxMain.tsx')) {
+              if (vercelEnvironment === 'production') {
+                throw new Error('Auth sandbox HTML must not ship to production')
+              }
+              if (vercelEnvironment === 'preview' && !isFeatureBranch) {
+                throw new Error('Auth sandbox HTML is limited to the feature branch')
+              }
+              return html
+            }
             if (!sandbox) return html
             if (!html.includes('/src/main.tsx')) {
-              throw new Error('Original HTML entry missing, cannot switch to isolated auth sandbox')
+              throw new Error('Expected either original or sandbox HTML entry')
             }
             return html
               .replace('/src/main.tsx', '/src/authSandboxMain.tsx')
