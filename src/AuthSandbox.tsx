@@ -233,10 +233,14 @@ export default function AuthSandbox() {
 
   return (
     <main className="min-h-screen bg-[#f1ebe1] px-4 py-10 text-[#514735]">
-      <section className="mx-auto max-w-2xl rounded-3xl border border-[#dfd2bd] bg-[#fffaf2] p-6 shadow-lg">
-        <h1 className="text-xl font-bold">天惠會館｜30 天登入驗證</h1>
-        <p className="mt-2 text-sm text-[#847663]">獨立測試資料庫：驗證 30 天登入、共用日曆與房間讀取權限。</p>
-        <p className="mt-3 rounded-xl bg-[#efe3c7] px-3 py-2 text-sm">測試模式：不會修改正式房務資料</p>
+      <section className={state === "signedIn" ? "mx-auto max-w-4xl" : "mx-auto max-w-2xl rounded-3xl border border-[#dfd2bd] bg-[#fffaf2] p-6 shadow-lg"}>
+        {state !== "signedIn" && (
+          <>
+            <h1 className="text-xl font-bold">天惠會館｜安全測試版登入</h1>
+            <p className="mt-2 text-sm text-[#847663]">30 天工作階段，僅連接獨立測試資料庫。</p>
+            <p className="mt-3 rounded-xl bg-[#efe3c7] px-3 py-2 text-sm">測試模式：不會修改正式房務資料</p>
+          </>
+        )}
         <div className="mt-5 space-y-3">
           {state === "checking" && <p role="status">正在確認登入狀態…</p>}
           {state === "error" && (
