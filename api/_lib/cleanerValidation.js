@@ -2,8 +2,9 @@
 // The UI continues to select an account and enter a PIN; credentials are never returned.
 export function validCleanerName(value) {
   if (typeof value !== "string") return false;
+  if (/[\u0000-\u001f\u007f]/.test(value)) return false;
   const name = value.trim();
-  return name.length >= 1 && name.length <= 80 && !/[\u0000-\u001f\u007f]/.test(name);
+  return name.length >= 1 && name.length <= 80;
 }
 
 // Keep existing PIN login format (digits) but disallow the weakest legacy PINs.
