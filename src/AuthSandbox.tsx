@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { readSession, signInWithPin, signOutSession, type AuthenticatedUser } from "./lib/authSession";
 import SharedActivityCalendar from "./components/SharedActivityCalendar";
 import QaAdminEvents from "./components/QaAdminEvents";
+import QaAdminRoomAssignments from "./components/QaAdminRoomAssignments";
 import type { DbEvent } from "./lib/housekeepingApi";
 
 type AccountLabel = { id: string; name: string };
@@ -284,6 +285,7 @@ export default function AuthSandbox() {
                   <>
                     <SharedActivityCalendar events={overview.calendarEvents} isAdmin={user.role === "admin"} />
                     {user.role === "admin" && <QaAdminEvents events={overview.events} onUpdated={refreshOverview} />}
+                    {user.role === "admin" && <QaAdminRoomAssignments rooms={overview.eventRooms} onUpdated={refreshOverview} />}
                     <h2 className="pt-3 text-lg font-semibold">{user.role === "admin" ? "全部測試房間" : "我被分配的房間"}</h2>
                     <div className="space-y-2">
                       {overview.eventRooms.map(room => (
