@@ -29,12 +29,25 @@ export default async function handler(req, res) {
     const { data: eventRooms, error: roomsError } = await roomsQuery;
     if (roomsError) throw roomsError;
 
-    // Cleaners only see event records associated with their own room assignments.
+    // Every signed-in cleaner may view the shared activity schedule, even if
+    // not assigned a room for that event. Sensitive notes and room data remain
+    // restricted. The full events list still follows room assignment scope.
+    const assignedEventIds = new Set((eventRooms || []).map(room => room.event_id));
     const permittedEvents = session.user.role === "admin"
       ? events
-      : events.filter(e => new Set((eventRooms || []).map(room => room.event_id)).has(e.id));
+      : events.filter(e => assignedEventIds.has(e.id));
+    const calendarEvents = (events || []).map(event => ({
+      id: event.id,
+      date: event.event_date,
+      name: event.event_name,
+      requiresCleaning: event.event_type === "活動",
+    }));
 
-    return json(res, 200, { events: permittedEvents || [], eventRooms: eventRooms || [] });
+    return json(res, 200, {
+      events: permittedEvents || [],
+      eventRooms: eventRooms || [],
+      calendarEvents,
+    });
   } catch {
     return json(res, 503, { error: "Unable to retrieve room data" });
   }
