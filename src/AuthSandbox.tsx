@@ -119,7 +119,12 @@ export default function AuthSandbox() {
     setQaBusy(true);
     setQaResult("");
     try {
-      const status = await patchChecklist(otherRoomId, dummyChecklist);
+      const attempt = await fetch("/api/data/rooms", {
+        method:"PATCH", credentials:"same-origin",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({roomId:otherRoomId,changes:{checklist:dummyChecklist}}),
+      });
+      const status = attempt.status;
       setQaResult(status === 403
         ? "通過：伺服器拒絕操作其他人房間（HTTP 403）"
         : `未通過：越權請求回傳 HTTP ${status}，請勿上線`);
