@@ -14,6 +14,32 @@ export default function QaPhotoUpload({ rooms, onUploaded }: {
   const room = rooms.find(r=>String(r.id)===roomId);
   const items = room?.checklist?.filter(i=>i.requiredPhoto===true)||[];
   const item = items.find(i=>i.id===itemId);
+  async function view() {
+    if (!room || !item || busy) return;
+    setBusy(true);
+    setMessage("");
+    try {
+      const query = new URLSearchParams({roomId:String(room.id),itemId:item.id});
+      const response = await fetch(`/api/data/rooms?${query.toString()}`, {
+        method:"GET", credentials:"same-origin", cache:"no-store",
+      });
+      if (!response.ok) {
+        setMessage(`無法查看照片（HTTP ${response.status}）`);
+        return;
+      }
+      const data: unknown = await response.json();
+      if (!data || typeof data !== "object" || !("signedUrl" in data) ||
+          typeof data.signedUrl !== "string" ||
+          !data.signedUrl.startsWith("https://")) {
+        setMessage("照片連結格式不正確");
+        return;
+      }
+      window.open(data.signedUrl,"_blank","noopener,noreferrer");
+      setMessage("已取得僅短暫有效的私人照片檢視連結");
+    } catch(cause) {
+      setMessage(cause instanceof Error ? cause.message : "照片檢視失敗");
+    } finally {setBusy(false);}
+  }
   async function upload() {
     if (!room || !item || !file || busy) return;
     if (file.size > 2*1024*1024 || !["image/jpeg","image/png","image/webp"].includes(file.type)) {
@@ -65,9 +91,13 @@ export default function QaPhotoUpload({ rooms, onUploaded }: {
       <input type="file" accept="image/jpeg,image/png,image/webp" onChange={e=>setFile(e.target.files?.[0]||null)}
         className="mt-1 block w-full text-sm"/>
     </label>
+    <button disabled={busy||!item||!item.photo} onClick={()=>void view()}
+      className="w-full rounded-xl border border-[#8d8768] p-2.5 text-sm text-[#75684f] disabled:opacity-50">
+      查看已上傳私人照片（短效連結）
+    </button>
     <button disabled={busy||!file||!item} onClick={()=>void upload()}
       className="w-full rounded-xl bg-[#8d8768] p-2.5 text-sm text-white disabled:opacity-50">
-      {busy?"正在安全上傳…":"上傳測試照片"}
+      {busy?"處理中…":item?.photo?"更換測試照片":"上傳測試照片"}
     </button>
     {message&&<p role="status" className="rounded-xl bg-white p-2 text-sm">{message}</p>}
   </section>;
