@@ -88,3 +88,17 @@ export async function signInWithPin(userId: string, pin: string): Promise<Sessio
 export async function signOutSession(): Promise<void> {
   await request<unknown>("/api/auth/logout", { method: "POST" });
 }
+
+/** Only admins may provision explicitly marked QA identities. PIN is never persisted. */
+export async function provisionQaPin(cleanerId: number, newPin: string): Promise<void> {
+  await request<{ok:boolean}>("/api/auth/pin", {
+    method: "POST", body: JSON.stringify({ cleanerId, newPin }),
+  });
+}
+
+/** Requires existing PIN; on success all sessions are revoked and the cookie cleared. */
+export async function changeOwnPin(oldPin: string, newPin: string): Promise<void> {
+  await request<{ok:boolean,signedOut:boolean}>("/api/auth/pin", {
+    method: "PATCH", body: JSON.stringify({ oldPin, newPin }),
+  });
+}
