@@ -151,7 +151,11 @@ export function createRoomsHandler({
     if (!session) return json(res, 401, { error: "Not authenticated" });
     const { role, id: userId } = session.user;
     const cleanerId = role === "cleaner" ? Number(userId.slice("cleaner-".length)) : null;
-    if (role !== "admin" && role !== "cleaner") return json(res, 403, { error: "Forbidden" });
+    if ((role === "admin" && userId !== "admin") ||
+        (role === "cleaner" && (typeof userId !== "string" ||
+        !/^cleaner-[1-9][0-9]*$/.test(userId) || !Number.isSafeInteger(cleanerId))) ||
+        (role !== "admin" && role !== "cleaner"))
+      return json(res, 403, { error: "Invalid account" });
     const db = dbFactory();
     if (req.method === "PUT" || req.method === "DELETE") {
       if (role !== "admin") return json(res,403,{error:"Admin required"});
