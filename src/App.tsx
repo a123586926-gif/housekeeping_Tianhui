@@ -14,7 +14,10 @@ import {
   Users,
   WandSparkles,
 } from "lucide-react";
-import { supabase } from "./lib/supabase";
+import { readSession, signInWithPin, signOutSession, provisionQaPin } from "./lib/authSession";
+import { getBusinessOverview, getCleaners, createActivity, editActivity, deleteActivity,
+  createQaRoom, deleteQaRoom, updateRoomChecklist, updateRoomAdministration,
+  createQaCleaner, renameQaCleaner } from "./lib/housekeepingApi";
 
 type Role = "cleaner" | "admin";
 type RoomStatus = "pending" | "in_progress" | "completed";
@@ -132,13 +135,6 @@ type PhotoAction =
 
 const FLOOR_OPTIONS: FloorType[] = ["2F", "3F", "5F", "6F", "7F", "RF"];
 const ROOM_NUMBER_SUFFIXES = ["1", "2", "3", "5", "6", "7", "8"];
-
-const adminUser: User = {
-  id: "admin",
-  name: "admin",
-  role: "admin",
-  pin: "885288",
-};
 
 const checklistTemplate = [
   {
@@ -377,6 +373,8 @@ function SectionTitle({
 
 export default function App() {
   const [staffUsers, setStaffUsers] = useState<User[]>([]);
+  const [loginUsers,setLoginUsers] = useState<User[]>([]);
+  const [authBusy,setAuthBusy] = useState(false);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [showLogin, setShowLogin] = useState(true);
   const [selectedUserId, setSelectedUserId] = useState("");
@@ -430,81 +428,42 @@ export default function App() {
   }, []);
 
   async function loadCleanersFromSupabase() {
-    const { data, error } = await supabase
-      .from("cleaners")
-      .select("id, name, pin, is_active, created_at")
-      .eq("is_active", true)
-      .order("id", { ascending: true });
-
-    if (error) {
-      console.error("讀取 cleaners 失敗：", error);
-      return;
+    try {
+      const rows = await getCleaners();
+      setStaffUsers(rows.filter(row=>row.is_active).map(row=>({
+        id:`cleaner-${row.id}`,dbId:row.id,name:row.name,role:"cleaner",pin:"",
+      })));
+    } catch (error) {
+      console.error("無法取得房務人員清單（僅管理員）",error);
     }
-
-    const mapped: User[] = ((data || []) as DbCleaner[]).map((item) => ({
-      id: `cleaner-${item.id}`,
-      dbId: item.id,
-      name: item.name,
-      pin: item.pin,
-      role: "cleaner",
-    }));
-
-    setStaffUsers(mapped);
   }
 
   function normalizeDbChecklist(input: unknown): ChecklistItem[] {
-    if (!Array.isArray(input) || input.length === 0) {
-      return buildChecklist();
-    }
-
-    const fallback = buildChecklist();
-
-    return fallback.map((fallbackItem) => {
-      const savedItem = (input as any[]).find((x) => x?.id === fallbackItem.id);
-      if (!savedItem) return fallbackItem;
-
-      return {
-        ...fallbackItem,
-        done: Boolean(savedItem.done),
-        photo: Boolean(savedItem.photo),
-        subItems: fallbackItem.subItems.map((fallbackSub) => {
-          const savedSub = Array.isArray(savedItem.subItems)
-            ? savedItem.subItems.find((x: any) => x?.id === fallbackSub.id)
-            : null;
-
-          return {
-            ...fallbackSub,
-            done: Boolean(savedSub?.done),
-          };
-        }),
-      };
-    });
+    if (!Array.isArray(input) || input.length === 0) return buildChecklist();
+    const defaults=buildChecklist();
+    return input.filter((x):x is Record<string,any> => !!x && typeof x==="object" && typeof x.id==="string")
+      .map(saved=>{
+        const base=defaults.find(x=>x.id===saved.id);
+        return {
+          id:saved.id,
+          label:base?.label||String(saved.label||saved.id),
+          description:base?.description||String(saved.description||""),
+          requiredPhoto:base?.requiredPhoto??Boolean(saved.requiredPhoto),
+          done:Boolean(saved.done),photo:Boolean(saved.photo),
+          subItems:Array.isArray(saved.subItems)?saved.subItems.map((sub:any)=>({
+            id:String(sub.id),
+            label:base?.subItems.find(s=>s.id===sub.id)?.label||String(sub.label||sub.id),
+            done:Boolean(sub.done),
+          })):[],
+        };
+      });
   }
 
   async function loadEventsFromSupabase() {
-    const { data: eventsData, error: eventsError } = await supabase
-      .from("events")
-      .select("id, event_date, event_name, event_type, status, notes")
-      .order("event_date", { ascending: true })
-      .order("id", { ascending: true });
-
-    if (eventsError) {
-      console.error("讀取 events 失敗：", eventsError);
-      return;
-    }
-
-    const { data: roomsData, error: roomsError } = await supabase
-      .from("event_rooms")
-      .select(
-        "id, event_id, building, floor, room_no, assigned_to, occupant, progress, status, checklist, room_id, cleaner_id, guest_name, stay_status, cleaning_status, cleaning_progress, floor_photo, bathroom_photo, final_photo"
-      )
-      .order("id", { ascending: true });
-
-    if (roomsError) {
-      console.error("讀取 event_rooms 失敗：", roomsError);
-      return;
-    }
-
+    try {
+      const data = await getBusinessOverview();
+      const eventsData = data.events;
+      const roomsData = data.eventRooms;
     const events = (eventsData || []) as DbEvent[];
     const eventRooms = (roomsData || []) as DbEventRoom[];
 
@@ -567,15 +526,42 @@ export default function App() {
     setSelectedActivityId((prev) =>
       sorted.some((item) => item.id === prev) ? prev : sorted[0]?.id ?? ""
     );
+    } catch (error) {
+      console.error("房務資料讀取失敗",error);
+      window.alert("目前無法安全讀取房務資料，請稍後重新登入");
+    }
   }
 
   useEffect(() => {
-    loadCleanersFromSupabase();
-    loadEventsFromSupabase();
+    let active=true;
+    async function restore(){
+      try {
+        const response=await fetch("/api/auth/accounts",{credentials:"same-origin",cache:"no-store"});
+        if(!response.ok)throw new Error("帳號清單無法載入");
+        const directory=await response.json() as {users:Array<{id:string;name:string}>};
+        if(active)setLoginUsers(directory.users.map(row=>({
+          id:row.id,name:row.name,role:row.id==="admin"?"admin":"cleaner",pin:"",
+        })));
+        const session=await readSession();
+        if(active&&session.authenticated){
+          setCurrentUser({...session.user,pin:""});
+          setShowLogin(false);
+          setViewMode(session.user.role==="admin"?"admin":"staff");
+        }
+      } catch(error) {if(active) console.error("工作階段讀取失敗",error);}
+    }
+    void restore();
+    return ()=>{active=false;};
   }, []);
 
+  useEffect(()=>{
+    if(!currentUser){setActivities([]);setStaffUsers([]);return;}
+    void loadEventsFromSupabase();
+    if(currentUser.role==="admin")void loadCleanersFromSupabase();
+  },[currentUser?.id]);
+
   const role = currentUser?.role ?? null;
-  const loginUsers = useMemo(() => [adminUser, ...staffUsers], [staffUsers]);
+
 
   const sortedActivities = useMemo(
     () => sortActivitiesByClosestDate(activities, today),
