@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { buildDefaultEventRooms } from "../api/_lib/defaultRooms.js";
 import { validateEvent } from "../api/_lib/validation.js";
+import { assertQaEnvironment, QA_PROJECT_REF } from "../api/_lib/qaGuard.js";
 
 const sql=readFileSync(new URL("../supabase/migrations/20261103_hk_event_transactions_staging.sql",import.meta.url),"utf8");
 test("staging SQL has exactly one complete event create and delete function",()=>{
@@ -33,4 +34,12 @@ test("staging migration is explicitly non-production and inserts rooms atomicall
   assert.match(sql,/INSERT INTO public\.event_rooms/);
   assert.match(sql,/SECURITY INVOKER/g);
   assert.doesNotMatch(sql,/SECURITY DEFINER/);
+});
+
+test("staging service-role guard fails closed against production environment and database",()=>{
+ const sandboxUrl="https://"+QA_PROJECT_REF+".supabase.co";
+ assert.equal(assertQaEnvironment({vercelEnv:"preview",supabaseUrl:sandboxUrl}),true);
+ assert.throws(()=>assertQaEnvironment({vercelEnv:"production",supabaseUrl:sandboxUrl}),/cannot run in Vercel Production/);
+ assert.throws(()=>assertQaEnvironment({vercelEnv:"preview",supabaseUrl:"https://xmdznhkkvtohwxkahisr.supabase.co"}),/not connected to the allowlisted/);
+ assert.throws(()=>assertQaEnvironment({vercelEnv:"preview",supabaseUrl:"not a URL"}),/Invalid QA Supabase URL/);
 });
