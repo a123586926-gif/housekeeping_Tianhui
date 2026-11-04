@@ -83,7 +83,7 @@ async function uploadPhoto(req, res, db, session) {
   const body = req.body || {};
   const roomId = validId(body.roomId);
   const itemId = body.itemId;
-  if (!roomId || typeof itemId !== "string" || !/^[a-z0-9_-]{1,40}$/.test(itemId))
+  if (!roomId || typeof itemId !== "string" || !Object.hasOwn(PHOTO_FIELDS, itemId))
     return bad(res);
   const bytes = decodePhoto(body.base64, body.mime);
   if (!bytes) return json(res, 400, { error: "Only valid JPEG, PNG or WebP under 2 MB allowed" });
@@ -109,7 +109,7 @@ async function uploadPhoto(req, res, db, session) {
   });
   if (uploadError) return json(res, 503, { error: "Photo storage unavailable" });
   const nextChecklist = items.map((item,i) => i === itemIndex ? { ...item, photo:true } : item);
-  const field = PHOTO_FIELDS[itemId] || "final_photo";
+  const field = PHOTO_FIELDS[itemId];
   const previousPhoto = room[field];
   let mutation = db.from("event_rooms").update({
     checklist: nextChecklist, [field]: photoPath,
