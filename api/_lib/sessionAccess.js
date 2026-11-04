@@ -3,11 +3,11 @@
  * Does not read tokens, PINs, cookies or secrets.
  */
 export function verifiedLoginIdentity(data, requestedUserId) {
-  return typeof requestedUserId === "string" &&
+  return Boolean(typeof requestedUserId === "string" &&
     /^(admin|cleaner-[1-9][0-9]*)$/.test(requestedUserId) &&
     Array.isArray(data) && data.length === 1 &&
     data[0] && typeof data[0] === "object" &&
-    data[0].verified_user_id === requestedUserId;
+    data[0].verified_user_id === requestedUserId);
 }
 
 export function verifiedSessionPrincipal(sessionRow, accountRow, at=Date.now()) {
