@@ -949,7 +949,8 @@ export default function App() {
     if(!activityName.trim()||!activityDate.trim()){window.alert("請輸入活動名稱與日期");return;}
     const input={
       event_date:activityDate,
-      event_name:activityName.trim(),
+      event_name:activityModalMode==="add" && !activityName.trim().startsWith("【權限驗收】")
+        ? "【權限驗收】"+activityName.trim() : activityName.trim(),
       event_type:(activityNeedsCleaning?"活動":"一般活動") as "活動"|"一般活動",
       notes:activityContact.trim(),
     };
@@ -2294,6 +2295,7 @@ export default function App() {
             <div className="text-lg font-semibold text-[#4f4435]">
               {activityModalMode === "edit" ? "修改活動" : "新增活動"}
             </div>
+            <p className="mt-2 text-[11px] text-[#847663]">獨立測試環境：新活動將自動加上「【權限驗收】」標記；原有測試活動 A／B／C 可以調整日期與名稱。</p>
 
             <div className="mt-3 space-y-3">
               <input
