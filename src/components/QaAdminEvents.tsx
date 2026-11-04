@@ -28,8 +28,16 @@ export default function QaAdminEvents({ events, onUpdated }: Props) {
   const [editingId, setEditingId] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
+  const [search, setSearch] = useState("");
+  const [category, setCategory] = useState("all");
 
-  const ownEvents = events.filter(event => event.event_name.startsWith(TAG));
+  const ordered = events.slice().sort((a,b) =>
+    a.event_date.localeCompare(b.event_date) || a.id - b.id);
+  const filtered = ordered.filter(event =>
+    (category === "all" || (category === "cleaning" ? event.event_type !== "一般活動" : event.event_type === "一般活動")) &&
+    (!search.trim() || [event.event_name,event.event_date,event.notes||""].some(s=>s.includes(search.trim())))
+  );
+  const ownEvents = filtered.filter(event => event.event_name.startsWith(TAG));
   const canSave = input.event_name.trim().startsWith(TAG) &&
     input.event_name.trim().length <= 120 &&
     /^\d{4}-\d{2}-\d{2}$/.test(input.event_date);
@@ -109,6 +117,11 @@ export default function QaAdminEvents({ events, onUpdated }: Props) {
         <input value={input.event_name} onChange={event => setInput(old => ({...old,event_name:event.target.value}))}
           maxLength={120} className="mt-1 w-full rounded-xl border border-[#ddd4c6] bg-white p-2.5"/>
       </label>
+      <label className="block text-sm">活動聯絡資訊／備註（限虛構測試資料）
+        <textarea value={input.notes} maxLength={2000} rows={2}
+          onChange={event => setInput(old => ({...old,notes:event.target.value}))}
+          className="mt-1 w-full rounded-xl border border-[#ddd4c6] bg-white p-2.5"/>
+      </label>
       <p className="text-xs text-[#847663]">活動名稱必須以「{TAG}」開頭，避免將一般活動誤認成測試資料。修改活動種類不會自動新增或移除既有房間。</p>
       <div className="flex flex-wrap gap-2">
         <button disabled={busy || !canSave} onClick={() => void save()}
@@ -119,7 +132,29 @@ export default function QaAdminEvents({ events, onUpdated }: Props) {
           onClick={() => {setEditingId(null);setInput(freshInput());setMessage("");}}>取消修改</button>}
       </div>
       <div className="space-y-2 border-t border-[#e2d8c8] pt-3">
-        <h3 className="text-sm font-semibold">可修改／刪除的測試活動：{ownEvents.length} 筆</h3>
+        <h3 className="text-sm font-semibold">全部活動（依日期排序）</h3>
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+          <input type="search" value={search} onChange={e=>setSearch(e.target.value)}
+            placeholder="搜尋日期、活動名稱或備註" className="rounded-xl border bg-white p-2.5 text-sm"/>
+          <select value={category} onChange={e=>setCategory(e.target.value)} className="rounded-xl border bg-white p-2.5 text-sm">
+            <option value="all">全部活動</option>
+            <option value="cleaning">需要清潔</option>
+            <option value="general">一般活動</option>
+          </select>
+        </div>
+        <p className="text-xs text-[#847663]">找到 {filtered.length} 筆活動。非測試活動僅顯示，無法修改或刪除。</p>
+        <div className="max-h-64 space-y-1.5 overflow-y-auto">
+          {filtered.map(event=><div key={event.id}
+            className="flex justify-between gap-2 rounded-lg border border-[#e2d8c8] bg-white px-3 py-2 text-xs">
+            <div className="min-w-0">
+              <strong className="break-words">{event.event_name}</strong>
+              <p className="mt-0.5 text-[#847663]">{event.event_date} · {event.event_type} · {event.status||"未註記"}</p>
+            </div>
+            <span className="shrink-0 text-[#847663]">{event.event_name.startsWith(TAG)?"測試活動":"唯讀"}</span>
+          </div>)}
+          {filtered.length===0&&<p className="text-xs text-[#847663]">沒有符合條件的活動。</p>}
+        </div>
+        <h3 className="text-sm font-semibold">符合目前篩選條件、可修改／刪除的測試活動：{ownEvents.length} 筆</h3>
         {ownEvents.length === 0 && <p className="text-xs text-[#847663]">尚未新增帶標記的測試活動。</p>}
         {ownEvents.map(event => <div key={event.id} className="flex flex-wrap items-center justify-between gap-2 rounded-xl border bg-white p-2.5">
           <div className="text-sm"><strong>{event.event_name}</strong><div className="text-xs text-[#847663]">{event.event_date} · {event.event_type}</div></div>
