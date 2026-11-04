@@ -756,10 +756,10 @@ export default function App() {
   }, [selectedActivity, activitySelectedBuilding, activitySelectedFloor]);
 
   const selectedPrintCount = useMemo(() => {
-    return filteredActivityRooms.filter((room) =>
-      selectedPrintRoomIds.includes(room.id)
-    ).length;
-  }, [filteredActivityRooms, selectedPrintRoomIds]);
+    // Selection belongs to the activity, not the current building/floor filter.
+    return selectedActivity?.rooms.filter(room =>
+      selectedPrintRoomIds.includes(room.id)).length ?? 0;
+  }, [selectedActivity, selectedPrintRoomIds]);
 
   const calendarDays = useMemo(() => buildCalendarDays(calendarMonth), [calendarMonth]);
 
@@ -1357,7 +1357,10 @@ export default function App() {
   }
 
   function selectAllPrintRooms() {
-    setSelectedPrintRoomIds(filteredActivityRooms.map((room) => room.id));
+    // Add visible rooms without discarding selections from another floor.
+    setSelectedPrintRoomIds(prev => Array.from(new Set([
+      ...prev, ...filteredActivityRooms.map(room => room.id),
+    ])));
   }
 
   function clearAllPrintRooms() {
@@ -1370,7 +1373,7 @@ export default function App() {
       return;
     }
 
-    const selectedRooms = filteredActivityRooms.filter((room) =>
+    const selectedRooms = selectedActivity.rooms.filter(room =>
       selectedPrintRoomIds.includes(room.id)
     );
 
@@ -2043,7 +2046,7 @@ export default function App() {
                               {roomLabel(room)}
                             </div>
 
-                            <div className="mt-1 grid grid-cols-[24px_1fr_88px_66px_34px_30px] items-start gap-2">
+                            <div className="mt-1 grid grid-cols-[24px_minmax(0,1fr)_auto] items-start gap-2 sm:grid-cols-[24px_minmax(0,1fr)_96px_64px_36px_30px]">
                               <div className="pt-3">
                                 <input
                                   type="checkbox"
@@ -2065,7 +2068,7 @@ export default function App() {
                                     const next={...prev};delete next[room.id];return next;
                                   });
                                 }}
-                                className="w-full resize-none overflow-hidden rounded-[14px] border border-[#ddd4c6] bg-[#fdfaf6] px-3 py-2 text-[12px] leading-5 text-[#5f5444] focus:outline-none"
+                                className="min-w-0 w-full resize-none overflow-hidden rounded-[14px] border border-[#ddd4c6] bg-[#fdfaf6] px-3 py-2 text-[12px] leading-5 text-[#5f5444] focus:outline-none"
                                 rows={Math.max(1, splitGuestLines(occupantDrafts[room.id] ?? room.occupant).length || 1)}
                                 placeholder="住宿人"
                               />
@@ -2077,7 +2080,7 @@ export default function App() {
                                     assignedCleanerId: e.target.value ? Number(e.target.value) : null,
                                   })
                                 }
-                                className="h-[46px] rounded-[14px] border border-[#ddd4c6] bg-[#fdfaf6] px-2 text-[12px] text-[#5f5444] focus:outline-none"
+                                className="col-start-2 min-w-0 h-[46px] rounded-[14px] border border-[#ddd4c6] bg-[#fdfaf6] px-2 text-[12px] text-[#5f5444] focus:outline-none sm:col-start-auto"
                               >
                                 <option value="">未分配</option>
                                 {staffUsers.map((user) => (
