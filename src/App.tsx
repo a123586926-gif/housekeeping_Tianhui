@@ -388,6 +388,8 @@ export default function App() {
   const [expandedRoomId, setExpandedRoomId] = useState("");
   const checklistSavingRooms = useRef(new Set<string>());
   const [savingChecklistRoomIds, setSavingChecklistRoomIds] = useState<string[]>([]);
+  const roomAdministrationSaving = useRef(new Set<string>());
+  const [savingRoomAdministrationIds,setSavingRoomAdministrationIds] = useState<string[]>([]);
   const [expandedStaffName, setExpandedStaffName] = useState("");
   const [calendarMonth, setCalendarMonth] = useState(new Date());
   const [calendarSheetDate, setCalendarSheetDate] = useState("");
@@ -883,13 +885,20 @@ export default function App() {
     return found?.dbId ?? null;
   }
 
-  async function updateRoomField(activityId:string,roomId:string,updates:Partial<Room>) {
+  async function updateRoomField(activityId:string,roomId:string,updates:Partial<Room>):Promise<boolean> {
     const activity=activities.find(a=>a.id===activityId);
     const room=activity?.rooms.find(r=>r.id===roomId);
-    if(!room?.dbId)return;
+    if(!room?.dbId)return false;
     const savingChecklist=updates.checklist!==undefined;
+    const savingAdministration=updates.assignedTo!==undefined ||
+      updates.assignedCleanerId!==undefined || updates.occupant!==undefined;
+    if(savingAdministration){
+      if(roomAdministrationSaving.current.has(roomId))return false;
+      roomAdministrationSaving.current.add(roomId);
+      setSavingRoomAdministrationIds(prev=>[...prev,roomId]);
+    }
     if(savingChecklist){
-      if(checklistSavingRooms.current.has(roomId))return;
+      if(checklistSavingRooms.current.has(roomId))return false;
       checklistSavingRooms.current.add(roomId);
       setSavingChecklistRoomIds(prev=>[...prev,roomId]);
     }
@@ -915,10 +924,16 @@ export default function App() {
         });
       }
       await loadEventsFromSupabase();
+      return true;
     }catch(error) {
       window.alert(error instanceof Error?error.message:"房間資料儲存失敗");
       await loadEventsFromSupabase();
+      return false;
     }finally{
+      if(savingAdministration){
+        roomAdministrationSaving.current.delete(roomId);
+        setSavingRoomAdministrationIds(prev=>prev.filter(id=>id!==roomId));
+      }
       if(savingChecklist){
         checklistSavingRooms.current.delete(roomId);
         setSavingChecklistRoomIds(prev=>prev.filter(id=>id!==roomId));
@@ -2067,14 +2082,26 @@ export default function App() {
 
                               <textarea
                                 value={occupantDrafts[room.id] ?? room.occupant}
+                                disabled={savingRoomAdministrationIds.includes(room.id)}
                                 onChange={(e) => setOccupantDrafts(prev=>({...prev,[room.id]:e.target.value}))}
                                 onBlur={() => {
                                   const draft=occupantDrafts[room.id];
-                                  if(draft!==undefined && draft!==room.occupant)
-                                    void updateRoomField(selectedActivity.id,room.id,{occupant:draft});
-                                  setOccupantDrafts(prev=>{
-                                    const next={...prev};delete next[room.id];return next;
-                                  });
+                                  if(draft===undefined)return;
+                                  if(draft===room.occupant){
+                                    setOccupantDrafts(prev=>{
+                                      const next={...prev};delete next[room.id];return next;
+                                    });
+                                    return;
+                                  }
+                                  // Keep the draft until the server confirms the write.
+                                  void updateRoomField(selectedActivity.id,room.id,{occupant:draft})
+                                    .then(saved=>{
+                                      if(saved)setOccupantDrafts(prev=>{
+                                        // Never discard newer edits typed while an earlier write was in flight.
+                                        if(prev[room.id]!==draft)return prev;
+                                        const next={...prev};delete next[room.id];return next;
+                                      });
+                                    });
                                 }}
                                 className="min-w-0 w-full resize-none overflow-hidden rounded-[14px] border border-[#ddd4c6] bg-[#fdfaf6] px-3 py-2 text-[12px] leading-5 text-[#5f5444] focus:outline-none"
                                 rows={Math.max(1, splitGuestLines(occupantDrafts[room.id] ?? room.occupant).length || 1)}
@@ -2083,6 +2110,7 @@ export default function App() {
 
                               <select
                                 value={room.cleanerId == null ? "" : String(room.cleanerId)}
+                                disabled={savingRoomAdministrationIds.includes(room.id)}
                                 onChange={(e) =>
                                   void updateRoomField(selectedActivity.id, room.id, {
                                     assignedCleanerId: e.target.value ? Number(e.target.value) : null,
