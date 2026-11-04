@@ -646,6 +646,9 @@ export default function App() {
           setPin("");
           setViewMode("staff");
           setAuthRestoreError("登入已失效或帳號權限已變更，請重新登入。");
+        } else if (session.user.name !== currentUser?.name) {
+          // Name changes should refresh the visible label, never the account ID.
+          setCurrentUser(previous => previous?.id === expectedId ? session.user : previous);
         }
       }catch{
         // Transient connectivity must not falsely mark a still-valid session expired.
