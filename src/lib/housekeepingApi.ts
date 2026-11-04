@@ -124,3 +124,19 @@ export function disableQaCleaner(cleanerId: number): Promise<{ ok: boolean }> {
     method: "PATCH", body: jsonBody({ action: "disable", cleanerId }),
   });
 }
+
+/** Admin only, staging-only QA event. Server supplies the original room checklist. */
+export function createQaRoom(input: {
+  eventId:number; building:"A"|"B"; floor:"2F"|"3F"|"5F"|"6F"|"7F"|"RF"; roomNo:string;
+}):Promise<{ok:boolean;roomId:number}> {
+  return request("/api/data/rooms",{
+    method:"PUT",body:jsonBody(input),
+  });
+}
+
+/** Admin only; server refuses fixture rooms and any room with attached photos. */
+export function deleteQaRoom(roomId:number):Promise<{ok:boolean}> {
+  return request("/api/data/rooms",{
+    method:"DELETE",body:jsonBody({roomId}),
+  });
+}
