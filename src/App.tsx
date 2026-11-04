@@ -1089,8 +1089,9 @@ export default function App() {
     const guests = splitGuestLines(room.occupant);
     const useTwoColumns = guests.length > 6;
 
-    const leftGuests = useTwoColumns ? guests.slice(0, 4) : guests;
-    const rightGuests = useTwoColumns ? guests.slice(4, 8) : [];
+    const splitAt = Math.ceil(guests.length / 2);
+    const leftGuests = useTwoColumns ? guests.slice(0, splitAt) : guests;
+    const rightGuests = useTwoColumns ? guests.slice(splitAt) : [];
 
     const singleColumnHtml =
       leftGuests.length > 0
@@ -1193,8 +1194,9 @@ export default function App() {
             .room-title {
               width: 100%;
               text-align: center;
-              font-size: 34mm;
-              line-height: 1.05;
+              font-size: 27mm;
+              line-height: 1.12;
+              overflow-wrap: anywhere;
               font-weight: 700;
               letter-spacing: 0;
               margin-bottom: 20mm;
@@ -1236,9 +1238,11 @@ export default function App() {
             .guest-row {
               width: 100%;
               text-align: center;
-              font-size: 23mm;
-              line-height: 1.1;
-              white-space: nowrap;
+              font-size: 18mm;
+              line-height: 1.15;
+              white-space: normal;
+              overflow-wrap: anywhere;
+              word-break: break-word;
             }
           </style>
         </head>
