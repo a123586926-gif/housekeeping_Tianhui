@@ -372,6 +372,8 @@ export default function App() {
   const [authBusy,setAuthBusy] = useState(false);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const dataEpoch=useRef(0);
+  const overviewRequestSequence=useRef(0);
+  const cleanerRequestSequence=useRef(0);
   const [showLogin, setShowLogin] = useState(true);
   const [authRestoring,setAuthRestoring]=useState(true);
   const [authRestoreError,setAuthRestoreError]=useState("");
@@ -456,9 +458,10 @@ export default function App() {
 
   async function loadCleanersFromSupabase() {
     const epoch=dataEpoch.current;
+    const sequence=++cleanerRequestSequence.current;
     try {
       const rows = await getCleaners();
-      if(epoch!==dataEpoch.current)return;
+      if(epoch!==dataEpoch.current || sequence!==cleanerRequestSequence.current)return;
       setStaffUsers(rows.filter(row=>row.is_active).map(row=>({
         id:`cleaner-${row.id}`,dbId:row.id,name:row.name,role:"cleaner",
       })));
@@ -490,9 +493,10 @@ export default function App() {
 
   async function loadEventsFromSupabase() {
     const epoch=dataEpoch.current;
+    const sequence=++overviewRequestSequence.current;
     try {
       const data = await getBusinessOverview();
-      if(epoch!==dataEpoch.current)return;
+      if(epoch!==dataEpoch.current || sequence!==overviewRequestSequence.current)return;
       const eventsData = data.events;
       const roomsData = data.eventRooms;
       setSharedCalendarEvents(data.calendarEvents);
@@ -564,7 +568,7 @@ export default function App() {
       sorted.some((item) => item.id === prev) ? prev : sorted[0]?.id ?? ""
     );
     } catch (error) {
-      if(epoch!==dataEpoch.current)return;
+      if(epoch!==dataEpoch.current || sequence!==overviewRequestSequence.current)return;
       if(error instanceof HousekeepingApiError && (error.status===401 || error.status===403)){
         // Fail closed immediately if a session was revoked while the tab was open.
         dataEpoch.current+=1;
