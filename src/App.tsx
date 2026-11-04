@@ -681,7 +681,7 @@ export default function App() {
       role === "admin"
         ? latestRooms
         : latestRooms.filter((room) =>
-            /^cleaner-[1-9]\\d*$/.test(currentUser.id) &&
+            /^cleaner-[1-9]\d*$/.test(currentUser.id) &&
             room.cleanerId === Number(currentUser.id.slice("cleaner-".length))
           );
 
