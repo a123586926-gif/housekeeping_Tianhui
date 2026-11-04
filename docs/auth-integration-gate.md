@@ -1,32 +1,19 @@
-# Housekeeping authenticated API integration gate (2026-11-03)
+# Housekeeping 安全整合狀態（2026-11-04）
 
-## Staged on this branch (not deployed)
-- `api/auth/login.js`, `session.js`, `logout.js`, `accounts.js`
-- `api/data/overview.js`: logged-in-only activity/room read, cleaner limited to assigned room.
-- `api/data/cleaners.js`: logged-in admin-only read; never exposes cleaner PINs.
-- `api/data/event-update.js`: logged-in admin-only event update with validated inputs.
-- `api/data/room-update.js`: logged-in user update; cleaner limited to own assigned room and checklist/status/photo fields.
-- `api/_lib/validation.js`: whitelists and payload validation.
-- `tests/auth-validators.test.js`: isolated unit tests (not yet CI verified).
+此文件原先描述「尚未部署」的初期開發狀況，現已更新。
 
-## Still needed before replacing existing frontend calls
-- Transactional create/delete of events and their default rooms.
-- Room creation/removal and synchronization of room assignment, occupant, status.
-- Cleaner add/edit, PIN hash update, safe credential rotation and revoking sessions.
-- Secure object upload/download and photo metadata update; Storage policy migration.
-- Authenticated, role-scoped queries for every read/write in App.tsx.
-- Session restore / login/logout UX in existing App.tsx; avoid showing private data before verification.
-- Data backups, migration of existing account PINs, and closing the old anon policies.
-- End-to-end testing on a separate Supabase project and preview Vercel deployment.
-- Verify that `api/_lib/auth.js` and `supabase/migrations/20261103_hk_auth_staging.sql` are compatible with chosen Vercel runtime and Supabase extension setup.
+## 現況
+- 原版 `src/App.tsx` 已接上隔離測試 Supabase 的伺服器 API。
+- QA Vercel Preview `feature/remember-login-30d` 已完成多輪登入、清潔清單、房間、人員、活動、照片及列印驗收。
+- 固定 Preview 網域有 30 天 HttpOnly Cookie，F5、登出與跨帳號隔離已由使用者驗收。
+- 僅允許 QA Supabase 的服務端連線、拒絕 Vercel Production，詳見 `api/_lib/qaGuard.js`。
+- 不得把 QA 配置或測試資料遷入正式版。
 
-## Safety and rollout
-DO NOT merge this branch into main or put service role credentials in VITE_ environment variables.
-DO NOT disable existing anonymous RLS policies until **all** client Supabase paths have moved to authenticated endpoints; otherwise production breaks.
-Never place real credential data in GitHub files, chat, screenshots or tests.
+## 統一的正式上線門檻
+請見 `docs/preproduction-go-no-go-20261104.md`。其中列出：
+- QA 專用 RPC/桶名/活動前綴限制及正式替代設計。
+- 正式資料庫唯讀盤點、備份回復、RLS/Storage 及 PIN 遷移。
+- 原版 UI 回歸、跨裝置及 30 天到期測試。
+- 合併 `main` 前需有明確核准。
 
-## Unit test command (run on a checkout of this branch)
-`node --test tests/auth-validators.test.js`
-
-## Acceptance blocker
-30-day sessions are NOT yet enabled; the deployed app still uses old in-browser PIN checking.
+**當前狀態：NO-GO**。目前沒有對正式網站、正式 Supabase 或 GitHub main 的更新。
