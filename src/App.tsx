@@ -31,7 +31,6 @@ type User = {
   dbId?: number;
   name: string;
   role: Role;
-  pin: string;
 };
 
 type DbCleaner = {
@@ -432,7 +431,7 @@ export default function App() {
     try {
       const rows = await getCleaners();
       setStaffUsers(rows.filter(row=>row.is_active).map(row=>({
-        id:`cleaner-${row.id}`,dbId:row.id,name:row.name,role:"cleaner",pin:"",
+        id:`cleaner-${row.id}`,dbId:row.id,name:row.name,role:"cleaner",
       })));
     } catch (error) {
       console.error("無法取得房務人員清單（僅管理員）",error);
@@ -541,11 +540,11 @@ export default function App() {
         if(!response.ok)throw new Error("帳號清單無法載入");
         const directory=await response.json() as {users:Array<{id:string;name:string}>};
         if(active)setLoginUsers(directory.users.map(row=>({
-          id:row.id,name:row.name,role:row.id==="admin"?"admin":"cleaner",pin:"",
+          id:row.id,name:row.name,role:row.id==="admin"?"admin":"cleaner",
         })));
         const session=await readSession();
         if(active&&session.authenticated){
-          setCurrentUser({...session.user,pin:""});
+          setCurrentUser(session.user);
           setShowLogin(false);
           setViewMode(session.user.role==="admin"?"admin":"staff");
         }
@@ -1219,7 +1218,7 @@ export default function App() {
     setStaffModalMode("edit");
     setEditingStaffId(user.id);
     setNewStaffName(user.name);
-    setNewStaffPin(user.pin);
+    setNewStaffPin("");
     setShowStaffModal(true);
   }
 
