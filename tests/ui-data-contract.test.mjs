@@ -40,3 +40,15 @@ test("admin management uses cleaner IDs and mutations cannot be submitted twice"
  assert.match(app,/roomMutationBusy\.current=true/);
  assert.match(app,/createdRoomId\s*\?\s*"房間已建立/);
 });
+
+test("checklist writes are serialized per room to avoid rapid-click conflicts",()=>{
+ assert.match(app,/checklistSavingRooms\.current\.has\(roomId\)/);
+ assert.match(app,/checklistSavingRooms\.current\.add\(roomId\)/);
+ assert.match(app,/checklistSavingRooms\.current\.delete\(roomId\)/);
+ assert.match(app,/disabled=\{savingChecklistRoomIds\.includes\(room\.id\)\}/);
+});
+test("activity, room, staff modals cannot be dismissed during pending mutation",()=>{
+ for(const name of ["activitySaving","roomSaving","staffSaving"]){
+  assert.match(app,new RegExp("if\\(!"+name+"\\) setShow"));
+ }
+});
