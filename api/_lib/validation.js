@@ -1,7 +1,9 @@
 // Shared authorization and validation for Housekeeping's server-side API.
 // These helpers are not wired to the production React application.
 export function validId(value) {
-  return Number.isSafeInteger(Number(value)) && Number(value) > 0;
+  if (typeof value === "number") return Number.isSafeInteger(value) && value > 0;
+  if (typeof value !== "string" || !/^[1-9][0-9]*$/.test(value)) return false;
+  return Number.isSafeInteger(Number(value));
 }
 export function validDate(value) {
   if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
