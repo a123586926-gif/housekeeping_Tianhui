@@ -6,11 +6,12 @@ on:
       - feature/remember-login-30d
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   verify:
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -20,7 +21,7 @@ jobs:
       - run: npm ci
       - run: npm run build
       - run: node --check server/auth-core.mjs
-      - run: node --check api/auth/login.mjs
-      - run: node --check api/auth/session.mjs
-      - run: node --check api/auth/logout.mjs
+      - run: node --check api/auth/login.js
+      - run: node --check api/auth/session.js
+      - run: node --check api/auth/logout.js
       - run: node --test tests/auth-core.test.mjs
