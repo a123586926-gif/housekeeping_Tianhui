@@ -52,3 +52,10 @@ test("activity, room, staff modals cannot be dismissed during pending mutation",
   assert.match(app,new RegExp("if\\(!"+name+"\\) setShow"));
  }
 });
+
+test("admin assignment dropdown sends immutable cleaner IDs",()=>{
+ assert.match(app,/assignedCleanerId:\s*e\.target\.value\s*\?\s*Number\(e\.target\.value\)\s*:\s*null/);
+ assert.match(app,/value=\{room\.cleanerId == null \? "" : String\(room\.cleanerId\)\}/);
+ assert.match(app,/assignedCleanerId:Number\(newRoomStaff\)/);
+ assert.doesNotMatch(app,/value=\{user\.name\}/);
+});
