@@ -50,3 +50,13 @@
 1. 在不寫入正式資料的 QA 環境啟動**最新程式版本**，執行真實 UI 登入、跨帳號、活動 CRUD、清潔狀態、列印 6/7/8 人。使用者先前要求暫停 Vercel，因此本次不啟動 Preview。
 2. 真正執行完整 Node/TypeScript 建置，並檢視 GitHub Actions 的最新運行結果。當前 GitHub connector 未提供本輪 push 的確切成功證據，不以之前成功紀錄冒充。
 3. 正式 `main`、Production 部署、正式 Supabase 權限／資料遷移與六位人員 PIN 重設仍須另外明確核准；不得藉由本輪開發方向授權自動執行。
+
+## 第四批：使用者回報上一輪 GitHub Actions Success 後
+- 使用者確認**上一輪** GitHub Actions 顯示 Success；後續新提交的測試需重新執行，不能沿用先前結果。
+- 修正「住宿」活動需要打掃卻未建立預設房間的矛盾：現在建立住宿或活動會自動帶房間；一般活動不建立房間。
+- 原有需打掃活動若直接切成「一般活動」，房間會在 UI 隱藏；反向切換也可能缺少房間。QA API 現拒絕這類跨清潔狀態修改（409），直到有完整原子化房間遷移方案；編輯介面將需打掃選項停用並說明。
+- 活動 API 已改成可注入模擬 DB/Session 的 handler factory；新增 `tests/http-event-consistency.test.mjs`，涵蓋住宿建 84 房、一般活動零房、轉換類型 409、同類型可編輯、房務不可建立活動。
+- 測試腳本已加入 package.json 完整 build 與 GitHub 工作流程。
+- 本批只修改 QA GitHub 分支，沒有執行任何正式資料庫操作或新 Vercel 部署。
+
+**下一個人工關卡：** 檢視最新一筆 GitHub Actions（必須對應第四批 HEAD）是否 Success；完成程式回歸後才開始獨立 QA 互動環境的實際 UI 驗收。使用者尚未同意恢復 Vercel Preview，因此不自行部署。
