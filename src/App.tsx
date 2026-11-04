@@ -112,6 +112,9 @@ type DbEventRoom = {
   final_photo?: string | null;
 };
 
+// Production hotfix: pause the photo UI without migrating business data or authentication.
+const PHOTO_UPLOAD_PAUSED = true;
+
 type PhotoAction =
   | {
       roomId: string;
@@ -671,6 +674,10 @@ export default function App() {
   }
 
   function openPhotoModal(action: PhotoAction) {
+    if (PHOTO_UPLOAD_PAUSED) {
+      window.alert("照片上傳功能目前暫停；原有清潔紀錄不受影響。");
+      return;
+    }
     setPendingPhotoAction(action);
     setPhotoFile(null);
     setPhotoFileName("");
@@ -682,6 +689,10 @@ export default function App() {
     itemId: string,
     file: File
   ): Promise<string | null> {
+    if (PHOTO_UPLOAD_PAUSED) {
+      window.alert("照片上傳功能目前暫停。");
+      return null;
+    }
     if (!room.dbId) {
       window.alert("找不到房間資料，無法上傳照片");
       return null;
@@ -890,7 +901,7 @@ export default function App() {
         subItems: nextSubItems,
         done: checked
           ? nextSubItems.every((sub) => sub.done) &&
-            (!item.requiredPhoto || item.photo)
+            (PHOTO_UPLOAD_PAUSED || !item.requiredPhoto || item.photo)
           : false,
       };
     });
@@ -1682,7 +1693,7 @@ export default function App() {
                                     return;
                                   }
 
-                                  if (item.requiredPhoto && !item.photo) {
+                                  if (!PHOTO_UPLOAD_PAUSED && item.requiredPhoto && !item.photo) {
                                     openPhotoModal({
                                       roomId: room.id,
                                       itemId: item.id,
@@ -1714,6 +1725,8 @@ export default function App() {
 
                                   {item.requiredPhoto && (
                                     <button
+                                      disabled={PHOTO_UPLOAD_PAUSED}
+                                      title={PHOTO_UPLOAD_PAUSED ? "照片上傳暫停" : undefined}
                                       type="button"
                                       onClick={() =>
                                         openPhotoModal({
@@ -1730,7 +1743,7 @@ export default function App() {
                                     >
                                       <span className="inline-flex items-center gap-1">
                                         <ImageIcon className="h-3.5 w-3.5" />
-                                        {item.photo ? "已拍照" : "拍照"}
+                                        {PHOTO_UPLOAD_PAUSED ? "照片暫停" : (item.photo ? "已拍照" : "拍照")}
                                       </span>
                                     </button>
                                   )}
@@ -1754,7 +1767,7 @@ export default function App() {
                                             s.id === sub.id ? true : s.done
                                           );
 
-                                          if (item.requiredPhoto && willAllDone && !item.photo) {
+                                          if (!PHOTO_UPLOAD_PAUSED && item.requiredPhoto && willAllDone && !item.photo) {
                                             openPhotoModal({
                                               roomId: room.id,
                                               itemId: item.id,
@@ -2669,7 +2682,7 @@ export default function App() {
         </div>
       )}
 
-      {showPhotoModal && currentUser && (
+      {!PHOTO_UPLOAD_PAUSED && showPhotoModal && currentUser && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-[#0F172A]/45 p-4"
           onClick={resetPhotoModal}
