@@ -40,6 +40,8 @@ const icons = {home:Home,calendar:CalendarDays,activities:ClipboardList,
 
 export default function SecureHousekeepingDashboard({user,expiry,overview,onRefresh,onSignOut,onPinChanged,children}:Props) {
   const [page,setPage] = useState<Page>("home");
+  const [eventFilter,setEventFilter] = useState("all");
+  const [statusFilter,setStatusFilter] = useState<"all"|"completed"|"in_progress"|"pending">("all");
   const isAdmin = user.role === "admin";
   const pages = isAdmin ? ADMIN_PAGES : CLEANER_PAGES;
   const rooms = overview.eventRooms;
@@ -49,6 +51,10 @@ export default function SecureHousekeepingDashboard({user,expiry,overview,onRefr
     return {completed,started,pending:rooms.length-completed-started};
   },[rooms]);
   const photoRooms = rooms.filter(room=>room.checklist?.some(item=>item.requiredPhoto));
+  const availableEvents = overview.events.slice().sort((a,b)=>a.event_date.localeCompare(b.event_date));
+  const filteredRooms = rooms.filter(room=>
+    (eventFilter==="all"||String(room.event_id)===eventFilter) &&
+    (statusFilter==="all"||room.status===statusFilter));
 
   return <div className="space-y-3 pb-20">
     <header className={UI.shell}>
@@ -105,9 +111,30 @@ export default function SecureHousekeepingDashboard({user,expiry,overview,onRefr
       {page==="calendar"&&<SharedActivityCalendar events={overview.calendarEvents} isAdmin={isAdmin}/>}
       {page==="activities"&&isAdmin&&<QaAdminEvents events={overview.events} onUpdated={onRefresh}/>}
       {page==="rooms"&&<div className="space-y-3">
-        <QaRoomChecklist rooms={rooms} editable={!isAdmin} onUpdated={onRefresh}/>
+        <div className="rounded-[20px] border border-[#e2d8c8] bg-white p-3">
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+            <label className="text-xs font-semibold">活動
+              <select value={eventFilter} onChange={e=>setEventFilter(e.target.value)}
+                className="mt-1 w-full rounded-xl border bg-white p-2.5 text-sm">
+                <option value="all">全部可查看活動</option>
+                {availableEvents.map(e=><option key={e.id} value={e.id}>{e.event_date} · {e.event_name}</option>)}
+              </select>
+            </label>
+            <label className="text-xs font-semibold">清潔狀態
+              <select value={statusFilter} onChange={e=>setStatusFilter(e.target.value as typeof statusFilter)}
+                className="mt-1 w-full rounded-xl border bg-white p-2.5 text-sm">
+                <option value="all">全部狀態</option>
+                <option value="completed">已完成</option>
+                <option value="in_progress">進行中</option>
+                <option value="pending">未開始</option>
+              </select>
+            </label>
+          </div>
+          <p className="mt-2 text-xs text-[#847663]">目前顯示 {filteredRooms.length} / {rooms.length} 間房；僅顯示伺服器已授權的房間資料。</p>
+        </div>
+        <QaRoomChecklist key={eventFilter+"-"+statusFilter} rooms={filteredRooms} editable={!isAdmin} onUpdated={onRefresh}/>
         {isAdmin&&<QaAdminRoomInventory events={overview.events} rooms={rooms} onUpdated={onRefresh}/>}
-        {isAdmin&&<QaAdminRoomAssignments rooms={rooms.map(room=>({
+        {isAdmin&&<QaAdminRoomAssignments rooms={filteredRooms.map(room=>({
           ...room,occupant:(room as WorkRoom & {occupant?:string}).occupant||""
         }))} onUpdated={onRefresh}/>}
       </div>}
