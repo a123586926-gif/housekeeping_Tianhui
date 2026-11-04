@@ -117,3 +117,11 @@ test("single and batch A4 printing refuse rooms with unsaved occupant edits",()=
  assert.match(app,/function printSingleRoomA4\(room: Room\) \{\s*if\(roomHasPendingOccupant\(room\)\)/);
  assert.match(app,/selectedRooms\.some\(roomHasPendingOccupant\)/);
 });
+
+test("concurrent list refreshes ignore stale out-of-order network responses",()=>{
+ assert.match(app,/const sequence=\+\+overviewRequestSequence\.current/);
+ assert.match(app,/const sequence=\+\+cleanerRequestSequence\.current/);
+ assert.match(app,/sequence!==overviewRequestSequence\.current/);
+ assert.match(app,/sequence!==cleanerRequestSequence\.current/);
+ assert.match(app,/epoch!==dataEpoch\.current/);
+});
