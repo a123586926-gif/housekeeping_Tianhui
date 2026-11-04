@@ -236,3 +236,67 @@ test("server rejects parent completion if any child task remains unchecked",asyn
  assert.equal(res.statusCode,400);
  assert.equal(mock.calls.some(c=>c[0]==="update"),false);
 });
+
+test("admin assigns room using immutable cleaner ID and server-owned display name",async()=>{
+ const calls=[];
+ const db={
+  from(table){
+   if(table==="event_rooms"){
+    return {
+     isUpdate:false,
+     select(){return this;},
+     eq(){return this;},
+     update(payload){this.isUpdate=true;calls.push(["write",payload]);return this;},
+     async maybeSingle(){return {data:this.isUpdate?{id:701,event_id:9101,status:"pending",progress:0}:
+       {id:701,cleaner_id:null,event_id:9101,checklist:[]},error:null};},
+    };
+   }
+   assert.equal(table,"cleaners");
+   return {
+    select(){return this;},
+    eq(name,value){calls.push(["cleanerEq",name,value]);return this;},
+    async maybeSingle(){return {data:{id:902,name:"同名房務"},error:null};},
+   };
+  },
+ };
+ const handler=createRoomsHandler({originAllowed:()=>true,sessionReader:async()=>admin,dbFactory:()=>db});
+ const res=response();
+ await handler({method:"PATCH",body:{roomId:701,changes:{assignedCleanerId:902}}},res);
+ assert.equal(res.statusCode,200);
+ assert.equal(calls.some(x=>x[0]==="cleanerEq"&&x[1]==="id"&&x[2]===902),true);
+ const saved=calls.find(x=>x[0]==="write")[1];
+ assert.equal(saved.cleaner_id,902);
+ assert.equal(saved.assigned_to,"同名房務");
+});
+test("admin unassigns room without finding a cleaner by name",async()=>{
+ const mock=mockRoomDb();
+ const handler=createRoomsHandler({originAllowed:()=>true,sessionReader:async()=>admin,dbFactory:()=>mock.db});
+ const res=response();
+ await handler({method:"PATCH",body:{roomId:701,changes:{assignedCleanerId:null}}},res);
+ assert.equal(res.statusCode,200);
+ const patch=mock.calls.find(x=>x[0]==="update")[1];
+ assert.equal(patch.cleaner_id,null);
+ assert.equal(patch.assigned_to,"未分配");
+});
+test("invalid immutable assignment ID and mixed legacy name are rejected before write",async()=>{
+ const mock=mockRoomDb();
+ const handler=createRoomsHandler({originAllowed:()=>true,sessionReader:async()=>admin,dbFactory:()=>mock.db});
+ for(const changes of [
+  {assignedCleanerId:"902"}, {assignedCleanerId:0},
+  {assignedCleanerId:-1}, {assignedCleanerId:1.5},
+  {assignedCleanerId:902,assignedTo:"其他人"},
+ ]){
+  const res=response();
+  await handler({method:"PATCH",body:{roomId:701,changes}},res);
+  assert.equal(res.statusCode,400);
+ }
+ assert.equal(mock.calls.some(x=>x[0]==="update"),false);
+});
+test("cleaner cannot reassign room using stable cleaner ID",async()=>{
+ const mock=mockRoomDb();
+ const handler=createRoomsHandler({originAllowed:()=>true,sessionReader:async()=>cleaner901,dbFactory:()=>mock.db});
+ const res=response();
+ await handler({method:"PATCH",body:{roomId:701,changes:{assignedCleanerId:902}}},res);
+ assert.equal(res.statusCode,403);
+ assert.equal(mock.calls.some(x=>x[0]==="update"),false);
+});
