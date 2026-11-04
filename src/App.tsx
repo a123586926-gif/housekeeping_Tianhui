@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   Bell,
   CalendarDays,
@@ -368,6 +368,7 @@ export default function App() {
   const [loginUsers,setLoginUsers] = useState<User[]>([]);
   const [authBusy,setAuthBusy] = useState(false);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const dataEpoch=useRef(0);
   const [showLogin, setShowLogin] = useState(true);
   const [authRestoring,setAuthRestoring]=useState(true);
   const [authRestoreError,setAuthRestoreError]=useState("");
@@ -425,8 +426,10 @@ export default function App() {
   }, []);
 
   async function loadCleanersFromSupabase() {
+    const epoch=dataEpoch.current;
     try {
       const rows = await getCleaners();
+      if(epoch!==dataEpoch.current)return;
       setStaffUsers(rows.filter(row=>row.is_active).map(row=>({
         id:`cleaner-${row.id}`,dbId:row.id,name:row.name,role:"cleaner",
       })));
@@ -457,8 +460,10 @@ export default function App() {
   }
 
   async function loadEventsFromSupabase() {
+    const epoch=dataEpoch.current;
     try {
       const data = await getBusinessOverview();
+      if(epoch!==dataEpoch.current)return;
       const eventsData = data.events;
       const roomsData = data.eventRooms;
       setSharedCalendarEvents(data.calendarEvents);
@@ -525,6 +530,7 @@ export default function App() {
       sorted.some((item) => item.id === prev) ? prev : sorted[0]?.id ?? ""
     );
     } catch (error) {
+      if(epoch!==dataEpoch.current)return;
       console.error("房務資料讀取失敗",error);
       window.alert("目前無法安全讀取房務資料，請稍後重新登入");
     }
@@ -574,10 +580,57 @@ export default function App() {
   }, []);
 
   useEffect(()=>{
-    if(!currentUser){setActivities([]);setStaffUsers([]);return;}
+    dataEpoch.current+=1;
+    if(!currentUser){
+      setActivities([]);setStaffUsers([]);setSharedCalendarEvents([]);
+      setSelectedPrintRoomIds([]);setOccupantDrafts({});
+      setShowActivityModal(false);setShowRoomModal(false);setShowStaffModal(false);
+      setShowPhotoModal(false);setPendingPhotoAction(null);setPhotoFile(null);
+      return;
+    }
     void loadEventsFromSupabase();
     if(currentUser.role==="admin")void loadCleanersFromSupabase();
   },[currentUser?.id]);
+
+  // Revalidate the HttpOnly session when returning to the tab and periodically
+  // while it is open. A revoked or expired session must not leave old room data
+  // accessible in memory after account switching.
+  useEffect(()=>{
+    if(!currentUser)return;
+    let active=true;
+    let checking=false;
+    const expectedId=currentUser.id;
+    async function verify(){
+      if(!active||checking)return;
+      checking=true;
+      try {
+        const session=await readSession();
+        if(!active)return;
+        if(!session.authenticated||session.user.id!==expectedId||
+           session.user.role!==currentUser?.role){
+          dataEpoch.current+=1;
+          setCurrentUser(null);
+          setShowLogin(true);
+          setPin("");
+          setViewMode("staff");
+          setAuthRestoreError("登入已失效或帳號權限已變更，請重新登入。");
+        }
+      }catch{
+        // Transient connectivity must not falsely mark a still-valid session expired.
+      }finally{checking=false;}
+    }
+    const onFocus=()=>{void verify();};
+    const onVisible=()=>{if(document.visibilityState==="visible")void verify();};
+    window.addEventListener("focus",onFocus);
+    document.addEventListener("visibilitychange",onVisible);
+    const interval=window.setInterval(()=>void verify(),60000);
+    return ()=>{
+      active=false;
+      window.removeEventListener("focus",onFocus);
+      document.removeEventListener("visibilitychange",onVisible);
+      window.clearInterval(interval);
+    };
+  },[currentUser?.id,currentUser?.role]);
 
   const role = currentUser?.role ?? null;
 
@@ -730,6 +783,7 @@ export default function App() {
       const session=await signInWithPin(selectedUserId,pin);
       setPin("");
       if(!session.authenticated)throw new Error("登入狀態無效");
+      dataEpoch.current+=1;
       setCurrentUser(session.user);
       setShowLogin(false);
       setViewMode(session.user.role==="admin"?"admin":"staff");
@@ -744,6 +798,7 @@ export default function App() {
     setAuthBusy(true);
     try {
       await signOutSession();
+      dataEpoch.current+=1;
       setCurrentUser(null);
       setActivities([]);
       setStaffUsers([]);
