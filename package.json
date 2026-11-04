@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "npm run test:photo-migration && npm run test:restore-readiness && npm run test:local-backup && npm run test:cleaner-policy && npm run test:cleaner-management && npm run test:cleaner-lifecycle && npm run test:session-access && npm run test:http-auth && npm run test:http-overview && tsc -b && vite build",
+    "build": "npm run test:photo-migration && npm run test:restore-readiness && npm run test:local-backup && npm run test:cleaner-policy && npm run test:cleaner-management && npm run test:cleaner-lifecycle && npm run test:session-access && npm run test:http-auth && npm run test:http-overview && npm run test:http-session && tsc -b && vite build",
     "test:photo-migration": "node --test tests/production-photo-migration-audit.test.mjs",
     "test:restore-readiness": "node --test tests/restore-readiness.test.mjs",
     "test:local-backup": "node --test tests/local-production-backup.test.mjs",
@@ -15,6 +15,7 @@
     "test:session-access": "node --test tests/session-access-authorization.test.mjs",
     "test:http-auth": "node --test tests/http-auth-handler.test.mjs",
     "test:http-overview": "node --test tests/http-overview-authorization.test.mjs",
+    "test:http-session": "node --test tests/http-session-logout.test.mjs",
     "preview": "vite preview"
   },
   "dependencies": {
