@@ -110,3 +110,10 @@ test("Windows reserved filenames and trailing dots are rejected",()=>{
  for(const name of ["CON","NUL.png","folder/COM1.jpg","folder/LPT9","photo.jpg.","photo.jpg ","room/pic:ads","room/photo<test>.jpg"])
    assert.throws(()=>validateStorageKey(name));
 });
+
+test("local Storage backup entrypoint imports the export runner before use",async()=>{
+ const source=await fs.readFile(new URL("../scripts/backup/backup-storage.mjs",import.meta.url),"utf8");
+ assert.match(source,/import\s*\{\s*backupStorageObjects\s*\}\s*from\s*["']\.\/storage-backup-runner\.mjs["']/);
+ assert.match(source,/await backupStorageObjects\(/);
+ assert.match(source,/if\(process\.env\.CI \|\| process\.env\.VERCEL/);
+});
