@@ -5,12 +5,13 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "npm run test:photo-migration && npm run test:restore-readiness && npm run test:local-backup && npm run test:cleaner-policy && npm run test:cleaner-management && tsc -b && vite build",
+    "build": "npm run test:photo-migration && npm run test:restore-readiness && npm run test:local-backup && npm run test:cleaner-policy && npm run test:cleaner-management && npm run test:cleaner-lifecycle && tsc -b && vite build",
     "test:photo-migration": "node --test tests/production-photo-migration-audit.test.mjs",
     "test:restore-readiness": "node --test tests/restore-readiness.test.mjs",
     "test:local-backup": "node --test tests/local-production-backup.test.mjs",
     "test:cleaner-policy": "node --test tests/cleaner-management-policy.test.mjs",
     "test:cleaner-management": "node --test tests/qa-cleaner-management-contract.test.mjs",
+    "test:cleaner-lifecycle": "node --test tests/qa-cleaner-lifecycle-simulation.test.mjs",
     "preview": "vite preview"
   },
   "dependencies": {
