@@ -86,8 +86,8 @@ export default function QaPhotoUpload({ rooms, onUploaded }: {
     } finally {setBusy(false);}
   }
   return <section className="space-y-3 rounded-[24px] border border-[#d8c9af] bg-[#f9f4ec] p-4">
-    <h2 className="text-[16px] font-semibold">清潔照片｜私人儲存測試</h2>
-    <p className="text-xs text-[#847663]">請使用房務丙及專用測試房 #9401。只用沒有住客或個資的測試照片；檔案限 2 MB 以內。</p>
+    <h2 className="text-[16px] font-semibold">清潔照片｜檢視模式（上傳暫停）</h2>
+    <p className="text-xs text-[#847663]">照片上傳與更換已暫停；既有照片可檢視，權限測試照常進行。</p>
     <label className="block text-sm">測試房間
       <select value={roomId} onChange={e=>{setRoomId(e.target.value);setItemId("flooring");setFile(null);}}
         className="mt-1 w-full rounded-xl border bg-white p-2.5">
@@ -104,16 +104,16 @@ export default function QaPhotoUpload({ rooms, onUploaded }: {
       </select>
     </label>}
     <label className="block text-sm">選擇測試照片
-      <input type="file" accept="image/jpeg,image/png,image/webp" onChange={e=>setFile(e.target.files?.[0]||null)}
+      <input disabled type="file" accept="image/jpeg,image/png,image/webp" onChange={e=>setFile(e.target.files?.[0]||null)}
         className="mt-1 block w-full text-sm"/>
     </label>
     <button disabled={busy||!item||!item.photo} onClick={()=>void view()}
       className="w-full rounded-xl border border-[#8d8768] p-2.5 text-sm text-[#75684f] disabled:opacity-50">
       查看已上傳私人照片（短效連結）
     </button>
-    <button disabled={busy||!file||!item} onClick={()=>void upload()}
+    <button disabled onClick={()=>void upload()}
       className="w-full rounded-xl bg-[#8d8768] p-2.5 text-sm text-white disabled:opacity-50">
-      {busy?"處理中…":item?.photo?"更換測試照片":"上傳測試照片"}
+      照片上傳暫停
     </button>
     <button disabled={busy} onClick={()=>void testDeniedView()}
       className="w-full rounded-xl border border-[#d8c9af] p-2.5 text-sm disabled:opacity-50">
