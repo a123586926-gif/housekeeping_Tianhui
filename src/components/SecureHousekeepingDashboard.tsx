@@ -5,6 +5,8 @@ import QaAdminEvents from "./QaAdminEvents";
 import QaAdminRoomAssignments from "./QaAdminRoomAssignments";
 import QaAdminRoomInventory from "./QaAdminRoomInventory";
 import QaAdminCleaners from "./QaAdminCleaners";
+import QaStaffProgress from "./QaStaffProgress";
+import QaRoomPrint from "./QaRoomPrint";
 import QaChangePin from "./QaChangePin";
 import QaPhotoUpload from "./QaPhotoUpload";
 import QaRoomChecklist from "./QaRoomChecklist";
@@ -14,7 +16,7 @@ import type { WorkRoom } from "./QaRoomChecklist";
 
 type ManagedRoom = WorkRoom & {event_id:number; occupant?:string; floor_photo?:string|null; bathroom_photo?:string|null; final_photo?:string|null};
 type Overview = {events: DbEvent[]; calendarEvents: CalendarEvent[]; eventRooms: ManagedRoom[]};
-type Page = "home"|"calendar"|"activities"|"rooms"|"staff"|"photos"|"account";
+type Page = "home"|"calendar"|"activities"|"rooms"|"staff"|"photos"|"printing"|"account";
 type Props = {
   user: AuthenticatedUser;
   expiry: string;
@@ -29,14 +31,14 @@ const UI = {
   shell: "rounded-[28px] border border-[#e2d8c8] bg-[linear-gradient(180deg,#fffdfa_0%,#f7f3eb_100%)] p-3 shadow-[0_12px_26px_rgba(84,69,45,0.08)]",
   primary: "rounded-[16px] border border-[#d9cfbf] bg-[linear-gradient(180deg,#fffdfa_0%,#f2ecdf_100%)] px-3 py-2 text-sm font-semibold text-[#6a5f4a]"
 };
-const ADMIN_PAGES: Page[] = ["home","calendar","activities","rooms","staff","account"];
+const ADMIN_PAGES: Page[] = ["home","calendar","activities","rooms","staff","printing","account"];
 const CLEANER_PAGES: Page[] = ["home","calendar","rooms","photos","account"];
 const labels: Record<Page,string> = {
   home:"現況",calendar:"日曆",activities:"活動列表",rooms:"房間",staff:"打掃人員",
-  photos:"照片",account:"我的帳號",
+  photos:"照片",printing:"列印",account:"我的帳號",
 };
 const icons = {home:Home,calendar:CalendarDays,activities:ClipboardList,
-  rooms:ClipboardList,staff:Users,photos:Camera,account:ShieldCheck};
+  rooms:ClipboardList,staff:Users,photos:Camera,printing:ClipboardList,account:ShieldCheck};
 
 export default function SecureHousekeepingDashboard({user,expiry,overview,onRefresh,onSignOut,onPinChanged,children}:Props) {
   const [page,setPage] = useState<Page>("home");
@@ -138,7 +140,12 @@ export default function SecureHousekeepingDashboard({user,expiry,overview,onRefr
           ...room,occupant:(room as WorkRoom & {occupant?:string}).occupant||""
         }))} onUpdated={onRefresh}/>}
       </div>}
-      {page==="staff"&&isAdmin&&<QaAdminCleaners/>}
+      {page==="staff"&&isAdmin&&<div className="space-y-3">
+        <QaStaffProgress rooms={rooms} events={overview.events}/>
+        <QaAdminCleaners/>
+      </div>}
+      {page==="printing"&&isAdmin&&<QaRoomPrint rooms={rooms} events={overview.events}/>}
+
       {page==="photos"&&!isAdmin&&<QaPhotoUpload rooms={photoRooms} onUploaded={onRefresh}/>}
       {page==="account"&&<div className="space-y-3">
         <div className="rounded-xl border border-[#e2d8c8] bg-white p-3 text-sm">
