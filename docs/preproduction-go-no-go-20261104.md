@@ -4,6 +4,12 @@
 
 目前實作在 `feature/remember-login-30d`，使用獨立的 Vercel Preview 專案以及測試 Supabase `zhvrgluwoookxaglfjdw`。原版 `src/App.tsx` 介面已接回安全 API；不等於正式環境適配已完成。所有使用者驗收僅代表測試環境與測試資料成功。
 
+## 正式資料唯讀盤點已完成（2026-11-04）
+
+詳見 [production-readonly-inventory-and-rollback-20261104.md](./production-readonly-inventory-and-rollback-20261104.md)。
+
+已查明正式 2 活動、168 活動房間、5 房間主檔、6 啟用房務人員；舊版 PIN 欄位仍有 3 筆非空值。正式 `cleaning-photos` 為公開桶且 Storage 允許匿名存取；四張業務表對 anon 有 `true` 的 CRUD RLS 策略。**尚未建立／驗證實際 DB+Storage 備份或還原。必須保持 NO-GO。**
+
 ## 目前已由使用者驗收
 
 - 30 天工作階段：同一固定 Preview 網域 F5 後可維持登入（尚未做真正 30 天到期測試）。
