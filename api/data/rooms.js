@@ -37,7 +37,7 @@ function sanitizeChecklist(items) {
 function statusOf(checklist) {
   const count = checklist.filter(item => item.done).length;
   if (count === 0) return "pending";
-  if (count === checklist.length) return "completed";
+  if (checklist.length > 0 && count === checklist.length) return "completed";
   return "in_progress";
 }
 const PHOTO_BUCKET = "hk-qa-cleaning-photos";
@@ -245,10 +245,10 @@ export function createRoomsHandler({
         photo: item.photo,
         subItems: item.subItems.map((sub, j) => ({ ...sub, done: next[i].subItems[j].done })),
       }));
-      // Items requiring photos cannot be marked done without an existing photo.
-      for (const item of merged) {
-        if (item.requiredPhoto && !item.photo) item.done = false;
-      }
+      // Owner-approved temporary policy: checklist work may finish without a photo.
+      // Keep the persisted photo flag unchanged: only the photo endpoint may set it.
+      // Reject inconsistent completion flags; a completed parent must have all children done.
+      if (merged.some(item => item.done && item.subItems.some(sub => !sub.done))) return bad(res);
       const status = statusOf(merged);
       const progress = merged.length ? Math.round(100 * merged.filter(i => i.done).length / merged.length) : 0;
       payload.checklist = merged;
