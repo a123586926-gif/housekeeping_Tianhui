@@ -1,6 +1,6 @@
 import { adminDb, allowSameOrigin, cookieString, getSession, json } from "../_lib/auth.js";
 
-const pinIsStrong = value => typeof value === "string" && /^[0-9]{8,32}$/.test(value);
+import {pinIsStrong} from "../_lib/pinPolicy.js";
 
 // GET remains unchanged. POST and PATCH are session-protected PIN operations.
 // Consolidated into this existing function to stay under Vercel Hobby limits.
