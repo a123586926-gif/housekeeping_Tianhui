@@ -119,3 +119,12 @@
 - 管理員統計及房務房間資料在**分頁可見時每 60 秒**重新整理，切回頁籤／視窗時亦讀取；隱藏分頁不輪詢。這是低頻同步，不聲稱真正零延遲 Realtime。
 - 重新整理沿用第八批的請求序號，避免較早發出的資料覆蓋較新結果；加入來源契約測試 `tests/ui-data-contract.test.mjs`。
 - **此補充為第九批新提交，須最新 GitHub Actions 通過後才算建置驗證完成。**
+
+## 第十批：第九批確認後繼續修正（開發分支，未部署）
+- 強化 API 管理權限：活動新增／編輯／刪除、人員管理、PIN 配發與房間變更，不僅檢查 role，還須確認管理員固定 ID 為 `admin`；房務人員 ID 須為 `cleaner-<positive integer>`，有效位數不可超過 JS safe integer。
+- `api/auth/session.js` 將資料庫連線取得移至權限和 PIN 格式檢查**之後**，避免不合法或越權請求在拒絕之前接觸資料庫。
+- 新增測試：偽裝管理員角色但使用房務帳號 ID、無效房務 ID、未授權 PIN 配發，都應回覆 403 且 DB 呼叫數為零。
+- 找到第六批「住宿也建立 84 間清潔房」與原先 staging SQL 的契約矛盾：SQL 仍只允許「活動」建立 84 房而要求住宿 0 房。已**僅修改 GitHub 上 staging SQL 遷移腳本** `supabase/migrations/20261103_hk_event_transactions_staging.sql` 及契約測試，使「活動」／「住宿」建 84 房、「一般活動」建 0 房。
+- 補 `assertQaEnvironment` 安全回歸測試：拒絕 Vercel Production、正式 Supabase 位置與無效 URL，確保開發 API 只能使用指定 QA DB。
+- **未執行 staging SQL migration，未寫入 QA 或正式 Supabase**。因此即使 CI 通過，也不保證目前 QA DB 的函式已更新；未取得實際 QA DB 授權前不可宣稱「住宿活動新增」實際運作成功。
+- 沒有合併正式 main，沒有部署正式或 Preview Vercel。最新提交尚待 GitHub Actions 確認；真正 UI E2E、A4 印表機與正式上線安全遷移仍待後續。
