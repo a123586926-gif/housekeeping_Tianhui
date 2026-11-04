@@ -33,14 +33,6 @@ type User = {
   role: Role;
 };
 
-type DbCleaner = {
-  id: number;
-  name: string;
-  pin: string;
-  is_active: boolean;
-  created_at?: string;
-};
-
 type SubItem = {
   id: string;
   label: string;
@@ -692,7 +684,7 @@ export default function App() {
       const session=await signInWithPin(selectedUserId,pin);
       setPin("");
       if(!session.authenticated)throw new Error("登入狀態無效");
-      setCurrentUser({...session.user,pin:""});
+      setCurrentUser(session.user);
       setShowLogin(false);
       setViewMode(session.user.role==="admin"?"admin":"staff");
     }catch(error) {
