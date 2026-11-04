@@ -60,3 +60,14 @@
 - 本批只修改 QA GitHub 分支，沒有執行任何正式資料庫操作或新 Vercel 部署。
 
 **下一個人工關卡：** 檢視最新一筆 GitHub Actions（必須對應第四批 HEAD）是否 Success；完成程式回歸後才開始獨立 QA 互動環境的實際 UI 驗收。使用者尚未同意恢復 Vercel Preview，因此不自行部署。
+
+## 第五批：GitHub Actions 成功後的下一階段（不部署）
+- 使用者已確認**上一個提交階段** Actions 成功；此批有新的變更，須以此批 HEAD 重新確認建置，不能以先前成功結果替代。
+- 房務指派及新增房間的房務下拉選單改傳固定 `cleaner_id`，不再傳顯示姓名。
+- `PATCH /api/data/rooms` 新增 `assignedCleanerId: number|null`，僅管理員可操作；伺服器查驗人員 ID 與啟用狀態後才設定 `assigned_to`、`cleaner_id`。取消指派兩欄同步清空為「未分配」及 null。
+- 舊 `assignedTo` 字串介面保留過渡相容，但姓名查到零人或超過一人時拒絕（409），避免同名錯配。
+- 補 `tests/http-room-authorization.test.mjs` 身分 ID、取消指派、越權、無效 ID、同名人員的 mock 測試；`tests/ui-data-contract.test.mjs` 檢查選單皆使用 ID。
+- 修正「照片暫停但勾選不能完成」的舊提示文案，現在與真實工作流程一致。
+- 原始碼 8 項安全與整合條件檢查符合；仍需 GitHub 最新完整 CI 及 QA UI 跨帳號實測。
+
+**正式環境完全未修改，Preview 暫停。** 不得藉這次 GitHub 更新自動合併 main、部署正式站、改正式 Supabase 或改六位人員 PIN。
