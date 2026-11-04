@@ -14,16 +14,16 @@ export default async function handler(req, res) {
 
     const db = adminDb();
     if (req.method !== "POST") {
-      const eventId = Number(req.body?.eventId);
+      const eventId = req.body?.eventId;
       if (!validId(eventId)) return json(res,400,{error:"Invalid event ID"});
       const {data: existing, error: guardError} = await db.from("events")
-        .select("id,event_name").eq("id",eventId).maybeSingle();
+        .select("id,event_name").eq("id",Number(eventId)).maybeSingle();
       if (guardError) throw guardError;
       if (!existing) return json(res,404,{error:"Event not found"});
-      if (!existing.event_name.startsWith("【權限驗收】") && ![9101,9102,9103].includes(eventId))
+      if (!existing.event_name.startsWith("【權限驗收】") && ![9101,9102,9103].includes(Number(eventId)))
         return json(res,403,{error:"Only QA events may be modified in sandbox"});
       if (req.method === "DELETE") {
-        if ([9101,9102,9103].includes(eventId))
+        if ([9101,9102,9103].includes(Number(eventId)))
           return json(res,403,{error:"Seed fixture event cannot be deleted"});
         const {data: photos,error: photoError} = await db.from("event_rooms")
           .select("id").eq("event_id",eventId)
