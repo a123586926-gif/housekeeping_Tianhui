@@ -643,6 +643,26 @@ export default function App() {
     if(currentUser.role==="admin")void loadCleanersFromSupabase();
   },[currentUser?.id]);
 
+  // Refresh the dashboard while it is being used, so updates by another
+  // cleaner appear without a manual reload. Hidden tabs do not poll.
+  useEffect(()=>{
+    if(!currentUser)return;
+    const refresh=()=>{
+      if(document.visibilityState!=="visible")return;
+      void loadEventsFromSupabase();
+      if(currentUser.role==="admin")void loadCleanersFromSupabase();
+    };
+    const onVisible=()=>{if(document.visibilityState==="visible")refresh();};
+    const timer=window.setInterval(refresh,60_000);
+    window.addEventListener("focus",refresh);
+    document.addEventListener("visibilitychange",onVisible);
+    return ()=>{
+      window.clearInterval(timer);
+      window.removeEventListener("focus",refresh);
+      document.removeEventListener("visibilitychange",onVisible);
+    };
+  },[currentUser?.id,currentUser?.role]);
+
   // Revalidate the HttpOnly session when returning to the tab and periodically
   // while it is open. A revoked or expired session must not leave old room data
   // accessible in memory after account switching.
