@@ -5,7 +5,7 @@
  */
 const QA_PREFIX="【權限驗收】";
 const MANAGEMENT_ACTIONS=new Set(["create","rename","disable"]);
-const MAX_NAME_LENGTH=80;
+const MAX_NAME_LENGTH=100;
 
 export function normalizeCleanerName(value){
   if(typeof value!=="string")return null;
