@@ -40,7 +40,7 @@ export default function QaRoomChecklist({rooms,editable,onUpdated}:Props) {
     setBusy(true);
     setMessage("");
     try {
-      await updateRoomChecklist(selected.id,toPayload(next));
+      await updateRoomChecklist(selected.id,toPayload(next),toPayload(list));
       await onUpdated();
       setMessage("清潔進度已由伺服器驗證並儲存；重新整理後仍會保留。");
     } catch (error) {
