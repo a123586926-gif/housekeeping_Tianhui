@@ -17,7 +17,7 @@ export function validateStorageKey(value){
   if(typeof value!=="string"||value.length<1||value.length>600||
      /[\\\u0000-\u001f\u007f]/.test(value)||
      value.startsWith("/")||value.includes("?")||value.includes("#")||
-     value.split("/").some(x=>!x||x==="."||x===".."||x.startsWith(".")) ||
+     value.split("/").some(x=>!x||x==="."||x===".."||x.startsWith(".")||/[<>:"|*]/.test(x)||/[. ]$/.test(x)||/^(CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])(?:\..*)?$/i.test(x)) ||
      /^(https?:|data:)/i.test(value))
     throw new Error("Unsafe Storage key");
   return value;
