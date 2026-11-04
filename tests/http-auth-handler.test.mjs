@@ -148,3 +148,36 @@ test("cleaner management: QA admin performs exactly one server RPC with validate
     args:{p_action:"create",p_cleaner_id:null,p_name:"【權限驗收】新增員"},
   }]);
 });
+
+test("login: fixed 30-day session expiry and cookie lifetime match at the exact boundary",async()=>{
+  const started=Date.UTC(2026,10,4,7,0,0);
+  const sessions=[];
+  const handler=createLoginHandler({
+    dbFactory:()=>({
+      rpc:async()=>({data:[{verified_user_id:"cleaner-901"}],error:null}),
+      from(table){
+        assert.equal(table,"hk_auth_sessions");
+        return {insert:async row=>{sessions.push(row);return {error:null};}};
+      },
+    }),
+    originAllowed,issueToken:()=>TOKEN,now:()=>started,
+  });
+  const res=response();
+  await handler({method:"POST",body:{userId:"cleaner-901",pin:"12345678"}},res);
+  assert.equal(res.statusCode,200);
+  assert.equal(sessions.length,1);
+  assert.equal(sessions[0].expires_at,new Date(started+30*24*60*60*1000).toISOString());
+  assert.match(res.headers["set-cookie"],/(?:^|; )Max-Age=2592000(?:;|$)/);
+  assert.doesNotMatch(res.headers["set-cookie"],/Expires=/);
+});
+
+test("login: failed or ambiguous identity results never create a thirty-day session",async()=>{
+  for (const data of [null,{},[],[null],[{verified_user_id:"cleaner-901"},{verified_user_id:"cleaner-901"}]]){
+    const mock=loginMock({data,error:null});
+    const res=response();
+    await mock.handler({method:"POST",body:{userId:"cleaner-901",pin:"12345678"}},res);
+    assert.equal(res.statusCode,401);
+    assert.equal(mock.activity.insert,0);
+    assert.equal(res.headers["set-cookie"],undefined);
+  }
+});
