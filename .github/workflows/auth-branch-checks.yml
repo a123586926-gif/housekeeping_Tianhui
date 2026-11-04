@@ -19,6 +19,6 @@ jobs:
           cache: npm
       - run: npm ci
       - name: Check helper regression tests
-        run: node --test tests/auth-validators.test.js tests/default-rooms.test.js tests/cleaner-validation.test.js tests/cleaner-management-policy.test.mjs tests/qa-cleaner-management-contract.test.mjs tests/qa-cleaner-lifecycle-simulation.test.mjs tests/session-access-authorization.test.mjs tests/http-auth-handler.test.mjs tests/qa-environment-guard.test.mjs tests/production-compatibility.test.mjs tests/production-account-dry-run.test.mjs tests/production-photo-migration-audit.test.mjs tests/restore-readiness.test.mjs tests/local-production-backup.test.mjs
+        run: node --test tests/auth-validators.test.js tests/default-rooms.test.js tests/cleaner-validation.test.js tests/cleaner-management-policy.test.mjs tests/qa-cleaner-management-contract.test.mjs tests/qa-cleaner-lifecycle-simulation.test.mjs tests/session-access-authorization.test.mjs tests/http-auth-handler.test.mjs tests/http-overview-authorization.test.mjs tests/qa-environment-guard.test.mjs tests/production-compatibility.test.mjs tests/production-account-dry-run.test.mjs tests/production-photo-migration-audit.test.mjs tests/restore-readiness.test.mjs tests/local-production-backup.test.mjs
       - name: Build existing React application
         run: npm run build
