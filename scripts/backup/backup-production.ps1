@@ -60,7 +60,8 @@ try {
     @{Name='data.sql'; Flags=@('--use-copy','--data-only')}
   )) {
     $target = Join-Path $dbDir $entry.Name
-    & supabase db dump --db-url $dbUrl -f $target @($entry.Flags)
+    [string[]]$flags = $entry.Flags
+    & supabase db dump --db-url $dbUrl -f $target @flags
     if ($LASTEXITCODE -ne 0) { throw "Database dump failed for $($entry.Name)" }
     if (-not (Test-Path -LiteralPath $target) -or (Get-Item -LiteralPath $target).Length -eq 0) {
       throw "Database dump file missing or empty: $($entry.Name)"
