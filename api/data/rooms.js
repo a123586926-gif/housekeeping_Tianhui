@@ -8,8 +8,11 @@ const BUILDING = new Set(["A", "B"]);
 const STATUS = new Set(["pending", "in_progress", "completed"]);
 
 function validId(id) {
+  // Reject coercible values (true, [1], "1e0", "01") before reaching a database query.
+  if (typeof id === "number") return Number.isSafeInteger(id) && id > 0 ? id : null;
+  if (typeof id !== "string" || !/^[1-9][0-9]*$/.test(id)) return null;
   const value = Number(id);
-  return Number.isSafeInteger(value) && value > 0 ? value : null;
+  return Number.isSafeInteger(value) ? value : null;
 }
 function validText(value, max) {
   return typeof value === "string" && value.length <= max;
