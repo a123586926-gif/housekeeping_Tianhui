@@ -818,7 +818,9 @@ export default function App() {
     try {
       const session=await signInWithPin(selectedUserId,pin);
       setPin("");
-      if(!session.authenticated)throw new Error("登入狀態無效");
+      if(!session.authenticated || session.user.id !== selectedUserId)
+        throw new Error("登入帳號驗證不一致，請重新登入。");
+      setAuthRestoreError("");
       dataEpoch.current+=1;
       setCurrentUser(session.user);
       setShowLogin(false);
