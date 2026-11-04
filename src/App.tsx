@@ -911,10 +911,7 @@ export default function App() {
       return {
         ...item,
         subItems: nextSubItems,
-        done: checked
-          ? nextSubItems.every((sub) => sub.done) &&
-            true
-          : false,
+        done: checked && nextSubItems.every((sub) => sub.done),
       };
     });
 
@@ -1549,15 +1546,7 @@ export default function App() {
                                     return;
                                   }
 
-                                  if (false && item.requiredPhoto && !item.photo) {
-                                    openPhotoModal({
-                                      roomId: room.id,
-                                      itemId: item.id,
-                                      mode: "item",
-                                    });
-                                    return;
-                                  }
-
+                                  // Photo proof is optional while uploads are paused.
                                   updateLatestActivityChecklist(room.id, item.id, true);
                                 }}
                                 className="mt-0.5 h-5 w-5 shrink-0 accent-[#8b8462]"
@@ -1626,20 +1615,7 @@ export default function App() {
                                             return;
                                           }
 
-                                          const willAllDone = item.subItems.every((s) =>
-                                            s.id === sub.id ? true : s.done
-                                          );
-
-                                          if (false && item.requiredPhoto && willAllDone && !item.photo) {
-                                            openPhotoModal({
-                                              roomId: room.id,
-                                              itemId: item.id,
-                                              subItemId: sub.id,
-                                              mode: "subitem",
-                                            });
-                                            return;
-                                          }
-
+                                          // Subitems can complete without a photo during the upload pause.
                                           updateLatestActivitySubItem(room.id, item.id, sub.id, true);
                                         }}
                                         className="mt-0.5 h-4 w-4 shrink-0 accent-[#8b8462]"
