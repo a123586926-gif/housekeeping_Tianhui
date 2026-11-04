@@ -14,6 +14,7 @@ import {
   EXPECTED_PROJECT,SOURCE_BUCKET,assertProductionSource,
   safeTarget,validateStorageKey,createEntry,verifyManifest,
 } from "./storage-backup-core.mjs";
+import { backupStorageObjects } from "./storage-backup-runner.mjs";
 
 async function main(){
   if(process.env.CI || process.env.VERCEL || process.env.VERCEL_ENV)
