@@ -423,9 +423,24 @@ export default function App() {
   const [photoFileName, setPhotoFileName] = useState("");
   const [photoFile, setPhotoFile] = useState<File | null>(null);
 
-  const today = useMemo(() => {
+  const [today, setToday] = useState(() => {
     const now = new Date();
-    return new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
+    return new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  });
+  useEffect(() => {
+    // Keep the activity order correct when a browser tab stays open overnight.
+    const refreshDate = () => {
+      const now = new Date();
+      setToday(previous => isSameDate(previous, now)
+        ? previous
+        : new Date(now.getFullYear(), now.getMonth(), now.getDate()));
+    };
+    const timer = window.setInterval(refreshDate, 60_000);
+    window.addEventListener("focus", refreshDate);
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener("focus", refreshDate);
+    };
   }, []);
 
   async function loadCleanersFromSupabase() {
