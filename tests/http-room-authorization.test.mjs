@@ -180,3 +180,59 @@ test("previously saved photos remain readable while uploads are paused",async()=
  assert.equal(res.statusCode,200);
  assert.equal(res.body.expiresIn,60);
 });
+
+const cleaningChecklist=[
+ {id:"flooring",requiredPhoto:true,done:false,photo:false,subItems:[{id:"sweep",done:false},{id:"mop",done:false}]},
+ {id:"bathroom",requiredPhoto:true,done:false,photo:false,subItems:[{id:"wash",done:false}]},
+];
+const flags=(items)=>items.map(item=>({
+ id:item.id,done:item.done,photo:item.photo,
+ subItems:item.subItems.map(sub=>({id:sub.id,done:sub.done})),
+}));
+test("paused photo upload does not prevent legitimate checklist 100% completion",async()=>{
+ const mock=mockRoomDb({room:{id:701,event_id:9101,cleaner_id:901,checklist:cleaningChecklist,
+  floor_photo:null,bathroom_photo:null}});
+ const handler=createRoomsHandler({originAllowed:()=>true,sessionReader:async()=>cleaner901,dbFactory:()=>mock.db});
+ const next=flags(cleaningChecklist).map(item=>({
+  ...item,done:true,photo:true,subItems:item.subItems.map(sub=>({...sub,done:true})),
+ }));
+ const res=response();
+ await handler({method:"PATCH",body:{roomId:701,changes:{checklist:next},
+  expectedChecklist:flags(cleaningChecklist)}},res);
+ assert.equal(res.statusCode,200);
+ const write=mock.calls.find(c=>c[0]==="update")?.[1];
+ assert.equal(write?.status,"completed");
+ assert.equal(write?.progress,100);
+ assert.equal(write?.cleaning_progress,100);
+ assert.equal(write?.cleaning_status,"已完成");
+ assert.equal(write?.checklist.every(item=>item.done),true);
+ assert.equal(write?.checklist.every(item=>item.photo===false),true,
+  "client must never be able to fake persisted photo evidence");
+});
+test("pausing photos preserves existing photo evidence when checklist is unchecked",async()=>{
+ const roomChecklist=cleaningChecklist.map((item,i)=>({
+  ...item,done:true,photo:i===0,subItems:item.subItems.map(sub=>({...sub,done:true})),
+ }));
+ const mock=mockRoomDb({room:{id:701,event_id:9101,cleaner_id:901,checklist:roomChecklist,
+ floor_photo:"room-701/flooring/mock.jpg",bathroom_photo:null}});
+ const handler=createRoomsHandler({originAllowed:()=>true,sessionReader:async()=>cleaner901,dbFactory:()=>mock.db});
+ const next=flags(roomChecklist).map(item=>({...item,done:false,photo:false,
+ subItems:item.subItems.map(sub=>({...sub,done:false}))}));
+ const res=response();
+ await handler({method:"PATCH",body:{roomId:701,changes:{checklist:next}}},res);
+ assert.equal(res.statusCode,200);
+ const write=mock.calls.find(c=>c[0]==="update")?.[1];
+ assert.equal(write?.status,"pending");
+ assert.equal(write?.progress,0);
+ assert.equal(write?.checklist[0].photo,true);
+});
+test("server rejects parent completion if any child task remains unchecked",async()=>{
+ const mock=mockRoomDb({room:{id:701,event_id:9101,cleaner_id:901,checklist:cleaningChecklist}});
+ const handler=createRoomsHandler({originAllowed:()=>true,sessionReader:async()=>cleaner901,dbFactory:()=>mock.db});
+ const inconsistent=flags(cleaningChecklist);
+ inconsistent[0].done=true;
+ const res=response();
+ await handler({method:"PATCH",body:{roomId:701,changes:{checklist:inconsistent}}},res);
+ assert.equal(res.statusCode,400);
+ assert.equal(mock.calls.some(c=>c[0]==="update"),false);
+});
