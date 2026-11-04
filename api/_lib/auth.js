@@ -42,10 +42,10 @@ export function getCookie(req) {
   const match = header.match(/(?:^|;\s*)__Host-hk_session=([a-f0-9]{64})(?:;|$)/);
   return match?.[1] || null;
 }
-export async function getSession(req) {
+export async function getSession(req, { dbFactory=adminDb }={}) {
   const token = getCookie(req);
   if (!token) return null;
-  const db = adminDb();
+  const db = dbFactory();
   const { data, error } = await db.from("hk_auth_sessions")
     .select("user_id, expires_at, revoked_at")
     .eq("token_hash", shaToken(token)).maybeSingle();
