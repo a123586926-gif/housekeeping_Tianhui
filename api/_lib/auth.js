@@ -1,5 +1,6 @@
 import { createHash, randomBytes } from "node:crypto";
 import { createClient } from "@supabase/supabase-js";
+import { assertQaEnvironment } from "./qaGuard.js";
 
 const COOKIE = "__Host-hk_session";
 const LIFETIME = 30 * 24 * 60 * 60;
@@ -9,6 +10,7 @@ export function adminDb() {
   const url = process.env.SUPABASE_URL;
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!url || !key) throw new Error("Server-side Supabase configuration is missing");
+  assertQaEnvironment({vercelEnv:process.env.VERCEL_ENV,supabaseUrl:url});
   if (!client) client = createClient(url, key, {
     auth: { persistSession: false, autoRefreshToken: false },
   });
