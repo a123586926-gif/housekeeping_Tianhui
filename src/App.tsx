@@ -629,6 +629,8 @@ export default function App() {
     if(!currentUser){
       setActivities([]);setStaffUsers([]);setSharedCalendarEvents([]);
       setSelectedPrintRoomIds([]);setOccupantDrafts({});
+      setOverviewSearch("");setCalendarSheetDate("");
+      setExpandedRoomId("");setExpandedStaffName("");
       setShowActivityModal(false);setShowRoomModal(false);setShowStaffModal(false);
       setShowPhotoModal(false);setPendingPhotoAction(null);setPhotoFile(null);
       return;
@@ -838,6 +840,16 @@ export default function App() {
         throw new Error("登入帳號驗證不一致，請重新登入。");
       setAuthRestoreError("");
       dataEpoch.current+=1;
+      // Clear previous account UI before exposing the newly authenticated identity.
+      setActivities([]);
+      setStaffUsers([]);
+      setSharedCalendarEvents([]);
+      setSelectedPrintRoomIds([]);
+      setOccupantDrafts({});
+      setExpandedRoomId("");
+      setExpandedStaffName("");
+      setOverviewSearch("");
+      setCalendarSheetDate("");
       setCurrentUser(session.user);
       setShowLogin(false);
       setViewMode(session.user.role==="admin"?"admin":"staff");
@@ -864,6 +876,11 @@ export default function App() {
       setOverviewFilter("all");
       setExpandedRoomId("");
       setExpandedStaffName("");
+      setOverviewSearch("");
+      setCalendarSheetDate("");
+      setSelectedPrintRoomIds([]);
+      setOccupantDrafts({});
+      setSharedCalendarEvents([]);
       resetPhotoModal();
     }catch(error) {
       window.alert("登出失敗，請重試；不會假設登入已失效");
