@@ -2086,9 +2086,9 @@ export default function App() {
                 <div className="space-y-2">
                   {staffUsers.map((user) => {
                     const assignedRooms = latestRooms.filter(
-                      (room) => room.assignedTo === user.name
+                      (room) => user.dbId != null && room.cleanerId === user.dbId
                     );
-                    const expanded = expandedStaffName === user.name;
+                    const expanded = expandedStaffName === user.id;
 
                     return (
                       <div
@@ -2106,7 +2106,7 @@ export default function App() {
                           </button>
 
                           <button
-                            onClick={() => setExpandedStaffName((prev) => (prev === user.name ? "" : user.name))}
+                            onClick={() => setExpandedStaffName((prev) => (prev === user.id ? "" : user.id))}
                             className="flex flex-1 items-center justify-between gap-3 text-left"
                           >
                             <div className="min-w-0">
