@@ -31,3 +31,10 @@
 
 ## 零影響保證
 本輪改動僅在 GitHub `feature/remember-login-30d`。不在 Vercel / CI 自動執行真實備份；不觸碰來源資料及設定。
+
+## 2026-11-04 後續實測更新
+
+- 在隔離 Linux Node.js 22 環境，依據開發分支核心模組、Storage runner 及測試內容重建離線測試，先以虛構檔案及本機臨時資料夾 **9/9 PASS**，之後再補 Windows 特殊檔名拒絕測試 **10/10 PASS**。正式 Supabase 完全未連線。
+- 新增 Windows 保護：拒絕 `CON`、`NUL`、`COM1`、`LPT9` 等裝置檔名、NTFS Alternate Data Stream 冒號及尾端句點或空白，避免在 Windows 備份目錄寫入時失敗或混淆。
+- 實際 GitHub 開發分支 latest Vercel Preview commit `73daa0b` **READY**，build logs：照片遷移 7/7、還原門檻 8/8、備份工具 10/10、Vite build 成功。
+- **但 Windows PowerShell / BitLocker / Docker / Supabase CLI 真正的本機整合執行，以及正式 SQL/Storage 備份與隔離還原仍未完成**，不能誤標為正式備份驗收。
