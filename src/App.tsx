@@ -1379,7 +1379,11 @@ export default function App() {
 
     const selectedRooms = selectedActivity.rooms.filter(room =>
       selectedPrintRoomIds.includes(room.id)
-    );
+    ).sort((a,b) => {
+      if (a.building !== b.building) return a.building.localeCompare(b.building);
+      if (a.floor !== b.floor) return FLOOR_OPTIONS.indexOf(a.floor) - FLOOR_OPTIONS.indexOf(b.floor);
+      return a.roomNo.localeCompare(b.roomNo, undefined, { numeric: true });
+    });
 
     if (selectedRooms.length === 0) {
       window.alert("請先勾選要列印的房間");
