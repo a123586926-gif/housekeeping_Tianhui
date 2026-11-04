@@ -18,6 +18,10 @@
 
 正式 `cleaning-photos` 目前公開，且有 1 張約 1.59 MB 的舊照片物件，但 168 間活動房間均沒有引用；該物件必須保留、人工核對，不可自動刪除。建立 `server/production-photo-migration-audit.mjs` 及 7 項虛構資料測試，並將測試納入 Vercel Build 和 CI，已在 Preview build 觀察到 7/7 pass。詳見 [production-photo-private-migration-20261104.md](./production-photo-private-migration-20261104.md)。**正式 Storage 未備份、未搬移、未改權限；繼續 NO-GO。**
 
+## 備份與還原驗證門檻（2026-11-04）
+
+已完成正式來源的 `REPEATABLE READ READ ONLY` 基準計數並核對官方備份規則。加入獨立資料庫與 Storage 雙還原驗證純函式、SHA-256 manifest/失敗情境測試。**尚未取得正式方案/可用備份點，也未建立實際備份或做隔離還原**；繼續 NO-GO。詳見 [production-backup-restore-readiness-20261104.md](./production-backup-restore-readiness-20261104.md)。
+
 ## 目前已由使用者驗收
 
 - 30 天工作階段：同一固定 Preview 網域 F5 後可維持登入（尚未做真正 30 天到期測試）。
