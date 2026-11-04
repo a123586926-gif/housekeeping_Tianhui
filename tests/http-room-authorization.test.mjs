@@ -320,3 +320,14 @@ test("legacy name-based room assignment rejects ambiguous duplicate names",async
  await handler({method:"PATCH",body:{roomId:701,changes:{assignedTo:"同名測試"}}},res);
  assert.equal(res.statusCode,409);
 });
+
+test("spoofed administrator, malformed cleaner ID are rejected before database access",async()=>{
+ for(const user of [{role:"admin",id:"cleaner-901"},{role:"cleaner",id:"cleaner-abc"},{role:"cleaner",id:"cleaner-0"}]){
+  let accesses=0;
+  const handler=createRoomsHandler({originAllowed:()=>true,sessionReader:async()=>({user}),dbFactory:()=>{accesses++;throw Error("Forbidden DB use");}});
+  const res=response();
+  await handler({method:"PATCH",body:{roomId:701,changes:{occupant:"測試"}}},res);
+  assert.equal(res.statusCode,403);
+  assert.equal(accesses,0);
+ }
+});
