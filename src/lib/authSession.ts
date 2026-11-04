@@ -33,7 +33,9 @@ function isAuthenticatedUser(value: unknown): value is AuthenticatedUser {
   return (
     typeof user.id === "string" &&
     typeof user.name === "string" &&
-    (user.role === "admin" || user.role === "cleaner")
+    user.name.trim().length > 0 &&
+    ((user.role === "admin" && user.id === "admin") ||
+      (user.role === "cleaner" && /^cleaner-[1-9][0-9]*$/.test(user.id)))
   );
 }
 
