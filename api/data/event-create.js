@@ -13,13 +13,15 @@ export default async function handler(req, res) {
     if (session.user.role !== "admin") return json(res, 403, { error: "Admin required" });
 
     const db = adminDb();
+    let existingEvent = null;
     if (req.method !== "POST") {
       const eventId = req.body?.eventId;
       if (!validId(eventId)) return json(res,400,{error:"Invalid event ID"});
       const {data: existing, error: guardError} = await db.from("events")
-        .select("id,event_name").eq("id",Number(eventId)).maybeSingle();
+        .select("id,event_name,event_type").eq("id",Number(eventId)).maybeSingle();
       if (guardError) throw guardError;
       if (!existing) return json(res,404,{error:"Event not found"});
+      existingEvent = existing;
       if (!existing.event_name.startsWith("【權限驗收】") && ![9101,9102,9103].includes(Number(eventId)))
         return json(res,403,{error:"Only QA events may be modified in sandbox"});
       if (req.method === "DELETE") {
@@ -46,6 +48,12 @@ export default async function handler(req, res) {
     if (req.method === "POST" && !event.event_name.startsWith("【權限驗收】"))
       return json(res,403,{error:"Sandbox only accepts QA-labeled activities"});
     if (req.method === "PATCH") {
+      // Switching between cleaning and non-cleaning would leave old rooms hidden,
+      // or create a cleaning event without the required room roster.
+      // Require a separate, transactional room migration for that change.
+      if ((existingEvent.event_type !== "一般活動") !==
+          (event.event_type !== "一般活動"))
+        return json(res,409,{error:"Changing cleaning requirement needs a separate room migration"});
       // The original fixture events may be edited inside this isolated QA database.
       // Other non-QA events remain protected, and callers cannot gain permission by
       // renaming an unrelated event.
