@@ -1,11 +1,12 @@
 /**
- * Client-side contract for a future server-verified 30-day login session.
+ * QA-only client contract for a server-verified 30-day login session.
  *
  * IMPORTANT:
- * - These helpers are intentionally NOT connected to App.tsx yet.
- * - Never persist a PIN, a role, or an authentication token in localStorage.
- * - The server must validate HttpOnly session cookies on every protected API.
- * - Do not activate until the server endpoints and Supabase RLS are ready.
+ * - App.tsx currently uses these helpers on the development branch.
+ * - Never persist a PIN, role, or authentication token in localStorage.
+ * - The server must validate HttpOnly cookies on every protected API.
+ * - Production rollout remains blocked until the separate database
+ *   migration, RLS review and account provisioning are explicitly approved.
  */
 export const SESSION_MAX_AGE_SECONDS = 30 * 24 * 60 * 60;
 
