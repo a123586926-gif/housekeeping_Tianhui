@@ -71,3 +71,15 @@
 - 原始碼 8 項安全與整合條件檢查符合；仍需 GitHub 最新完整 CI 及 QA UI 跨帳號實測。
 
 **正式環境完全未修改，Preview 暫停。** 不得藉這次 GitHub 更新自動合併 main、部署正式站、改正式 Supabase 或改六位人員 PIN。
+
+## 第六批：使用者確認第五批 Success 後（2026-11-04）
+- 使用者回報上一批 GitHub Actions `Success`；本批已有新提交，仍需重新確認最新 HEAD CI，不得引用舊結果宣稱本批已驗收。
+- `src/lib/authSession.ts` 登入後重新讀取 Session 時，檢查回傳 user.id **必須等於原本登入 userId**，避免另一分頁剛改動共同 HttpOnly cookie 而錯認其他帳號。
+- 瀏覽器工作階段對角色／ID 組合做明確核對：只有 `admin/admin`，或 `cleaner/cleaner-<positive ID>` 可通過；不接受空白顯示姓名。
+- UI 登入成功時二次核對 selectedUserId，並清掉先前留下的登入失敗提示；重新驗證時若帳號 ID、角色相同但顯示姓名已變更，只更新顯示姓名。
+- 讀取房務總覽遇 401/403，立即清掉本頁活動及日曆資料並回登入畫面，不能繼續顯示已撤銷工作階段的舊房間。
+- `tests/ui-data-contract.test.mjs` 新增上述行為的來源契約測試；未修改正式資料、正式 PIN、RLS、Storage、main 或 Vercel 部署。
+- `authSession.ts` 文件改正：功能已連結 QA 開發版，但**不代表已授權正式上線**；仍待生產驗收與正式遷移核准。
+
+### 本批下一個關卡
+檢查 GitHub Actions 針對本批**最新 commit**是否 Success；如無成功紀錄，不能宣稱建置通過。正式系統與六位人員維持原狀，QA 最新 UI 實測需等使用者允許部署或提供本機操作環境。
