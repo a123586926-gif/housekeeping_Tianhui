@@ -9,7 +9,7 @@ export function createCleanersHandler({dbFactory=adminDb,sessionReader=getSessio
   try {
     const session = await sessionReader(req);
     if (!session) return json(res, 401, { error: "Not authenticated" });
-    if (session.user.role !== "admin") return json(res, 403, { error: "Admin required" });
+    if (session.user?.role !== "admin" || session.user.id !== "admin") return json(res, 403, { error: "Admin required" });
     if (req.method !== "GET") {
       // Temporary staging-only management RPC. All new accounts start disabled
       // with a random, unrecoverable credential. Real staff PIN provisioning
