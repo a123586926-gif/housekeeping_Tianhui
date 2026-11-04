@@ -67,3 +67,8 @@ test("client rejects cross-tab session identity changes after successful PIN sig
  assert.match(auth,/user\.role === "admin" && user\.id === "admin"/);
  assert.match(auth,/user\.role === "cleaner" && \/\^cleaner-\[1-9\]\[0-9\]\*\$\//);
 });
+
+test("login UI never accepts wrong active identity and clears stale errors on success",()=>{
+ assert.match(app,/!session\.authenticated \|\| session\.user\.id !== selectedUserId/);
+ assert.match(app,/setAuthRestoreError\(""\)/);
+});
