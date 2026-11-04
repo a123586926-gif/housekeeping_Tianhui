@@ -94,3 +94,18 @@ test("mobile room editor has fluid columns and print waits for fonts",()=>{
  assert.match(app,/sm:grid-cols-\[24px_minmax\(0,1fr\)_96px_64px_36px_30px\]/);
  assert.match(app,/document\.fonts\.ready\.then\(\(\) => window\.print\(\)\)/);
 });
+
+test("admin room writes cannot overlap and failed occupant edits keep drafts",()=>{
+ assert.match(app,/roomAdministrationSaving\.current\.has\(roomId\)/);
+ assert.match(app,/roomAdministrationSaving\.current\.add\(roomId\)/);
+ assert.match(app,/roomAdministrationSaving\.current\.delete\(roomId\)/);
+ assert.match(app,/disabled=\{savingRoomAdministrationIds\.includes\(room\.id\)\}/);
+ assert.match(app,/void updateRoomField\(selectedActivity\.id,room\.id,\{occupant:draft\}\)/);
+ assert.match(app,/if\(saved\)setOccupantDrafts\(prev=>/);
+ assert.match(app,/if\(prev\[room\.id\]!==draft\)return prev/);
+});
+test("account switch clears previous user drafts, selections and admin filters",()=>{
+ assert.match(app,/setActivities\(\[\]\);\s*setStaffUsers\(\[\]\);\s*setSharedCalendarEvents\(\[\]\);\s*setSelectedPrintRoomIds\(\[\]\);\s*setOccupantDrafts\(\{\}\);/);
+ assert.match(app,/setOverviewSearch\(""\)/);
+ assert.match(app,/setCalendarSheetDate\(""\)/);
+});
