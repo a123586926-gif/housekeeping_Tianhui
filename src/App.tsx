@@ -782,10 +782,16 @@ export default function App() {
     if(!room?.dbId)return;
     try {
       if(updates.checklist){
-        await updateRoomChecklist(room.dbId,updates.checklist.map(item=>({
+        const flags=(items:ChecklistItem[])=>items.map(item=>({
           id:item.id,done:item.done,photo:item.photo,
           subItems:item.subItems.map(s=>({id:s.id,done:s.done})),
-        })));
+        }));
+        // Upload updates the photo flag server-side before the completion
+        // update. That one workflow cannot compare with its pre-upload snapshot.
+        const photoJustUploaded=updates.checklist.some(item=>
+          item.photo && !room.checklist.find(old=>old.id===item.id)?.photo);
+        await updateRoomChecklist(room.dbId,flags(updates.checklist),
+          photoJustUploaded?undefined:flags(room.checklist));
       }
       if(updates.assignedTo!==undefined||updates.occupant!==undefined){
         if(currentUser?.role!=="admin")throw new Error("僅管理員可以修改入住者及指派");
