@@ -15,7 +15,8 @@ import {
   WandSparkles,
 } from "lucide-react";
 import { readSession, signInWithPin, signOutSession, provisionQaPin } from "./lib/authSession";
-import { getBusinessOverview, getCleaners, createActivity, editActivity, deleteActivity,
+import SharedActivityCalendar from "./components/SharedActivityCalendar";
+import { getBusinessOverview, getCleaners, createActivity, editActivity, deleteActivity, type CalendarEvent,
   createQaRoom, deleteQaRoom, updateRoomChecklist, updateRoomAdministration,
   createQaCleaner, renameQaCleaner } from "./lib/housekeepingApi";
 
@@ -368,6 +369,10 @@ export default function App() {
   const [authBusy,setAuthBusy] = useState(false);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [showLogin, setShowLogin] = useState(true);
+  const [authRestoring,setAuthRestoring]=useState(true);
+  const [authRestoreError,setAuthRestoreError]=useState("");
+  const [staffCalendarVisible,setStaffCalendarVisible]=useState(false);
+  const [sharedCalendarEvents,setSharedCalendarEvents]=useState<CalendarEvent[]>([]);
   const [selectedUserId, setSelectedUserId] = useState("");
   const [pin, setPin] = useState("");
 
@@ -456,6 +461,7 @@ export default function App() {
       const data = await getBusinessOverview();
       const eventsData = data.events;
       const roomsData = data.eventRooms;
+      setSharedCalendarEvents(data.calendarEvents);
     const events = (eventsData || []) as DbEvent[];
     const eventRooms = (roomsData || []) as DbEventRoom[];
 
@@ -526,7 +532,32 @@ export default function App() {
 
   useEffect(() => {
     let active=true;
+    const delay=(ms:number)=>new Promise<void>(resolve=>setTimeout(resolve,ms));
     async function restore(){
+      setAuthRestoring(true);
+      setAuthRestoreError("");
+      // Account labels are not a prerequisite for restoring an existing session.
+      // The secure HttpOnly cookie is authoritative; never infer sign-in from local state.
+      try {
+        for(let attempt=0;attempt<3;attempt++){
+          try {
+            const session=await readSession();
+            if(active && session.authenticated){
+              setCurrentUser(session.user);
+              setShowLogin(false);
+              setViewMode(session.user.role==="admin"?"admin":"staff");
+            }
+            break;
+          }catch(error){
+            if(attempt===2)throw error;
+            await delay(250*(attempt+1));
+          }
+        }
+      } catch(error){
+        if(active)setAuthRestoreError("工作階段驗證失敗，請檢查網路後重新整理；系統不會要求重設 PIN。");
+      } finally {
+        if(active)setAuthRestoring(false);
+      }
       try {
         const response=await fetch("/api/auth/accounts",{credentials:"same-origin",cache:"no-store"});
         if(!response.ok)throw new Error("帳號清單無法載入");
@@ -534,13 +565,9 @@ export default function App() {
         if(active)setLoginUsers(directory.users.map(row=>({
           id:row.id,name:row.name,role:row.id==="admin"?"admin":"cleaner",
         })));
-        const session=await readSession();
-        if(active&&session.authenticated){
-          setCurrentUser(session.user);
-          setShowLogin(false);
-          setViewMode(session.user.role==="admin"?"admin":"staff");
-        }
-      } catch(error) {if(active) console.error("工作階段讀取失敗",error);}
+      }catch(error){
+        if(active)setAuthRestoreError(prev=>prev||"目前無法載入登入帳號，請重新整理。");
+      }
     }
     void restore();
     return ()=>{active=false;};
@@ -677,8 +704,27 @@ export default function App() {
     }
   }
 
+  async function viewPrivatePhoto(room:Room,itemId:string) {
+    if(!room.dbId)return;
+    const preview=window.open("about:blank","_blank");
+    try{
+      const params=new URLSearchParams({roomId:String(room.dbId),itemId});
+      const response=await fetch("/api/data/rooms?"+params.toString(),{
+        credentials:"same-origin",cache:"no-store",
+      });
+      if(!response.ok)throw new Error("無法查看私人照片（HTTP "+response.status+"）");
+      const body=await response.json() as {signedUrl?:string};
+      if(!body.signedUrl||!body.signedUrl.startsWith("https://"))throw new Error("照片連結無效");
+      if(preview)preview.location.href=body.signedUrl;
+      else window.alert("瀏覽器已阻擋照片視窗，請允許彈出視窗再重試。");
+    }catch(error){
+      preview?.close();
+      window.alert(error instanceof Error?error.message:"照片檢視失敗");
+    }
+  }
+
   async function handleLogin() {
-    if(authBusy||!selectedUserId||!pin)return;
+    if(authBusy||authRestoring||!selectedUserId||!pin)return;
     setAuthBusy(true);
     try {
       const session=await signInWithPin(selectedUserId,pin);
