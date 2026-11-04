@@ -2,13 +2,14 @@ import { adminDb, getSession, json } from "../_lib/auth.js";
 
 // Authenticated read-only endpoint. Not connected to App.tsx until the
 // remaining browser-side Supabase calls are replaced and RLS is tightened.
-export default async function handler(req, res) {
+export function createOverviewHandler({dbFactory=adminDb,sessionReader=getSession}={}) {
+  return async function handler(req, res) {
   if (req.method !== "GET") return json(res, 405, { error: "Method not allowed" });
   try {
-    const session = await getSession(req);
+    const session = await sessionReader(req);
     if (!session) return json(res, 401, { error: "Not authenticated" });
 
-    const db = adminDb();
+    const db = dbFactory();
     const { data: events, error: eventError } = await db.from("events")
       .select("id, event_date, event_name, event_type, status, notes")
       .order("event_date", { ascending: true });
@@ -51,4 +52,7 @@ export default async function handler(req, res) {
   } catch {
     return json(res, 503, { error: "Unable to retrieve room data" });
   }
+  };
 }
+
+export default createOverviewHandler();
