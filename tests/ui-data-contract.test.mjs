@@ -125,3 +125,10 @@ test("concurrent list refreshes ignore stale out-of-order network responses",()=
  assert.match(app,/sequence!==cleanerRequestSequence\.current/);
  assert.match(app,/epoch!==dataEpoch\.current/);
 });
+
+test("pending room mutations cannot clear new account drafts after logout",()=>{
+ assert.match(app,/const mutationEpoch=dataEpoch\.current/);
+ assert.match(app,/if\(mutationEpoch!==dataEpoch\.current\)return false/);
+ assert.match(app,/return mutationEpoch===dataEpoch\.current/);
+ assert.match(app,/if\(mutationEpoch===dataEpoch\.current\)\{/);
+});
