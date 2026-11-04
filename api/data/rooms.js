@@ -184,10 +184,13 @@ export function createRoomsHandler({
         Array.isArray(body.changes)) return bad(res);
     const changes = body.changes;
     const keys = Object.keys(changes);
-    const allowed = new Set(["occupant","assignedTo","checklist"]);
+    const allowed = new Set(["occupant","assignedTo","assignedCleanerId","checklist"]);
     if (!keys.length || keys.some(key => !allowed.has(key))) return bad(res);
     if ("occupant" in changes && !validText(changes.occupant,3000)) return bad(res);
     if ("assignedTo" in changes && !validText(changes.assignedTo,120)) return bad(res);
+    if ("assignedCleanerId" in changes && changes.assignedCleanerId !== null &&
+        !validId(changes.assignedCleanerId)) return bad(res);
+    if ("assignedTo" in changes && "assignedCleanerId" in changes) return bad(res);
     if ("checklist" in changes && !validChecklist(changes.checklist)) return bad(res);
     // Optional optimistic-lock snapshot supplied by the editing UI.
     // Exclude server-owned labels and descriptions from the comparison.
@@ -210,16 +213,34 @@ export function createRoomsHandler({
       payload.guest_name = changes.occupant || null;
       payload.stay_status = changes.occupant.trim() ? "住宿中" : "空房";
     }
-    if ("assignedTo" in changes) {
-      payload.assigned_to = changes.assignedTo;
-      // Resolve ID on server instead of trusting a client-provided cleaner_id.
-      if (changes.assignedTo === "未分配") payload.cleaner_id = null;
-      else {
-        const { data: cleaner, error: cleanerError } = await db.from("cleaners")
-          .select("id").eq("name", changes.assignedTo).eq("is_active", true).maybeSingle();
+    if ("assignedCleanerId" in changes) {
+      if (changes.assignedCleanerId === null) {
+        payload.assigned_to = "未分配";
+        payload.cleaner_id = null;
+      } else {
+        // The browser submits a stable cleaner ID. Never trust a client-supplied name.
+        const {data: cleaner, error: cleanerError} = await db.from("cleaners")
+          .select("id,name").eq("id",changes.assignedCleanerId)
+          .eq("is_active",true).maybeSingle();
         if (cleanerError) throw cleanerError;
-        if (!cleaner) return bad(res);
+        if (!cleaner || typeof cleaner.name !== "string" || !cleaner.name.trim())
+          return json(res,409,{error:"Cleaner unavailable or inactive"});
+        payload.assigned_to = cleaner.name;
         payload.cleaner_id = cleaner.id;
+      }
+    } else if ("assignedTo" in changes) {
+      // Transitional compatibility; names must be unique. New UI uses IDs.
+      if (changes.assignedTo === "未分配") {
+        payload.assigned_to = "未分配";
+        payload.cleaner_id = null;
+      } else {
+        const {data: matches, error: cleanerError} = await db.from("cleaners")
+          .select("id,name").eq("name",changes.assignedTo).eq("is_active",true).limit(2);
+        if (cleanerError) throw cleanerError;
+        if (!Array.isArray(matches) || matches.length !== 1)
+          return json(res,409,{error:"Cleaner name ambiguous or unavailable"});
+        payload.assigned_to = matches[0].name;
+        payload.cleaner_id = matches[0].id;
       }
     }
     if ("checklist" in changes) {
