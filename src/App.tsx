@@ -663,64 +663,64 @@ export default function App() {
     setShowPhotoModal(true);
   }
 
-  async function uploadCleaningPhoto(
-    room: Room,
-    itemId: string,
-    file: File
-  ): Promise<string | null> {
-    if (!room.dbId) {
-      window.alert("找不到房間資料，無法上傳照片");
-      return null;
+  async function uploadCleaningPhoto(room: Room,itemId:string,file:File):Promise<string|null>{
+    if(!room.dbId){window.alert("找不到房間資料");return null;}
+    if(file.size>2*1024*1024||!["image/png","image/jpeg","image/webp"].includes(file.type)){
+      window.alert("照片限 PNG、JPEG 或 WebP，大小不得超過 2MB");return null;
     }
-
-    const ext = file.name.split(".").pop() || "jpg";
-    const safeItemId = itemId.replace(/[^a-zA-Z0-9_-]/g, "");
-    const fileName = `${room.dbId}-${safeItemId}-${Date.now()}.${ext}`;
-    const filePath = `event-rooms/${fileName}`;
-
-    const { error: uploadError } = await supabase.storage
-      .from("cleaning-photos")
-      .upload(filePath, file, {
-        cacheControl: "3600",
-        upsert: true,
+    try {
+      const bytes=new Uint8Array(await file.arrayBuffer());
+      let binary="";
+      for(let i=0;i<bytes.length;i+=8192)
+        binary+=String.fromCharCode(...bytes.subarray(i,i+8192));
+      const response=await fetch("/api/data/rooms",{
+        method:"POST",credentials:"same-origin",headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({roomId:room.dbId,itemId,mime:file.type,base64:btoa(binary)}),
       });
-
-    if (uploadError) {
-      console.error("照片上傳失敗：", uploadError);
-      window.alert(`照片上傳失敗：${uploadError.message}`);
+      if(!response.ok)throw new Error(`伺服器拒絕照片上傳（HTTP ${response.status}）`);
+      return "private";
+    } catch(error) {
+      window.alert(error instanceof Error?error.message:"照片上傳失敗");
       return null;
     }
-
-    const { data } = supabase.storage
-      .from("cleaning-photos")
-      .getPublicUrl(filePath);
-
-    return data.publicUrl || null;
   }
 
-  function handleLogin() {
-    const found = loginUsers.find((u) => u.id === selectedUserId && u.pin === pin);
-    if (!found) {
-      window.alert("帳號或密碼錯誤，請重新輸入");
-      return;
-    }
-    setCurrentUser(found);
-    setShowLogin(false);
-    setPin("");
-    setViewMode(found.role === "admin" ? "admin" : "staff");
+  async function handleLogin() {
+    if(authBusy||!selectedUserId||!pin)return;
+    setAuthBusy(true);
+    try {
+      const session=await signInWithPin(selectedUserId,pin);
+      setPin("");
+      if(!session.authenticated)throw new Error("登入狀態無效");
+      setCurrentUser({...session.user,pin:""});
+      setShowLogin(false);
+      setViewMode(session.user.role==="admin"?"admin":"staff");
+    }catch(error) {
+      setPin("");
+      window.alert(error instanceof Error?error.message:"登入失敗");
+    }finally {setAuthBusy(false);}
   }
 
-  function handleLogout() {
-    setCurrentUser(null);
-    setShowLogin(true);
-    setSelectedUserId("");
-    setPin("");
-    setViewMode("staff");
-    setAdminView("overview");
-    setOverviewFilter("all");
-    setExpandedRoomId("");
-    setExpandedStaffName("");
-    resetPhotoModal();
+  async function handleLogout() {
+    if(authBusy)return;
+    setAuthBusy(true);
+    try {
+      await signOutSession();
+      setCurrentUser(null);
+      setActivities([]);
+      setStaffUsers([]);
+      setShowLogin(true);
+      setSelectedUserId("");
+      setPin("");
+      setViewMode("staff");
+      setAdminView("overview");
+      setOverviewFilter("all");
+      setExpandedRoomId("");
+      setExpandedStaffName("");
+      resetPhotoModal();
+    }catch(error) {
+      window.alert("登出失敗，請重試；不會假設登入已失效");
+    }finally {setAuthBusy(false);}
   }
 
   function mapRoomStatusToLegacy(status: RoomStatus) {
@@ -738,89 +738,29 @@ export default function App() {
     return found?.dbId ?? null;
   }
 
-  async function saveRoomToSupabase(room: Room, eventId: number) {
-    const progress = roomProgress(room);
-    const status = room.status || computeRoomStatus(room.checklist);
-    const occupant = room.occupant;
-    const assignedTo = room.assignedTo;
-
-    const payload: Record<string, any> = {
-      event_id: eventId,
-      building: room.building,
-      floor: room.floor,
-      room_no: room.roomNo,
-      assigned_to: assignedTo,
-      occupant,
-      progress,
-      status,
-      checklist: room.checklist,
-      guest_name: occupant || null,
-      stay_status: mapOccupantToStayStatus(occupant),
-      cleaning_status: mapRoomStatusToLegacy(status),
-      cleaning_progress: progress,
-      cleaner_id: findCleanerIdByName(assignedTo),
-      room_id: null,
-    };
-
-    if (room.dbId) {
-      const { error } = await supabase
-        .from("event_rooms")
-        .update(payload)
-        .eq("id", room.dbId);
-
-      if (error) {
-        console.error("更新房間失敗：", error);
-        window.alert(`更新房間失敗：${error.message}`);
+  async function updateRoomField(activityId:string,roomId:string,updates:Partial<Room>) {
+    const activity=activities.find(a=>a.id===activityId);
+    const room=activity?.rooms.find(r=>r.id===roomId);
+    if(!room?.dbId)return;
+    try {
+      if(updates.checklist){
+        await updateRoomChecklist(room.dbId,updates.checklist.map(item=>({
+          id:item.id,done:item.done,photo:item.photo,
+          subItems:item.subItems.map(s=>({id:s.id,done:s.done})),
+        })));
       }
-      return;
+      if(updates.assignedTo!==undefined||updates.occupant!==undefined){
+        if(currentUser?.role!=="admin")throw new Error("僅管理員可以修改入住者及指派");
+        await updateRoomAdministration(room.dbId,{
+          ...(updates.assignedTo!==undefined?{assignedTo:updates.assignedTo}:{}),
+          ...(updates.occupant!==undefined?{occupant:updates.occupant}:{}),
+        });
+      }
+      await loadEventsFromSupabase();
+    }catch(error) {
+      window.alert(error instanceof Error?error.message:"房間資料儲存失敗");
+      await loadEventsFromSupabase();
     }
-
-    const { error } = await supabase.from("event_rooms").insert([payload]);
-
-    if (error) {
-      console.error("新增房間失敗：", error);
-      window.alert(`新增房間失敗：${error.message}`);
-    }
-  }
-
-  async function updateRoomField(
-    activityId: string,
-    roomId: string,
-    updates: Partial<Room>
-  ) {
-    const targetActivity = activities.find((a) => a.id === activityId);
-    const targetRoom = targetActivity?.rooms.find((r) => r.id === roomId);
-    if (!targetActivity || !targetRoom || !targetActivity.dbId) return;
-
-    const mergedRoom: Room = {
-      ...targetRoom,
-      ...updates,
-    };
-
-    if (updates.checklist) {
-      mergedRoom.status = computeRoomStatus(updates.checklist);
-    }
-
-    setActivities((prev) =>
-      prev.map((activity) =>
-        activity.id === activityId
-          ? {
-              ...activity,
-              guestCount: String(
-                activity.rooms
-                  .map((room) => (room.id === roomId ? mergedRoom : room))
-                  .filter((room) => room.occupant.trim()).length
-              ),
-              rooms: activity.rooms.map((room) =>
-                room.id === roomId ? mergedRoom : room
-              ),
-            }
-          : activity
-      )
-    );
-
-    await saveRoomToSupabase(mergedRoom, targetActivity.dbId);
-    await loadEventsFromSupabase();
   }
 
   async function updateLatestActivityChecklist(roomId: string, itemId: string, checked: boolean) {
@@ -904,23 +844,8 @@ export default function App() {
     const publicUrl = await uploadCleaningPhoto(room, pendingPhotoAction.itemId, photoFile);
     if (!publicUrl) return;
 
-    const photoField = getPhotoFieldByChecklistItem(pendingPhotoAction.itemId);
-
-    const roomUpdatePayload: Record<string, any> = {
-      [photoField]: publicUrl,
-    };
-
-    const { error: photoSaveError } = await supabase
-      .from("event_rooms")
-      .update(roomUpdatePayload)
-      .eq("id", room.dbId);
-
-    if (photoSaveError) {
-      console.error("照片網址寫入失敗：", photoSaveError);
-      window.alert(`照片網址寫入失敗：${photoSaveError.message}`);
-      return;
-    }
-
+    // The authenticated upload API has already verified the room ownership,
+    // stored the photo privately and set the photo flag server-side.
     const nextChecklist = room.checklist.map((item) => {
       if (item.id !== pendingPhotoAction.itemId) return item;
 
@@ -982,149 +907,55 @@ export default function App() {
   }
 
   async function saveActivityModal() {
-    if (!activityName.trim() || !activityDate.trim()) {
-      window.alert("請先輸入活動日期與活動名稱");
-      return;
-    }
-
-    const eventType = activityNeedsCleaning ? "活動" : "一般活動";
-
-    const payload = {
-      event_date: activityDate,
-      event_name: activityName.trim(),
-      event_type: eventType,
-      status: "未開始",
-      notes: activityContact.trim() || "",
+    if(currentUser?.role!=="admin")return;
+    if(!activityName.trim()||!activityDate.trim()){window.alert("請輸入活動名稱與日期");return;}
+    const input={
+      event_date:activityDate,
+      event_name:activityName.trim(),
+      event_type:(activityNeedsCleaning?"活動":"一般活動") as "活動"|"一般活動",
+      notes:activityContact.trim(),
     };
-
-    if (activityModalMode === "edit") {
-      const dbId = Number(editingActivityId);
-      const { error } = await supabase
-        .from("events")
-        .update(payload)
-        .eq("id", dbId);
-
-      if (error) {
-        window.alert(`修改活動失敗：${error.message}`);
-        return;
+    try {
+      if(activityModalMode==="edit"){
+        await editActivity(Number(editingActivityId),input);
+      }else {
+        await createActivity(input);
       }
-
       setShowActivityModal(false);
       await loadEventsFromSupabase();
-      return;
-    }
-
-    const { data, error } = await supabase
-      .from("events")
-      .insert([payload])
-      .select();
-
-    if (error) {
-      window.alert(`新增活動失敗：${error.message}`);
-      return;
-    }
-
-    const inserted = data?.[0];
-
-    if (inserted && activityNeedsCleaning) {
-      const defaultRooms = buildDefaultRooms();
-      const rows = defaultRooms.map((room) => ({
-        event_id: inserted.id,
-        building: room.building,
-        floor: room.floor,
-        room_no: room.roomNo,
-        assigned_to: room.assignedTo,
-        occupant: room.occupant,
-        progress: 0,
-        status: room.status,
-        checklist: room.checklist,
-        guest_name: null,
-        stay_status: "空房",
-        cleaning_status: "未開始",
-        cleaning_progress: 0,
-        cleaner_id: null,
-        room_id: null,
-      }));
-
-      const { error: roomInsertError } = await supabase
-        .from("event_rooms")
-        .insert(rows);
-
-      if (roomInsertError) {
-        window.alert(`活動建立成功，但房間建立失敗：${roomInsertError.message}`);
-      }
-    }
-
-    setShowActivityModal(false);
-    await loadEventsFromSupabase();
+    } catch(error) {window.alert(error instanceof Error?error.message:"活動儲存失敗");}
   }
 
   async function deleteCurrentActivity() {
-    if (activityModalMode !== "edit" || !editingActivityId) return;
-
-    const confirmed = window.confirm("確定要刪除這個活動嗎？刪除後無法復原。");
-    if (!confirmed) return;
-
-    const dbId = Number(editingActivityId);
-
-    const { error: eventRoomsError } = await supabase
-      .from("event_rooms")
-      .delete()
-      .eq("event_id", dbId);
-
-    if (eventRoomsError) {
-      window.alert(`刪除活動房間資料失敗：${eventRoomsError.message}`);
-      return;
-    }
-
-    const { error: eventsError } = await supabase
-      .from("events")
-      .delete()
-      .eq("id", dbId);
-
-    if (eventsError) {
-      window.alert(`刪除活動失敗：${eventsError.message}`);
-      return;
-    }
-
-    setShowActivityModal(false);
-    setEditingActivityId("");
-    setSelectedActivityId("");
-    setSelectedPrintRoomIds([]);
-    await loadEventsFromSupabase();
+    if(currentUser?.role!=="admin"||activityModalMode!=="edit"||!editingActivityId)return;
+    if(!window.confirm("刪除測試活動？此操作不可還原。"))return;
+    try {
+      await deleteActivity(Number(editingActivityId));
+      setShowActivityModal(false);
+      setEditingActivityId("");
+      setSelectedActivityId("");
+      setSelectedPrintRoomIds([]);
+      await loadEventsFromSupabase();
+    }catch(error){window.alert(error instanceof Error?error.message:"活動刪除失敗");}
   }
 
   async function saveNewRoom() {
-    if (!selectedActivity || !selectedActivity.dbId) return;
-
-    const exists = selectedActivity.rooms.some(
-      (room) =>
-        room.building === newRoomBuilding &&
-        room.floor === newRoomFloor &&
-        room.roomNo === newRoomNo
-    );
-
-    if (exists) {
-      window.alert("此房間已存在");
-      return;
-    }
-
-    const newRoom: Room = {
-      id: `temp-${Date.now()}`,
-      building: newRoomBuilding,
-      floor: newRoomFloor,
-      roomNo: newRoomNo,
-      assignedTo: newRoomStaff,
-      occupant: newOccupant,
-      checklist: buildChecklist(),
-      status: "pending",
-    };
-
-    await saveRoomToSupabase(newRoom, selectedActivity.dbId);
-    setShowRoomModal(false);
-    setNewOccupant("");
-    setNewRoomStaff("未分配");
-    await loadEventsFromSupabase();
+    if(currentUser?.role!=="admin"||!selectedActivity?.dbId)return;
+    try {
+      const created=await createQaRoom({
+        eventId:selectedActivity.dbId,building:newRoomBuilding,floor:newRoomFloor,roomNo:newRoomNo,
+      });
+      if(newRoomStaff!=="未分配"||newOccupant.trim()){
+        await updateRoomAdministration(created.roomId,{
+          ...(newRoomStaff!=="未分配"?{assignedTo:newRoomStaff}:{}),
+          ...(newOccupant.trim()?{occupant:newOccupant}:{}),
+        });
+      }
+      setShowRoomModal(false);
+      setNewOccupant("");
+      setNewRoomStaff("未分配");
+      await loadEventsFromSupabase();
+    }catch(error){window.alert(error instanceof Error?error.message:"新增房間失敗");await loadEventsFromSupabase();}
   }
 
   function selectActivity(activityId: string) {
@@ -1363,24 +1194,16 @@ export default function App() {
     openPrintWindow(html);
   }
 
-  async function deleteSelectedActivityRoom(roomId: string) {
-    if (!selectedActivity) return;
-
-    const room = selectedActivity.rooms.find((r) => r.id === roomId);
-    if (!room?.dbId) return;
-
-    const confirmed = window.confirm("確定要刪除此房間嗎？");
-    if (!confirmed) return;
-
-    const { error } = await supabase.from("event_rooms").delete().eq("id", room.dbId);
-
-    if (error) {
-      window.alert(`刪除房間失敗：${error.message}`);
-      return;
-    }
-
-    setSelectedPrintRoomIds((prev) => prev.filter((id) => id !== roomId));
-    await loadEventsFromSupabase();
+  async function deleteSelectedActivityRoom(roomId:string) {
+    if(currentUser?.role!=="admin"||!selectedActivity)return;
+    const room=selectedActivity.rooms.find(r=>r.id===roomId);
+    if(!room?.dbId)return;
+    if(!window.confirm("確定刪除此測試房間？"))return;
+    try {
+      await deleteQaRoom(room.dbId);
+      setSelectedPrintRoomIds(prev=>prev.filter(id=>id!==roomId));
+      await loadEventsFromSupabase();
+    }catch(error){window.alert(error instanceof Error?error.message:"房間刪除失敗");}
   }
 
   function openAddStaffModal() {
@@ -1400,86 +1223,31 @@ export default function App() {
   }
 
   async function saveStaffModal() {
-    const name = newStaffName.trim();
-    const pinValue = newStaffPin.trim();
-
-    if (!name || !pinValue) {
-      window.alert("請輸入人員姓名與密碼");
-      return;
+    if(currentUser?.role!=="admin")return;
+    const name=newStaffName.trim();
+    const pinValue=newStaffPin.trim();
+    if(!name.startsWith("【權限驗收】")){
+      window.alert("獨立測試版只允許建立或修改【權限驗收】帳號");return;
     }
-
-    if (staffModalMode === "edit") {
-      const editingUser = staffUsers.find((user) => user.id === editingStaffId);
-      if (!editingUser?.dbId) {
-        window.alert("找不到要修改的人員資料");
-        return;
+    if(pinValue&&!/^[0-9]{8,32}$/.test(pinValue)){
+      window.alert("測試 PIN 必須是 8 到 32 位數字");return;
+    }
+    try {
+      if(staffModalMode==="edit"){
+        const staff=staffUsers.find(x=>x.id===editingStaffId);
+        if(!staff?.dbId)return;
+        if(staff.name!==name)await renameQaCleaner(staff.dbId,name);
+        if(pinValue)await provisionQaPin(staff.dbId,pinValue);
+      }else{
+        if(!pinValue){window.alert("新增測試人員請設定 8 到 32 位數字 PIN");return;}
+        const created=await createQaCleaner(name);
+        await provisionQaPin(created.cleanerId,pinValue);
       }
-
-      if (staffUsers.some((user) => user.name === name && user.id !== editingStaffId)) {
-        window.alert("此打掃人員名稱已存在");
-        return;
-      }
-
-      const oldName = editingUser.name;
-
-      const { error } = await supabase
-        .from("cleaners")
-        .update({
-          name,
-          pin: pinValue,
-        })
-        .eq("id", editingUser.dbId);
-
-      if (error) {
-        window.alert(`修改打掃人員失敗：${error.message}`);
-        return;
-      }
-
-      if (oldName !== name) {
-        const { error: roomUpdateError } = await supabase
-          .from("event_rooms")
-          .update({
-            assigned_to: name,
-            cleaner_id: editingUser.dbId,
-          })
-          .eq("assigned_to", oldName);
-
-        if (roomUpdateError) {
-          window.alert(`人員名稱已更新，但房間指派同步失敗：${roomUpdateError.message}`);
-        }
-      }
-
+      setNewStaffPin("");
+      setShowStaffModal(false);
       await loadCleanersFromSupabase();
       await loadEventsFromSupabase();
-
-      if (currentUser?.id === editingStaffId) {
-        setCurrentUser((prev) => (prev ? { ...prev, name, pin: pinValue } : prev));
-      }
-
-      setShowStaffModal(false);
-      return;
-    }
-
-    if (staffUsers.some((user) => user.name === name)) {
-      window.alert("此打掃人員名稱已存在");
-      return;
-    }
-
-    const { error } = await supabase.from("cleaners").insert([
-      {
-        name,
-        pin: pinValue,
-        is_active: true,
-      },
-    ]);
-
-    if (error) {
-      window.alert(`新增打掃人員失敗：${error.message}`);
-      return;
-    }
-
-    await loadCleanersFromSupabase();
-    setShowStaffModal(false);
+    }catch(error){setNewStaffPin("");window.alert(error instanceof Error?error.message:"人員操作失敗");}
   }
 
   return (
