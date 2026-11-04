@@ -519,7 +519,9 @@ export default function App() {
                 ? "in_progress"
                 : "pending";
           const statusFromDb: RoomStatus =
-            checklist.length > 0 ? computeRoomStatus(checklist) : legacyStatus;
+            Array.isArray(room.checklist) && room.checklist.length > 0
+              ? computeRoomStatus(checklist)
+              : legacyStatus;
 
           const occupantValue = room.occupant ?? room.guest_name ?? "";
 
@@ -2394,7 +2396,7 @@ export default function App() {
       {showActivityModal && currentUser && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-[#0F172A]/40 p-4"
-          onClick={() => setShowActivityModal(false)}
+          onClick={() => { if(!activitySaving) setShowActivityModal(false); }}
         >
           <div
             className="w-full max-w-sm rounded-[28px] bg-white p-4 shadow-[0_18px_40px_rgba(15,23,42,0.14)]"
@@ -2453,7 +2455,7 @@ export default function App() {
 
               <div className="flex gap-2">
                 <button
-                  onClick={() => setShowActivityModal(false)}
+                  onClick={() => { if(!activitySaving) setShowActivityModal(false); }}
                   disabled={activitySaving}
                   className="rounded-[20px] bg-[#ece5d9] px-3 py-2 text-sm font-medium text-[#5f5444]"
                 >
@@ -2475,7 +2477,7 @@ export default function App() {
       {showRoomModal && currentUser && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-[#0F172A]/40 p-4"
-          onClick={() => setShowRoomModal(false)}
+          onClick={() => { if(!roomSaving) setShowRoomModal(false); }}
         >
           <div
             className="w-full max-w-sm rounded-[28px] bg-white p-4 shadow-[0_18px_40px_rgba(15,23,42,0.14)]"
@@ -2536,7 +2538,7 @@ export default function App() {
 
             <div className="mt-4 flex justify-end gap-2">
               <button
-                onClick={() => setShowRoomModal(false)}
+                onClick={() => { if(!roomSaving) setShowRoomModal(false); }}
                 disabled={roomSaving}
                 className="rounded-[20px] bg-[#ece5d9] px-3 py-2 text-sm font-medium text-[#5f5444]"
               >
@@ -2557,7 +2559,7 @@ export default function App() {
       {showStaffModal && currentUser && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-[#0F172A]/40 p-4"
-          onClick={() => setShowStaffModal(false)}
+          onClick={() => { if(!staffSaving) setShowStaffModal(false); }}
         >
           <div
             className="w-full max-w-sm rounded-[28px] bg-white p-4 shadow-[0_18px_40px_rgba(15,23,42,0.14)]"
@@ -2586,7 +2588,7 @@ export default function App() {
 
             <div className="mt-4 flex justify-end gap-2">
               <button
-                onClick={() => setShowStaffModal(false)}
+                onClick={() => { if(!staffSaving) setShowStaffModal(false); }}
                 disabled={staffSaving}
                 className="rounded-[20px] bg-[#ece5d9] px-3 py-2 text-sm font-medium text-[#5f5444]"
               >
