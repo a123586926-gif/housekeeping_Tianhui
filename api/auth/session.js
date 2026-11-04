@@ -14,12 +14,11 @@ export function createSessionHandler({dbFactory=adminDb,sessionReader=getSession
       req.method === "GET" ? { authenticated: false } : { error: "Not authenticated" });
     if (req.method !== "GET") {
       const body = req.body || {};
-      const db = dbFactory();
       if (req.method === "POST") {
         if (session.user?.role !== "admin" || session.user.id !== "admin") return json(res, 403, { error: "Admin required" });
         if (!Number.isSafeInteger(body.cleanerId) || body.cleanerId < 1 || !pinIsStrong(body.newPin))
           return json(res, 400, { error: "Use an 8-32 digit PIN for QA account" });
-        const { data, error } = await db.rpc("hk_qa_provision_pin", {
+        const { data, error } = await dbFactory().rpc("hk_qa_provision_pin", {
           p_cleaner_id: body.cleanerId, p_new_pin: body.newPin,
         });
         if (error) return json(res, 503, { error: "Unable to provision QA account" });
@@ -29,7 +28,7 @@ export function createSessionHandler({dbFactory=adminDb,sessionReader=getSession
       if (typeof body.oldPin !== "string" || body.oldPin.length < 4 || body.oldPin.length > 128 ||
           !pinIsStrong(body.newPin) || body.newPin === body.oldPin)
         return json(res, 400, { error: "Invalid PIN change request" });
-      const { data, error } = await db.rpc("hk_change_own_pin", {
+      const { data, error } = await dbFactory().rpc("hk_change_own_pin", {
         p_user_id: session.user.id, p_old_pin: body.oldPin, p_new_pin: body.newPin,
       });
       if (error) return json(res, 503, { error: "PIN service unavailable" });
