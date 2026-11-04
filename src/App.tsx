@@ -1414,8 +1414,8 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen bg-[radial-gradient(circle_at_top,#f8f4ed_0%,#f2ece2_44%,#e8dfd1_100%)] p-4 text-[#4f4435]">
-      <div className="mx-auto max-w-md pb-28">
+    <div className="min-h-screen bg-[radial-gradient(circle_at_top,#f8f4ed_0%,#f2ece2_44%,#e8dfd1_100%)] p-2 text-[#4f4435] sm:p-4">
+      <div className="mx-auto w-full max-w-md pb-28 md:max-w-3xl">
         <div className="overflow-hidden rounded-[28px] border border-[#e6ddd0] bg-[#fcfaf6]/95 shadow-[0_18px_40px_rgba(84,69,45,0.12)] backdrop-blur">
           <div className="bg-[linear-gradient(180deg,#f4ede2_0%,#e8ddcb_100%)] px-4 py-3.5 text-[#4f4435]">
             <div className="flex items-start justify-between gap-3">
