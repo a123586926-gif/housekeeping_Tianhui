@@ -416,6 +416,7 @@ export default function App() {
   const [activities, setActivities] = useState<Activity[]>([]);
   const [selectedActivityId, setSelectedActivityId] = useState("");
   const [selectedPrintRoomIds, setSelectedPrintRoomIds] = useState<string[]>([]);
+  const [occupantDrafts,setOccupantDrafts] = useState<Record<string,string>>({});
 
   const [showPhotoModal, setShowPhotoModal] = useState(false);
   const [pendingPhotoAction, setPendingPhotoAction] = useState<PhotoAction | null>(null);
@@ -1851,14 +1852,18 @@ export default function App() {
                               </div>
 
                               <textarea
-                                value={room.occupant}
-                                onChange={(e) =>
-                                  updateRoomField(selectedActivity.id, room.id, {
-                                    occupant: e.target.value,
-                                  })
-                                }
+                                value={occupantDrafts[room.id] ?? room.occupant}
+                                onChange={(e) => setOccupantDrafts(prev=>({...prev,[room.id]:e.target.value}))}
+                                onBlur={() => {
+                                  const draft=occupantDrafts[room.id];
+                                  if(draft!==undefined && draft!==room.occupant)
+                                    void updateRoomField(selectedActivity.id,room.id,{occupant:draft});
+                                  setOccupantDrafts(prev=>{
+                                    const next={...prev};delete next[room.id];return next;
+                                  });
+                                }}
                                 className="w-full resize-none overflow-hidden rounded-[14px] border border-[#ddd4c6] bg-[#fdfaf6] px-3 py-2 text-[12px] leading-5 text-[#5f5444] focus:outline-none"
-                                rows={Math.max(1, splitGuestLines(room.occupant).length || 1)}
+                                rows={Math.max(1, splitGuestLines(occupantDrafts[room.id] ?? room.occupant).length || 1)}
                                 placeholder="住宿人"
                               />
 
