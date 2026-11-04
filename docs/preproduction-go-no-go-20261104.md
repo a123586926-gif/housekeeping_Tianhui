@@ -32,7 +32,11 @@
 
 使用開發分支實際程式加模擬資料庫，在隔離 V8 執行 **66 項測試／66 通過**（不是最新 Node.js CI、真實瀏覽器或正式系統 E2E）。QA Supabase 唯讀確認主要 6 張表 RLS 啟用、anon 無直接 CRUD，6 個登入/管理 RPC anon 與 authenticated 無 EXECUTE；詳見 [auth-http-security-completion-20261104.md](./auth-http-security-completion-20261104.md)。
 
-**最新 Vercel 提交仍遇 `build-rate-limit`，不能認定最新版部署完成。** 本階段用戶已表明暫不處理備份及付費升級，但這不等於已取得正式環境資料風險的上線豁免。正式合併、RLS/Storage 切換和實際遷移仍需獨立明確核准。
+**後續已排除先前的 Vercel 建置阻擋：**開發分支 `e94a09b` 的 Preview 於 2026-11-04 確認 `READY`，Vercel build log 已通過既有 Node.js 測試、TypeScript 與 Vite build；但 GitHub Actions `verify` / `test-and-build` 仍未取得獨立成功結果。後續新增的測試提交仍須再次確認其 Preview 結果。 本階段用戶已表明暫不處理備份及付費升級，但這不等於已取得正式環境資料風險的上線豁免。正式合併、RLS/Storage 切換和實際遷移仍需獨立明確核准。
+
+## 2026-11-04 最新使用者回報（QA Preview）
+
+使用者在 `e94a09b` Preview 建置成功後回覆「測試沒問題」，表示本輪 QA 手動操作已回報通過；這並不等同由自動瀏覽器自行取得細項測試證據，也不代表正式 Production 已驗證。30 天真實到期、停用後跨裝置即時撤銷與正式資料遷移仍需獨立驗證。
 
 ## 目前已由使用者驗收
 
