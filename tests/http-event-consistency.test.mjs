@@ -74,3 +74,12 @@ test("unauthenticated or cleaner accounts cannot create events",async()=>{
  }
  assert.equal(mock.calls.length,0);
 });
+
+test("spoofed admin role on cleaner ID cannot mutate events or access database",async()=>{
+ let dbReads=0;
+ const handler=createEventHandler({originAllowed:()=>true,sessionReader:async()=>({user:{role:"admin",id:"cleaner-901"}}),dbFactory:()=>{dbReads++;throw Error("Forbidden DB use");}});
+ const res=response();
+ await handler({method:"POST",body:{event:event()}},res);
+ assert.equal(res.statusCode,403);
+ assert.equal(dbReads,0);
+});
