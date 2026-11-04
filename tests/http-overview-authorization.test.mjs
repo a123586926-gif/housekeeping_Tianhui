@@ -172,3 +172,40 @@ test("invalid or malformed cleaner identity is rejected before querying events",
    assert.equal(calls,0);
  }
 });
+
+test("complete overview preserves every room after first result page and filters cleaner ownership",async()=>{
+ const manyRooms=Array.from({length:1201},(_,i)=>({
+   id:i+1,event_id:101,cleaner_id:i%2===0?901:902,room_no:String(i+1),
+ }));
+ function dbFactory(){
+   return {
+     from(table){
+       const source=table==="events"?EVENTS:manyRooms;
+       const q={filter:null,
+         select(){return this;},
+         order(){return this;},
+         eq(field,value){this.filter={field,value};return this;},
+         async range(start,end){
+           const filtered=this.filter?source.filter(x=>x[this.filter.field]===this.filter.value):source;
+           return {data:filtered.slice(start,end+1),error:null};
+         },
+       };
+       return q;
+     },
+   };
+ }
+ const adminRes=response();
+ await createOverviewHandler({dbFactory,sessionReader:async()=>({user:{role:"admin",id:"admin"}})})
+   ({method:"GET"},adminRes);
+ assert.equal(adminRes.statusCode,200);
+ assert.equal(adminRes.body.eventRooms.length,1201);
+ assert.equal(adminRes.body.events.length,2);
+ const cleanerRes=response();
+ await createOverviewHandler({dbFactory,sessionReader:async()=>({user:{role:"cleaner",id:"cleaner-901"}})})
+   ({method:"GET"},cleanerRes);
+ assert.equal(cleanerRes.statusCode,200);
+ assert.equal(cleanerRes.body.eventRooms.length,601);
+ assert.equal(cleanerRes.body.eventRooms.every(x=>x.cleaner_id===901),true);
+ assert.deepEqual(cleanerRes.body.events.map(x=>x.id),[101]);
+ assert.equal(cleanerRes.body.calendarEvents.length,2);
+});
