@@ -901,7 +901,7 @@ export default function App() {
         subItems: nextSubItems,
         done: checked
           ? nextSubItems.every((sub) => sub.done) &&
-            (!item.requiredPhoto || item.photo)
+            (PHOTO_UPLOAD_PAUSED || !item.requiredPhoto || item.photo)
           : false,
       };
     });
@@ -1693,7 +1693,7 @@ export default function App() {
                                     return;
                                   }
 
-                                  if (item.requiredPhoto && !item.photo) {
+                                  if (!PHOTO_UPLOAD_PAUSED && item.requiredPhoto && !item.photo) {
                                     openPhotoModal({
                                       roomId: room.id,
                                       itemId: item.id,
@@ -1767,7 +1767,7 @@ export default function App() {
                                             s.id === sub.id ? true : s.done
                                           );
 
-                                          if (item.requiredPhoto && willAllDone && !item.photo) {
+                                          if (!PHOTO_UPLOAD_PAUSED && item.requiredPhoto && willAllDone && !item.photo) {
                                             openPhotoModal({
                                               roomId: room.id,
                                               itemId: item.id,
