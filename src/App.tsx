@@ -1841,7 +1841,7 @@ export default function App() {
                     icon={<CalendarDays className="h-4 w-4" />}
                   />
 
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center justify-end gap-2">
                     <div className="rounded-full bg-[#efe7d7] px-3 py-2 text-[12px] font-semibold text-[#75684f] shadow-[0_8px_16px_rgba(110,99,67,0.08)]">
                       已勾選 {selectedPrintCount} 間
                     </div>
@@ -2046,7 +2046,7 @@ export default function App() {
                               {roomLabel(room)}
                             </div>
 
-                            <div className="mt-1 grid grid-cols-[24px_minmax(0,1fr)_auto] items-start gap-2 sm:grid-cols-[24px_minmax(0,1fr)_96px_64px_36px_30px]">
+                            <div className="mt-1 grid grid-cols-[24px_minmax(0,1fr)_76px] items-start gap-2 sm:grid-cols-[24px_minmax(0,1fr)_96px_64px_36px_30px]">
                               <div className="pt-3">
                                 <input
                                   type="checkbox"
@@ -2080,7 +2080,7 @@ export default function App() {
                                     assignedCleanerId: e.target.value ? Number(e.target.value) : null,
                                   })
                                 }
-                                className="col-start-2 min-w-0 h-[46px] rounded-[14px] border border-[#ddd4c6] bg-[#fdfaf6] px-2 text-[12px] text-[#5f5444] focus:outline-none sm:col-start-auto"
+                                className="col-start-3 row-start-1 min-w-0 h-[46px] rounded-[14px] border border-[#ddd4c6] bg-[#fdfaf6] px-1 text-[12px] text-[#5f5444] focus:outline-none sm:col-start-auto sm:row-start-auto"
                               >
                                 <option value="">未分配</option>
                                 {staffUsers.map((user) => (
@@ -2090,7 +2090,7 @@ export default function App() {
                                 ))}
                               </select>
 
-                              <div className="pt-3 text-[12px] font-semibold text-[#7c715c]">
+                              <div className="col-start-2 row-start-2 text-[12px] font-semibold text-[#7c715c] sm:col-start-auto sm:row-start-auto sm:pt-3">
                                 {roomProgress(room)}%
                               </div>
 
@@ -2100,7 +2100,7 @@ export default function App() {
                                   e.stopPropagation();
                                   printSingleRoomA4(room);
                                 }}
-                                className="mt-1 flex h-7 w-7 items-center justify-center rounded-full bg-[#efe7db] text-[#7f735d]"
+                                className="col-start-3 row-start-2 mt-1 flex h-7 w-7 items-center justify-center rounded-full bg-[#efe7db] text-[#7f735d] sm:col-start-auto sm:row-start-auto"
                                 title="列印此房"
                               >
                                 <Printer className="h-3.5 w-3.5" />
@@ -2112,7 +2112,7 @@ export default function App() {
                                   e.stopPropagation();
                                   deleteSelectedActivityRoom(room.id);
                                 }}
-                                className="mt-1 flex h-7 w-7 items-center justify-center rounded-full bg-[#efe7db] text-[12px] text-[#7f735d]"
+                                className="col-start-3 row-start-3 mt-1 flex h-7 w-7 items-center justify-center rounded-full bg-[#efe7db] text-[12px] text-[#7f735d] sm:col-start-auto sm:row-start-auto"
                               >
                                 -
                               </button>
