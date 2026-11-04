@@ -134,16 +134,19 @@ async function uploadPhoto(req, res, db, session) {
 }
 function bad(res) { return json(res, 400, { error: "Invalid room update" }); }
 
-export default async function handler(req, res) {
+export function createRoomsHandler({
+  dbFactory=adminDb,sessionReader=getSession,originAllowed=allowSameOrigin,
+}={}) {
+  return async function handler(req, res) {
   if (!["PATCH", "POST", "GET", "PUT", "DELETE"].includes(req.method)) return json(res, 405, { error: "Method not allowed" });
-  if (req.method !== "GET" && !allowSameOrigin(req)) return json(res, 403, { error: "Origin rejected" });
+  if (req.method !== "GET" && !originAllowed(req)) return json(res, 403, { error: "Origin rejected" });
   try {
-    const session = await getSession(req);
+    const session = await sessionReader(req);
     if (!session) return json(res, 401, { error: "Not authenticated" });
     const { role, id: userId } = session.user;
     const cleanerId = role === "cleaner" ? Number(userId.slice("cleaner-".length)) : null;
     if (role !== "admin" && role !== "cleaner") return json(res, 403, { error: "Forbidden" });
-    const db = adminDb();
+    const db = dbFactory();
     if (req.method === "PUT" || req.method === "DELETE") {
       if (role !== "admin") return json(res,403,{error:"Admin required"});
       const body=req.body || {};
@@ -271,4 +274,7 @@ export default async function handler(req, res) {
   } catch {
     return json(res, 503, { error: "Unable to update room" });
   }
+  };
 }
+
+export default createRoomsHandler();
