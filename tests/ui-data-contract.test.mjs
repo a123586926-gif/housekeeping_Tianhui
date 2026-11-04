@@ -72,3 +72,13 @@ test("login UI never accepts wrong active identity and clears stale errors on su
  assert.match(app,/!session\.authenticated \|\| session\.user\.id !== selectedUserId/);
  assert.match(app,/setAuthRestoreError\(""\)/);
 });
+
+test("expired overview session immediately clears room data and returns to login",()=>{
+ assert.match(app,/error instanceof HousekeepingApiError && \(error\.status===401 \|\| error\.status===403\)/);
+ assert.match(app,/setActivities\(\[\]\);\s*setSharedCalendarEvents\(\[\]\)/);
+ assert.match(app,/setCurrentUser\(null\);\s*setShowLogin\(true\);/);
+});
+test("session name changes update only the same immutable user identity",()=>{
+ assert.match(app,/session\.user\.name !== currentUser\?\.name/);
+ assert.match(app,/previous\?\.id === expectedId \? session\.user : previous/);
+});
