@@ -150,14 +150,33 @@ test("room IDs reject coercible, noncanonical and unsafe values without querying
   assert.equal(mock.calls.some(c=>c[0]==="update"),true);
 });
 
-test("photo upload refuses unsupported categories before touching room data or storage",async()=>{
- const mock=mockRoomDb();
- const handler=createRoomsHandler({originAllowed:()=>true,sessionReader:async()=>admin,
-   dbFactory:()=>mock.db});
- for(const itemId of ["final","final_photo","surface_cleaning","__proto__","constructor","bathroom/../flooring",""]){
+test("photo uploads are paused for all roles and payloads before reading session or Storage",async()=>{
+ let calls=0;
+ const handler=createRoomsHandler({
+   originAllowed:()=>{calls++;return true},
+   sessionReader:async()=>{calls++;return admin},
+   dbFactory:()=>{calls++;throw Error("should not connect")},
+ });
+ for (const body of [
+   {roomId:701,itemId:"flooring",mime:"image/png",base64:"iVBORw0KGgo="},
+   {roomId:701,itemId:"bathroom",mime:"image/jpeg",base64:"/9j/"},
+   {roomId:701,itemId:"__proto__",mime:"image/png",base64:"bad"},
+   {},
+ ]) {
    const res=response();
-   await handler({method:"POST",body:{roomId:701,itemId,mime:"image/png",base64:"iVBORw0KGgo="}},res);
-   assert.equal(res.statusCode,400,itemId);
+   await handler({method:"POST",body},res);
+   assert.equal(res.statusCode,503);
+   assert.match(res.body.error,/temporarily paused/);
  }
- assert.equal(mock.calls.length,0);
+ assert.equal(calls,0);
+});
+
+test("previously saved photos remain readable while uploads are paused",async()=>{
+ const mock=mockRoomDb();
+ const handler=createRoomsHandler({originAllowed:()=>true,sessionReader:async()=>cleaner901,
+  dbFactory:()=>mock.db});
+ const res=response();
+ await handler({method:"GET",query:{roomId:"701",itemId:"flooring"}},res);
+ assert.equal(res.statusCode,200);
+ assert.equal(res.body.expiresIn,60);
 });
