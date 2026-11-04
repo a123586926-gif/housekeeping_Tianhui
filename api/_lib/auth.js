@@ -1,6 +1,7 @@
 import { createHash, randomBytes } from "node:crypto";
 import { createClient } from "@supabase/supabase-js";
 import { assertQaEnvironment } from "./qaGuard.js";
+import { verifiedSessionPrincipal } from "./sessionAccess.js";
 
 const COOKIE = "__Host-hk_session";
 const LIFETIME = 30 * 24 * 60 * 60;
@@ -48,15 +49,13 @@ export async function getSession(req) {
   const { data, error } = await db.from("hk_auth_sessions")
     .select("user_id, expires_at, revoked_at")
     .eq("token_hash", shaToken(token)).maybeSingle();
-  if (error || !data || data.revoked_at || Date.parse(data.expires_at) <= Date.now()) return null;
+  if (error || !data) return null;
   const { data: account, error: accountError } = await db.from("hk_auth_accounts")
     .select("user_id, display_name, role, active").eq("user_id", data.user_id).maybeSingle();
-  if (accountError || !account || !account.active) return null;
-  return {
-    user: { id: account.user_id, name: account.display_name, role: account.role },
-    expiresAt: data.expires_at,
-    tokenHash: shaToken(token),
-  };
+  if (accountError) return null;
+  const principal = verifiedSessionPrincipal(data, account);
+  if (!principal) return null;
+  return { ...principal, tokenHash: shaToken(token) };
 }
 export function newSessionToken() { return randomBytes(32).toString("hex"); }
 export const MAX_AGE_SECONDS = LIFETIME;
