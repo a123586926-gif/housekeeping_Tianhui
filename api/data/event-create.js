@@ -11,7 +11,7 @@ export function createEventHandler({dbFactory=adminDb,sessionReader=getSession,o
   try {
     const session = await sessionReader(req);
     if (!session) return json(res, 401, { error: "Not authenticated" });
-    if (session.user.role !== "admin") return json(res, 403, { error: "Admin required" });
+    if (session.user?.role !== "admin" || session.user.id !== "admin") return json(res, 403, { error: "Admin required" });
 
     const db = dbFactory();
     let existingEvent = null;
