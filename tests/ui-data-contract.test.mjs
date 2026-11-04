@@ -132,3 +132,11 @@ test("pending room mutations cannot clear new account drafts after logout",()=>{
  assert.match(app,/return mutationEpoch===dataEpoch\.current/);
  assert.match(app,/if\(mutationEpoch===dataEpoch\.current\)\{/);
 });
+
+test("visible dashboard refreshes periodically without polling background tabs",()=>{
+ assert.match(app,/if\(document\.visibilityState!=="visible"\)return/);
+ assert.match(app,/window\.setInterval\(refresh,60_000\)/);
+ assert.match(app,/window\.addEventListener\("focus",refresh\)/);
+ assert.match(app,/document\.addEventListener\("visibilitychange",onVisible\)/);
+ assert.match(app,/window\.clearInterval\(timer\)/);
+});
