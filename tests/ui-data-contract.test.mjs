@@ -5,6 +5,7 @@ import {fileURLToPath} from "node:url";
 
 const app=fs.readFileSync(fileURLToPath(new URL("../src/App.tsx",import.meta.url)),"utf8");
 const api=fs.readFileSync(fileURLToPath(new URL("../api/data/rooms.js",import.meta.url)),"utf8");
+const auth=fs.readFileSync(fileURLToPath(new URL("../src/lib/authSession.ts",import.meta.url)),"utf8");
 
 test("room assignment is scoped by immutable cleaner ID rather than display name",()=>{
  assert.match(app,/cleanerId:\s*room\.cleaner_id\s*\?\?\s*null/);
@@ -58,4 +59,11 @@ test("admin assignment dropdown sends immutable cleaner IDs",()=>{
  assert.match(app,/value=\{room\.cleanerId == null \? "" : String\(room\.cleanerId\)\}/);
  assert.match(app,/assignedCleanerId:Number\(newRoomStaff\)/);
  assert.doesNotMatch(app,/value=\{user\.name\}/);
+});
+
+test("client rejects cross-tab session identity changes after successful PIN sign-in",()=>{
+ assert.match(auth,/session\.user\.id !== userId/);
+ assert.match(auth,/throw new Error\("登入帳號已變更/);
+ assert.match(auth,/user\.role === "admin" && user\.id === "admin"/);
+ assert.match(auth,/user\.role === "cleaner" && \/\^cleaner-\[1-9\]\[0-9\]\*\$\//);
 });
