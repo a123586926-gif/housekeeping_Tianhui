@@ -22,6 +22,10 @@
 
 已完成正式來源的 `REPEATABLE READ READ ONLY` 基準計數並核對官方備份規則。加入獨立資料庫與 Storage 雙還原驗證純函式、SHA-256 manifest/失敗情境測試。**尚未取得正式方案/可用備份點，也未建立實際備份或做隔離還原**；繼續 NO-GO。詳見 [production-backup-restore-readiness-20261104.md](./production-backup-restore-readiness-20261104.md)。
 
+## Free 方案正式備份準備（2026-11-04）
+
+**已由 Supabase 組織 API 確認 Free 方案、正式與 QA 兩個啟用專案。** 尚無受保障的每日自動備份，現有工具不能直接取得實際備份檔或完成本機還原。已提供 Windows 本機受保護的資料庫與 Storage 備份步驟及不新增第三個 Supabase 專案的隔離還原方案，詳見 [free-plan-real-backup-runbook-20261104.md](./free-plan-real-backup-runbook-20261104.md)。**正式資料備份與還原演練仍未完成，不得正式切換。**
+
 ## 目前已由使用者驗收
 
 - 30 天工作階段：同一固定 Preview 網域 F5 後可維持登入（尚未做真正 30 天到期測試）。
