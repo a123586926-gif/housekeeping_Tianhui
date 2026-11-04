@@ -503,15 +503,17 @@ export default function App() {
         .map((room) => {
           const checklist = normalizeDbChecklist(room.checklist);
 
-          const statusFromDb =
-            room.status ||
-            (room.cleaning_status === "已完成"
+          // The checklist is the canonical source of UI progress and status.
+          // Fallback supports older records that do not yet contain a checklist.
+          const legacyStatus = room.status === "completed" || room.status === "已完成" ||
+            room.cleaning_status === "已完成"
               ? "completed"
-              : room.cleaning_status === "進行中"
-              ? "in_progress"
-              : room.cleaning_status === "未開始"
-              ? "pending"
-              : computeRoomStatus(checklist));
+              : room.status === "in_progress" || room.status === "進行中" ||
+                room.cleaning_status === "進行中"
+                ? "in_progress"
+                : "pending";
+          const statusFromDb: RoomStatus =
+            checklist.length > 0 ? computeRoomStatus(checklist) : legacyStatus;
 
           const occupantValue = room.occupant ?? room.guest_name ?? "";
 
