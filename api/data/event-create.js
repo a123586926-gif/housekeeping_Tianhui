@@ -41,6 +41,8 @@ export default async function handler(req, res) {
     }
     const event = validateEvent(req.body?.event);
     if (!event) return json(res, 400, { error: "Invalid event data" });
+    if (!event.event_name.startsWith("【權限驗收】"))
+      return json(res,403,{error:"Sandbox only accepts QA-labeled activities"});
     if (req.method === "PATCH") {
       const { data, error } = await db.from("events").update(event)
         .eq("id", Number(req.body.eventId)).select("id").maybeSingle();
