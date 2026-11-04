@@ -66,3 +66,19 @@ https://supabase.com/docs/guides/database/database-linter?lint=0011_function_sea
 ## 6. 本次工作範圍與保護聲明
 
 本次只對正式 Supabase 執行 SELECT/中繼資料查詢；未執行 INSERT、UPDATE、DELETE、DDL、還原或備份操作。沒有取得或展示任何 PIN 值、住客名、住客照片內容。文件僅寫入 GitHub 開發分支。正式 GitHub `main`、正式網站、正式 Supabase 保持不變。
+
+
+## 7. 2026-11-04 進一步房間規則相容性驗證（唯讀）
+
+對正式 `events.id = 19, 20` 執行集合差異查詢（只比較 `event_id,building,floor,room_no`，不取得個資）：
+
+- 兩個活動各 **84** 間，棟別／樓層／房號唯一鍵各 **84** 組。
+- 與原版 `A/B × 2F/3F/5F/6F/7F/RF × 1/2/3/5/6/7/8` 對照：**缺少 0、額外 0**。
+- 清潔項目均包含四大項 `flooring`, `surface_cleaning`, `bed_setup`, `bathroom`，總計各 168 筆；`flooring` 和 `bathroom` 的照片需求也都是 168 筆。
+- 所有 168 筆 `event_rooms.room_id` 均為 NULL，**不應據此重新建立房間或刪除現有紀錄**。
+- 167 間未指派，僅 1 間有房務 `cleaner_id`。不得在遷移中清空現有指派。
+- 新增 `server/production-compatibility.mjs`：純函式審核既有房間鍵、ID、四大清潔項與是否有缺漏／重複。**沒有連線、寫入、建房或匯出真實房間資料能力**。
+- 新增 `tests/production-compatibility.test.mjs`：用虛構資料覆蓋完整 168 間、缺漏、重複、錯誤房號、照片必拍條件、不合法活動 ID。
+- 加入 `.github/workflows/auth-branch-checks.yml` 的 CI；不存放正式資料庫列或 PIN。
+
+驗證結論：**現有正式活動與測試版原始 84 間規則相容，未來應沿用既有 id/room_no/checklist 而非重新 seed**。但資料庫備份、正式帳號遷移、Storage 私有化與可還原演練仍尚未完成；保持 NO-GO。
