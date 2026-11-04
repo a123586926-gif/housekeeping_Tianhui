@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { buildChecklist } from "../_lib/defaultRooms.js";
 import { adminDb, allowSameOrigin, getSession, json } from "../_lib/auth.js";
 
 const MAX_ROOMS_PER_EVENT = 120;
@@ -134,7 +135,7 @@ async function uploadPhoto(req, res, db, session) {
 function bad(res) { return json(res, 400, { error: "Invalid room update" }); }
 
 export default async function handler(req, res) {
-  if (!["PATCH", "POST", "GET"].includes(req.method)) return json(res, 405, { error: "Method not allowed" });
+  if (!["PATCH", "POST", "GET", "PUT", "DELETE"].includes(req.method)) return json(res, 405, { error: "Method not allowed" });
   if (req.method !== "GET" && !allowSameOrigin(req)) return json(res, 403, { error: "Origin rejected" });
   try {
     const session = await getSession(req);
@@ -143,6 +144,29 @@ export default async function handler(req, res) {
     const cleanerId = role === "cleaner" ? Number(userId.slice("cleaner-".length)) : null;
     if (role !== "admin" && role !== "cleaner") return json(res, 403, { error: "Forbidden" });
     const db = adminDb();
+    if (req.method === "PUT" || req.method === "DELETE") {
+      if (role !== "admin") return json(res,403,{error:"Admin required"});
+      const body=req.body || {};
+      if(req.method === "PUT") {
+        const eventId=validId(body.eventId);
+        const building=body.building, floor=body.floor, roomNo=body.roomNo;
+        if(!eventId || !BUILDING.has(building) || !FLOOR.has(floor) ||
+           typeof roomNo !== "string" || !/^[A-Za-z0-9]{1,8}$/.test(roomNo))
+          return bad(res);
+        const {data:id,error}=await db.rpc("hk_qa_create_room_full",{
+          p_event_id:eventId,p_building:building,p_floor:floor,
+          p_room_no:roomNo.toUpperCase(),p_checklist:buildChecklist(),
+        });
+        if(error) return json(res,409,{error:"Room create rejected (duplicate, limit or protected event)"});
+        return json(res,201,{ok:true,roomId:Number(id)});
+      }
+      const roomId=validId(body.roomId);
+      if(!roomId) return bad(res);
+      const {data:deleted,error}=await db.rpc("hk_qa_delete_room",{p_room_id:roomId});
+      if(error) return json(res,503,{error:"Unable to remove room"});
+      return deleted===true ? json(res,200,{ok:true}) :
+        json(res,403,{error:"Protected room or room has photos"});
+    }
     if (req.method === "POST") return await uploadPhoto(req,res,db,session);
     if (req.method === "GET") return await viewPhoto(req,res,db,session);
     const body = req.body || {};
