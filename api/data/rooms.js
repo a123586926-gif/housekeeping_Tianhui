@@ -189,7 +189,8 @@ export function createRoomsHandler({
     if ("occupant" in changes && !validText(changes.occupant,3000)) return bad(res);
     if ("assignedTo" in changes && !validText(changes.assignedTo,120)) return bad(res);
     if ("assignedCleanerId" in changes && changes.assignedCleanerId !== null &&
-        !validId(changes.assignedCleanerId)) return bad(res);
+        (typeof changes.assignedCleanerId !== "number" ||
+         !validId(changes.assignedCleanerId))) return bad(res);
     if ("assignedTo" in changes && "assignedCleanerId" in changes) return bad(res);
     if ("checklist" in changes && !validChecklist(changes.checklist)) return bad(res);
     // Optional optimistic-lock snapshot supplied by the editing UI.
