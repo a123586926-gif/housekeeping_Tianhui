@@ -1325,7 +1325,11 @@ export default function App() {
           ${pagesHtml}
           <script>
             window.onload = function () {
-              window.print();
+              if (document.fonts && document.fonts.ready) {
+                document.fonts.ready.then(() => window.print()).catch(() => window.print());
+              } else {
+                window.print();
+              }
             };
           </script>
         </body>
@@ -1849,17 +1853,17 @@ export default function App() {
                     <button
                       onClick={selectAllPrintRooms}
                       className="rounded-full bg-[linear-gradient(180deg,#fffdfa_0%,#f2ecdf_100%)] px-3 py-2 text-[12px] text-[#75684f] shadow-[0_8px_16px_rgba(110,99,67,0.12)]"
-                      title="全選房間"
+                      title="將目前篩選的房間加入列印勾選"
                     >
-                      全選
+                      加選目前
                     </button>
 
                     <button
                       onClick={clearAllPrintRooms}
                       className="rounded-full bg-[linear-gradient(180deg,#fffdfa_0%,#f2ecdf_100%)] px-3 py-2 text-[12px] text-[#75684f] shadow-[0_8px_16px_rgba(110,99,67,0.12)]"
-                      title="清除勾選"
+                      title="清除本活動所有列印勾選"
                     >
-                      清除
+                      全部清除
                     </button>
 
                     <button
