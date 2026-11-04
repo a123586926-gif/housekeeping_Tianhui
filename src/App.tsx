@@ -2449,10 +2449,17 @@ export default function App() {
                 <input
                   type="checkbox"
                   checked={activityNeedsCleaning}
+                  disabled={activityModalMode === "edit"}
+                  title={activityModalMode === "edit" ? "活動建立後不可直接切換打掃類型，以免遺失房間清單" : undefined}
                   onChange={(e) => setActivityNeedsCleaning(e.target.checked)}
-                  className="accent-[#8b8462]"
+                  className="accent-[#8b8462] disabled:cursor-not-allowed disabled:opacity-50"
                 />
               </label>
+              {activityModalMode === "edit" && (
+                <p className="text-xs leading-5 text-[#8d8272]">
+                  修改活動名稱、日期與備註不影響房間；需打掃設定建立後不可直接更改，以保護既有房間資料。
+                </p>
+              )}
             </div>
 
             <div className="mt-4 flex items-center justify-between gap-2">
