@@ -23,6 +23,8 @@ export default async function handler(req, res) {
       if (!existing.event_name.startsWith("【權限驗收】") && ![9101,9102,9103].includes(eventId))
         return json(res,403,{error:"Only QA events may be modified in sandbox"});
       if (req.method === "DELETE") {
+        if ([9101,9102,9103].includes(eventId))
+          return json(res,403,{error:"Seed fixture event cannot be deleted"});
         const {data: photos,error: photoError} = await db.from("event_rooms")
           .select("id").eq("event_id",eventId)
           .or("floor_photo.not.is.null,bathroom_photo.not.is.null,final_photo.not.is.null").limit(1);
