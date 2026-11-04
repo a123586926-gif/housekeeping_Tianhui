@@ -149,3 +149,15 @@ test("room IDs reject coercible, noncanonical and unsafe values without querying
   assert.equal(valid.statusCode,200);
   assert.equal(mock.calls.some(c=>c[0]==="update"),true);
 });
+
+test("photo upload refuses unsupported categories before touching room data or storage",async()=>{
+ const mock=mockRoomDb();
+ const handler=createRoomsHandler({originAllowed:()=>true,sessionReader:async()=>admin,
+   dbFactory:()=>mock.db});
+ for(const itemId of ["final","final_photo","surface_cleaning","__proto__","constructor","bathroom/../flooring",""]){
+   const res=response();
+   await handler({method:"POST",body:{roomId:701,itemId,mime:"image/png",base64:"iVBORw0KGgo="}},res);
+   assert.equal(res.statusCode,400,itemId);
+ }
+ assert.equal(mock.calls.length,0);
+});
