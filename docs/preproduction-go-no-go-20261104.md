@@ -14,6 +14,10 @@
 
 已查核正式人員共 6 位，舊 PIN 非空 3、空值 3，房務 ID 與姓名無重複，既有 1 筆有效房間指派沒有異常。建立純函式 `server/production-account-dry-run.mjs`、對應的六人虛構測試與 CI，設計為新登入帳號**全數停用、逐人重新設定強 PIN 後才可啟用**。詳見 [production-account-migration-dry-run-20261104.md](./production-account-migration-dry-run-20261104.md)。這只是模擬，正式備份、PIN 佈署與還原仍未執行，繼續 NO-GO。
 
+## 正式照片私人化模擬（2026-11-04）
+
+正式 `cleaning-photos` 目前公開，且有 1 張約 1.59 MB 的舊照片物件，但 168 間活動房間均沒有引用；該物件必須保留、人工核對，不可自動刪除。建立 `server/production-photo-migration-audit.mjs` 及 7 項虛構資料測試，並將測試納入 Vercel Build 和 CI，已在 Preview build 觀察到 7/7 pass。詳見 [production-photo-private-migration-20261104.md](./production-photo-private-migration-20261104.md)。**正式 Storage 未備份、未搬移、未改權限；繼續 NO-GO。**
+
 ## 目前已由使用者驗收
 
 - 30 天工作階段：同一固定 Preview 網域 F5 後可維持登入（尚未做真正 30 天到期測試）。
