@@ -24,8 +24,8 @@ test("staging SQL and API agree on activity types and default room counts",()=>{
   const rooms=buildDefaultEventRooms();
   assert.equal(rooms.length,84);
   assert.equal(new Set(rooms.map(r=>r.building+"/"+r.floor+"/"+r.room_no)).size,84);
-  assert.match(sql,/p_event_type = '活動' AND jsonb_array_length\(p_rooms\) <> 84/);
-  assert.match(sql,/p_event_type <> '活動' AND jsonb_array_length\(p_rooms\) <> 0/);
+  assert.match(sql,/p_event_type IN \('活動','住宿'\) AND jsonb_array_length\(p_rooms\) <> 84/);
+  assert.match(sql,/p_event_type = '一般活動' AND jsonb_array_length\(p_rooms\) <> 0/);
 });
 test("staging migration is explicitly non-production and inserts rooms atomically",()=>{
   assert.match(sql,/Never apply to production/);
