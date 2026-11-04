@@ -407,6 +407,8 @@ export default function App() {
   const [newRoomStaff, setNewRoomStaff] = useState("未分配");
 
   const [showStaffModal, setShowStaffModal] = useState(false);
+  const staffMutationBusy = useRef(false);
+  const [staffSaving, setStaffSaving] = useState(false);
   const [staffModalMode, setStaffModalMode] = useState<"add" | "edit">("add");
   const [editingStaffId, setEditingStaffId] = useState("");
   const [newStaffName, setNewStaffName] = useState("");
@@ -1363,7 +1365,7 @@ export default function App() {
   }
 
   async function saveStaffModal() {
-    if(currentUser?.role!=="admin")return;
+    if(currentUser?.role!=="admin" || staffMutationBusy.current)return;
     const name=newStaffName.trim();
     const pinValue=newStaffPin.trim();
     if(!name.startsWith("【權限驗收】")){
@@ -1372,6 +1374,8 @@ export default function App() {
     if(pinValue&&!/^[0-9]{8,32}$/.test(pinValue)){
       window.alert("測試 PIN 必須是 8 到 32 位數字");return;
     }
+    staffMutationBusy.current = true;
+    setStaffSaving(true);
     try {
       if(staffModalMode==="edit"){
         const staff=staffUsers.find(x=>x.id===editingStaffId);
@@ -1387,7 +1391,11 @@ export default function App() {
       setShowStaffModal(false);
       await loadCleanersFromSupabase();
       await loadEventsFromSupabase();
-    }catch(error){setNewStaffPin("");window.alert(error instanceof Error?error.message:"人員操作失敗");}
+    }catch(error){
+      setNewStaffPin("");
+      window.alert((error instanceof Error?error.message:"人員操作失敗")+"；請重新確認人員清單及帳號啟用狀態後再操作。");
+      await loadCleanersFromSupabase();
+    }finally{ staffMutationBusy.current = false; setStaffSaving(false); }
   }
 
   return (
@@ -2562,15 +2570,17 @@ export default function App() {
             <div className="mt-4 flex justify-end gap-2">
               <button
                 onClick={() => setShowStaffModal(false)}
+                disabled={staffSaving}
                 className="rounded-[20px] bg-[#ece5d9] px-3 py-2 text-sm font-medium text-[#5f5444]"
               >
                 取消
               </button>
               <button
                 onClick={saveStaffModal}
+                disabled={staffSaving}
                 className="rounded-[20px] bg-[linear-gradient(135deg,#8b8462_0%,#9a946f_52%,#b5ae86_100%)] px-3 py-2 text-sm font-medium text-white"
               >
-                儲存
+                {staffSaving ? "處理中…" : "儲存"}
               </button>
             </div>
           </div>
