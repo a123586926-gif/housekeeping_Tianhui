@@ -951,7 +951,9 @@ export default function App() {
       event_date:activityDate,
       event_name:activityModalMode==="add" && !activityName.trim().startsWith("【權限驗收】")
         ? "【權限驗收】"+activityName.trim() : activityName.trim(),
-      event_type:(activityNeedsCleaning?"活動":"一般活動") as "活動"|"一般活動",
+      event_type:(activityModalMode==="edit" && activityNeedsCleaning &&
+        activities.find(a=>a.id===editingActivityId)?.category==="住宿"
+          ? "住宿" : activityNeedsCleaning?"活動":"一般活動") as "活動"|"一般活動"|"住宿",
       notes:activityContact.trim(),
     };
     try {
