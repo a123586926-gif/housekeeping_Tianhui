@@ -89,9 +89,14 @@ export function deleteActivity(eventId: number): Promise<{ ok: boolean }> {
 }
 
 /** Cleaner can update only checklist of the room assigned to their immutable ID. */
-export function updateRoomChecklist(roomId: number, checklist: ChecklistUpdate[]): Promise<{ room: unknown }> {
+export function updateRoomChecklist(
+  roomId: number, checklist: ChecklistUpdate[], expectedChecklist?: ChecklistUpdate[],
+): Promise<{ room: unknown }> {
   return request("/api/data/rooms", {
-    method: "PATCH", body: jsonBody({ roomId, changes: { checklist } }),
+    method: "PATCH", body: jsonBody({
+      roomId, changes: { checklist },
+      ...(expectedChecklist ? { expectedChecklist } : {}),
+    }),
   });
 }
 
