@@ -872,7 +872,7 @@ export default function App() {
         return {
           ...item,
           done: false,
-          photo: false,
+          photo: item.photo,
           subItems: item.subItems.map((sub) => ({ ...sub, done: false })),
         };
       }
@@ -880,7 +880,7 @@ export default function App() {
       return {
         ...item,
         done: true,
-        photo: item.requiredPhoto ? item.photo : item.photo,
+        photo: item.photo,
         subItems: item.subItems.map((sub) => ({ ...sub, done: true })),
       };
     });
@@ -913,7 +913,7 @@ export default function App() {
         subItems: nextSubItems,
         done: checked
           ? nextSubItems.every((sub) => sub.done) &&
-            (!item.requiredPhoto || item.photo)
+            true
           : false,
       };
     });
@@ -1549,7 +1549,7 @@ export default function App() {
                                     return;
                                   }
 
-                                  if (item.requiredPhoto && !item.photo) {
+                                  if (false && item.requiredPhoto && !item.photo) {
                                     openPhotoModal({
                                       roomId: room.id,
                                       itemId: item.id,
@@ -1630,7 +1630,7 @@ export default function App() {
                                             s.id === sub.id ? true : s.done
                                           );
 
-                                          if (item.requiredPhoto && willAllDone && !item.photo) {
+                                          if (false && item.requiredPhoto && willAllDone && !item.photo) {
                                             openPhotoModal({
                                               roomId: room.id,
                                               itemId: item.id,
