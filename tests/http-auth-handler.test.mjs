@@ -181,3 +181,14 @@ test("login: failed or ambiguous identity results never create a thirty-day sess
     assert.equal(res.headers["set-cookie"],undefined);
   }
 });
+
+test("spoofed administrator identity cannot read or mutate cleaner directory",async()=>{
+ let accesses=0;
+ const handler=createCleanersHandler({originAllowed,sessionReader:async()=>({user:{id:"cleaner-901",role:"admin"}}),dbFactory:()=>{accesses++;throw Error("No DB allowed");}});
+ for(const method of ["GET","POST","PATCH"]){
+  const res=response();
+  await handler({method,body:{name:"【權限驗收】測試員"}},res);
+  assert.equal(res.statusCode,403);
+ }
+ assert.equal(accesses,0);
+});
