@@ -3,6 +3,7 @@ import { CalendarDays, ClipboardList, Home, Users, ShieldCheck, Camera } from "l
 import SharedActivityCalendar from "./SharedActivityCalendar";
 import QaAdminEvents from "./QaAdminEvents";
 import QaAdminRoomAssignments from "./QaAdminRoomAssignments";
+import QaAdminRoomInventory from "./QaAdminRoomInventory";
 import QaAdminCleaners from "./QaAdminCleaners";
 import QaChangePin from "./QaChangePin";
 import QaPhotoUpload from "./QaPhotoUpload";
@@ -11,7 +12,8 @@ import type { AuthenticatedUser } from "../lib/authSession";
 import type { CalendarEvent, DbEvent } from "../lib/housekeepingApi";
 import type { WorkRoom } from "./QaRoomChecklist";
 
-type Overview = {events: DbEvent[]; calendarEvents: CalendarEvent[]; eventRooms: WorkRoom[]};
+type ManagedRoom = WorkRoom & {event_id:number; occupant?:string; floor_photo?:string|null; bathroom_photo?:string|null; final_photo?:string|null};
+type Overview = {events: DbEvent[]; calendarEvents: CalendarEvent[]; eventRooms: ManagedRoom[]};
 type Page = "home"|"calendar"|"activities"|"rooms"|"staff"|"photos"|"account";
 type Props = {
   user: AuthenticatedUser;
@@ -104,6 +106,7 @@ export default function SecureHousekeepingDashboard({user,expiry,overview,onRefr
       {page==="activities"&&isAdmin&&<QaAdminEvents events={overview.events} onUpdated={onRefresh}/>}
       {page==="rooms"&&<div className="space-y-3">
         <QaRoomChecklist rooms={rooms} editable={!isAdmin} onUpdated={onRefresh}/>
+        {isAdmin&&<QaAdminRoomInventory events={overview.events} rooms={rooms} onUpdated={onRefresh}/>}
         {isAdmin&&<QaAdminRoomAssignments rooms={rooms.map(room=>({
           ...room,occupant:(room as WorkRoom & {occupant?:string}).occupant||""
         }))} onUpdated={onRefresh}/>}
