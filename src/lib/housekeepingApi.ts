@@ -50,7 +50,19 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
     headers: { ...(init.body ? { "Content-Type": "application/json" } : {}), ...init.headers },
   });
   if (!response.ok) {
-    throw new HousekeepingApiError(response.status, `房務操作失敗（HTTP ${response.status}）`);
+    const server = await response.json().catch(() => null) as {error?:unknown}|null;
+    const explanation = response.status === 409
+      ? "房間資料剛被其他操作更新，請重新整理後重試。"
+      : response.status === 403
+        ? "目前帳號沒有此操作權限。"
+        : response.status === 401
+          ? "登入已失效，請重新登入。"
+          : response.status === 400
+            ? "送出的資料不符合規則，請檢查輸入。"
+            : "房務操作失敗，請稍後重試。";
+    const detail=server && typeof server.error==="string" &&
+      server.error.length<=140 ? `（${server.error}）` : "";
+    throw new HousekeepingApiError(response.status, `${explanation}${detail}（HTTP ${response.status}）`);
   }
   return await response.json() as T;
 }
