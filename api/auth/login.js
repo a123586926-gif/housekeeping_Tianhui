@@ -13,7 +13,7 @@ export default async function handler(req, res) {
     const db = adminDb();
     // RPC verifies a bcrypt PIN hash and atomically enforces attempt limits.
     const { data, error } = await db.rpc("hk_verify_login", { p_user_id: userId, p_pin: pin });
-    if (error || !Array.isArray(data) || data.length !== 1) {
+    if (error || !verifiedLoginIdentity(data, userId)) {
       return json(res, 401, { error: "Invalid credentials or temporarily locked" });
     }
     const token = newSessionToken();
