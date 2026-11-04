@@ -1338,7 +1338,9 @@ export default function App() {
             </div>
           </div>
 
-          {showLogin && !currentUser && (
+          {authRestoring && <p role="status" className="border-t border-[#e5ddd0] p-3 text-sm text-[#847663]">正在恢復 30 天登入狀態…</p>}
+          {authRestoreError && <p role="alert" className="border-t border-[#e5ddd0] p-3 text-sm text-red-700">{authRestoreError}</p>}
+          {!authRestoring && {showLogin && !currentUser && (
             <div className="space-y-2 border-t border-[#e5ddd0] bg-[linear-gradient(180deg,#fcfaf6_0%,#f4eee4_100%)] p-3">
               <select
                 value={selectedUserId}
@@ -1373,13 +1375,20 @@ export default function App() {
 
         {!currentUser ? (
           <div className="mt-3 rounded-[28px] border border-[#e2d8c8] bg-[linear-gradient(180deg,#fffdfa_0%,#f7f3eb_100%)] p-6 text-center shadow-[0_12px_26px_rgba(84,69,45,0.08)]">
-            <div className="text-[18px] font-semibold text-[#524736]">請先登入</div>
+            <div className="text-[18px] font-semibold text-[#524736]">{authRestoring?"正在確認登入狀態":"請先登入"}</div>
             <div className="mt-2 text-sm text-[#8d8272]">
               點右上角「登入」，選擇帳號並輸入密碼後使用系統。
             </div>
           </div>
         ) : viewMode === "staff" ? (
-          <div className="mt-3 rounded-[28px] border border-[#e2d8c8] bg-[linear-gradient(180deg,#fffdfa_0%,#f7f3eb_100%)] p-3 shadow-[0_12px_26px_rgba(84,69,45,0.08)]">
+          <div className="mt-3 space-y-3">
+            <button type="button" onClick={()=>setStaffCalendarVisible(v=>!v)}
+              className="w-full rounded-[18px] border border-[#d9cfbf] bg-[#f7f1e8] px-4 py-2.5 text-sm font-semibold text-[#6b604b]">
+              <CalendarDays className="mr-1 inline h-4 w-4"/>
+              {staffCalendarVisible?"返回清潔房間":"查看共用活動日曆"}
+            </button>
+            {staffCalendarVisible ? <SharedActivityCalendar events={sharedCalendarEvents} isAdmin={false}/> : (
+          <div className="rounded-[28px] border border-[#e2d8c8] bg-[linear-gradient(180deg,#fffdfa_0%,#f7f3eb_100%)] p-3 shadow-[0_12px_26px_rgba(84,69,45,0.08)]">
             <SectionTitle
               title="我的房間"
               sub={
@@ -1522,8 +1531,15 @@ export default function App() {
                                     >
                                       <span className="inline-flex items-center gap-1">
                                         <ImageIcon className="h-3.5 w-3.5" />
-                                        {item.photo ? "已拍照" : "拍照"}
+                                        {item.photo ? "更換照片" : "拍照"}
                                       </span>
+                                    </button>
+                                  )}
+                                  {item.requiredPhoto && item.photo && (
+                                    <button type="button"
+                                      onClick={()=>void viewPrivatePhoto(room,item.id)}
+                                      className="rounded-[14px] border border-[#ddd4c6] bg-white px-2 py-1 text-[11px] text-[#75684f]">
+                                      查看照片
                                     </button>
                                   )}
                                 </div>
@@ -1576,6 +1592,8 @@ export default function App() {
                 );
               })}
             </div>
+          </div>
+          )}
           </div>
         ) : (
           <div className="mt-3 space-y-3">
