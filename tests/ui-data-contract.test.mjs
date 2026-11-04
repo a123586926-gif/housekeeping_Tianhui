@@ -109,3 +109,11 @@ test("account switch clears previous user drafts, selections and admin filters",
  assert.match(app,/setOverviewSearch\(""\)/);
  assert.match(app,/setCalendarSheetDate\(""\)/);
 });
+
+test("single and batch A4 printing refuse rooms with unsaved occupant edits",()=>{
+ assert.match(app,/function roomHasPendingOccupant\(room: Room\)/);
+ assert.match(app,/roomAdministrationSaving\.current\.has\(room\.id\)/);
+ assert.match(app,/occupantDrafts\[room\.id\] !== room\.occupant/);
+ assert.match(app,/function printSingleRoomA4\(room: Room\) \{\s*if\(roomHasPendingOccupant\(room\)\)/);
+ assert.match(app,/selectedRooms\.some\(roomHasPendingOccupant\)/);
+});
