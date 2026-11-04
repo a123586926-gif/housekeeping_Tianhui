@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { Printer } from "lucide-react";
 
 type PrintableRoom = {id:number;event_id:number;building:string;floor:string;room_no:string;occupant?:string};
@@ -44,20 +44,11 @@ export default function QaRoomPrint({rooms,events}:Props) {
   const [eventId,setEventId]=useState("");
   const [selected,setSelected]=useState<number[]>([]);
   const [error,setError]=useState("");
-  const [preview,setPreview]=useState(false);
-  const [printRoom,setPrintRoom]=useState<number|null>(null);
   const event=events.find(e=>String(e.id)===eventId);
   const related=useMemo(()=>rooms.filter(r=>r.event_id===event?.id)
     .sort((a,b)=>a.building.localeCompare(b.building)||a.floor.localeCompare(b.floor)||a.room_no.localeCompare(b.room_no)),[rooms,event?.id]);
   const chosen=related.filter(room=>selected.includes(room.id));
   const tooMany=chosen.some(room=>guestsOf(room.occupant||"").length>8);
-
-  useEffect(()=>{
-    if(!preview)return;
-    const finish=()=>setPreview(false);
-    window.addEventListener("afterprint",finish);
-    return ()=>window.removeEventListener("afterprint",finish);
-  },[preview]);
 
   function print(target:PrintableRoom[]) {
     if(target.length===0){setError("請先選擇房間");return;}
