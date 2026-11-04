@@ -142,6 +142,9 @@ export function createRoomsHandler({
 }={}) {
   return async function handler(req, res) {
   if (!["PATCH", "POST", "GET", "PUT", "DELETE"].includes(req.method)) return json(res, 405, { error: "Method not allowed" });
+  // Uploads are temporarily paused by owner request; photo reads remain enabled.
+  // Reject before session, database or Storage access, including direct API callers.
+  if (req.method === "POST") return json(res, 503, { error: "Photo upload is temporarily paused" });
   if (req.method !== "GET" && !originAllowed(req)) return json(res, 403, { error: "Origin rejected" });
   try {
     const session = await sessionReader(req);
