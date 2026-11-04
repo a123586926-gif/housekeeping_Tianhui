@@ -18,8 +18,8 @@ BEGIN
      OR length(coalesce(p_notes, '')) > 2000
      OR jsonb_typeof(p_rooms) IS DISTINCT FROM 'array'
      OR jsonb_array_length(p_rooms) > 84
-     OR (p_event_type = '活動' AND jsonb_array_length(p_rooms) <> 84)
-     OR (p_event_type <> '活動' AND jsonb_array_length(p_rooms) <> 0)
+     OR (p_event_type IN ('活動','住宿') AND jsonb_array_length(p_rooms) <> 84)
+     OR (p_event_type = '一般活動' AND jsonb_array_length(p_rooms) <> 0)
   THEN RAISE EXCEPTION 'Invalid event'; END IF;
 
   IF EXISTS (
