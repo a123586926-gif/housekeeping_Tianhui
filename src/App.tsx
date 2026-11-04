@@ -768,7 +768,7 @@ export default function App() {
 
   function openPhotoModal(_action: PhotoAction) {
     // Intentional pause: retain preexisting photo viewing, never open upload modal.
-    window.alert("照片上傳功能目前暫停。已儲存照片仍可檢視；需要照片的清潔項目暫時無法新標記完成。");
+    window.alert("照片上傳功能目前暫停。已儲存照片仍可檢視；清潔勾選可以照常完成。");
   }
 
   async function uploadCleaningPhoto(room: Room,itemId:string,file:File):Promise<string|null>{
