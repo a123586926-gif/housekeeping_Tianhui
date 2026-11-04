@@ -16,7 +16,7 @@ import {
 } from "lucide-react";
 import { readSession, signInWithPin, signOutSession, provisionQaPin } from "./lib/authSession";
 import SharedActivityCalendar from "./components/SharedActivityCalendar";
-import { getBusinessOverview, getCleaners, createActivity, editActivity, deleteActivity, type CalendarEvent,
+import { HousekeepingApiError, getBusinessOverview, getCleaners, createActivity, editActivity, deleteActivity, type CalendarEvent,
   createQaRoom, deleteQaRoom, updateRoomChecklist, updateRoomAdministration,
   createQaCleaner, renameQaCleaner } from "./lib/housekeepingApi";
 
@@ -563,6 +563,17 @@ export default function App() {
     );
     } catch (error) {
       if(epoch!==dataEpoch.current)return;
+      if(error instanceof HousekeepingApiError && (error.status===401 || error.status===403)){
+        // Fail closed immediately if a session was revoked while the tab was open.
+        dataEpoch.current+=1;
+        setCurrentUser(null);
+        setShowLogin(true);
+        setPin("");
+        setActivities([]);
+        setSharedCalendarEvents([]);
+        setAuthRestoreError("登入已失效或權限已變更，請重新登入。");
+        return;
+      }
       console.error("房務資料讀取失敗",error);
       window.alert("目前無法安全讀取房務資料，請稍後重新登入");
     }
