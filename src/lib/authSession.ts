@@ -81,7 +81,13 @@ export async function signInWithPin(userId: string, pin: string): Promise<Sessio
     method: "POST",
     body: JSON.stringify({ userId, pin }),
   });
-  return readSession();
+  const session = await readSession();
+  // Another browser tab could have replaced the shared HttpOnly cookie between
+  // the login response and this session read. Never accept another identity.
+  if (!session.authenticated || session.user.id !== userId) {
+    throw new Error("登入帳號已變更，請重新確認目前登入狀態。");
+  }
+  return session;
 }
 
 /** Logout must invalidate the session on the server and clear its HttpOnly cookie. */
