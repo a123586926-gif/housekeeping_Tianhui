@@ -396,7 +396,7 @@ export default function App() {
   const [showRoomModal, setShowRoomModal] = useState(false);
   const [newRoomBuilding, setNewRoomBuilding] = useState<BuildingType>("A");
   const [newRoomFloor, setNewRoomFloor] = useState<FloorType>("2F");
-  const [newRoomNo, setNewRoomNo] = useState("201");
+  const [newRoomNo, setNewRoomNo] = useState("209");
   const [newOccupant, setNewOccupant] = useState("");
   const [newRoomStaff, setNewRoomStaff] = useState("未分配");
 
@@ -979,9 +979,13 @@ export default function App() {
 
   async function saveNewRoom() {
     if(currentUser?.role!=="admin"||!selectedActivity?.dbId)return;
+    if(selectedActivity.rooms.some(room=>room.building===newRoomBuilding&&
+       room.floor===newRoomFloor&&room.roomNo===newRoomNo.trim().toUpperCase())){
+      window.alert("此活動已經有相同棟別、樓層與房號，請輸入尚未存在的房間。");return;
+    }
     try {
       const created=await createQaRoom({
-        eventId:selectedActivity.dbId,building:newRoomBuilding,floor:newRoomFloor,roomNo:newRoomNo,
+        eventId:selectedActivity.dbId,building:newRoomBuilding,floor:newRoomFloor,roomNo:newRoomNo.trim().toUpperCase(),
       });
       if(newRoomStaff!=="未分配"||newOccupant.trim()){
         await updateRoomAdministration(created.roomId,{
@@ -1340,7 +1344,7 @@ export default function App() {
 
           {authRestoring && <p role="status" className="border-t border-[#e5ddd0] p-3 text-sm text-[#847663]">正在恢復 30 天登入狀態…</p>}
           {authRestoreError && <p role="alert" className="border-t border-[#e5ddd0] p-3 text-sm text-red-700">{authRestoreError}</p>}
-          {!authRestoring && {showLogin && !currentUser && (
+          {!authRestoring && showLogin && !currentUser && (
             <div className="space-y-2 border-t border-[#e5ddd0] bg-[linear-gradient(180deg,#fcfaf6_0%,#f4eee4_100%)] p-3">
               <select
                 value={selectedUserId}
