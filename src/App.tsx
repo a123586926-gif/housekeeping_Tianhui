@@ -400,6 +400,8 @@ export default function App() {
   const [activityNeedsCleaning, setActivityNeedsCleaning] = useState(true);
 
   const [showRoomModal, setShowRoomModal] = useState(false);
+  const roomMutationBusy = useRef(false);
+  const [roomSaving, setRoomSaving] = useState(false);
   const [newRoomBuilding, setNewRoomBuilding] = useState<BuildingType>("A");
   const [newRoomFloor, setNewRoomFloor] = useState<FloorType>("2F");
   const [newRoomNo, setNewRoomNo] = useState("209");
@@ -1074,15 +1076,20 @@ export default function App() {
   }
 
   async function saveNewRoom() {
-    if(currentUser?.role!=="admin"||!selectedActivity?.dbId)return;
+    if(currentUser?.role!=="admin" || !selectedActivity?.dbId || roomMutationBusy.current)return;
+    const roomNo=newRoomNo.trim().toUpperCase();
     if(selectedActivity.rooms.some(room=>room.building===newRoomBuilding&&
-       room.floor===newRoomFloor&&room.roomNo===newRoomNo.trim().toUpperCase())){
+       room.floor===newRoomFloor&&room.roomNo===roomNo)){
       window.alert("此活動已經有相同棟別、樓層與房號，請輸入尚未存在的房間。");return;
     }
+    roomMutationBusy.current=true;
+    setRoomSaving(true);
+    let createdRoomId:number|null=null;
     try {
       const created=await createQaRoom({
-        eventId:selectedActivity.dbId,building:newRoomBuilding,floor:newRoomFloor,roomNo:newRoomNo.trim().toUpperCase(),
+        eventId:selectedActivity.dbId,building:newRoomBuilding,floor:newRoomFloor,roomNo,
       });
+      createdRoomId=created.roomId;
       if(newRoomStaff!=="未分配"||newOccupant.trim()){
         await updateRoomAdministration(created.roomId,{
           ...(newRoomStaff!=="未分配"?{assignedTo:newRoomStaff}:{}),
@@ -1092,8 +1099,16 @@ export default function App() {
       setShowRoomModal(false);
       setNewOccupant("");
       setNewRoomStaff("未分配");
+    }catch(error){
+      const detail=error instanceof Error?error.message:"房間操作失敗";
+      window.alert(createdRoomId
+        ? "房間已建立，但房務指派或入住資料未完成，請檢查該房間後再操作。"+detail
+        : "新增房間未完成，請檢查房間列表後再重試。"+detail);
+    }finally{
       await loadEventsFromSupabase();
-    }catch(error){window.alert(error instanceof Error?error.message:"新增房間失敗");await loadEventsFromSupabase();}
+      roomMutationBusy.current=false;
+      setRoomSaving(false);
+    }
   }
 
   function selectActivity(activityId: string) {
@@ -2522,12 +2537,14 @@ export default function App() {
             <div className="mt-4 flex justify-end gap-2">
               <button
                 onClick={() => setShowRoomModal(false)}
+                disabled={roomSaving}
                 className="rounded-[20px] bg-[#ece5d9] px-3 py-2 text-sm font-medium text-[#5f5444]"
               >
                 取消
               </button>
               <button
                 onClick={saveNewRoom}
+                disabled={roomSaving}
                 className="rounded-[20px] bg-[linear-gradient(135deg,#8b8462_0%,#9a946f_52%,#b5ae86_100%)] px-3 py-2 text-sm font-medium text-white"
               >
                 新增
