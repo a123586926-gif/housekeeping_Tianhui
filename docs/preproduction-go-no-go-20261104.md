@@ -26,6 +26,14 @@
 
 **已由 Supabase 組織 API 確認 Free 方案、正式與 QA 兩個啟用專案。** 尚無受保障的每日自動備份，現有工具不能直接取得實際備份檔或完成本機還原。已提供 Windows 本機受保護的資料庫與 Storage 備份步驟及不新增第三個 Supabase 專案的隔離還原方案，詳見 [free-plan-real-backup-runbook-20261104.md](./free-plan-real-backup-runbook-20261104.md)。**正式資料備份與還原演練仍未完成，不得正式切換。**
 
+## 登入、HTTP 權限及房間資料保護（2026-11-04 最新）
+
+新增與修正：登入 RPC 身分需完全一致、Cookie/session/account 必須同時有效、停用帳號不可繼續存取；所有六個 API 處理器（登入、登出、PIN、房務人員、房間總表、房間/照片）加入可隔離測試的依賴注入但不改正式入口或 QA guard。
+
+使用開發分支實際程式加模擬資料庫，在隔離 V8 執行 **66 項測試／66 通過**（不是最新 Node.js CI、真實瀏覽器或正式系統 E2E）。QA Supabase 唯讀確認主要 6 張表 RLS 啟用、anon 無直接 CRUD，6 個登入/管理 RPC anon 與 authenticated 無 EXECUTE；詳見 [auth-http-security-completion-20261104.md](./auth-http-security-completion-20261104.md)。
+
+**最新 Vercel 提交仍遇 `build-rate-limit`，不能認定最新版部署完成。** 本階段用戶已表明暫不處理備份及付費升級，但這不等於已取得正式環境資料風險的上線豁免。正式合併、RLS/Storage 切換和實際遷移仍需獨立明確核准。
+
 ## 目前已由使用者驗收
 
 - 30 天工作階段：同一固定 Preview 網域 F5 後可維持登入（尚未做真正 30 天到期測試）。
