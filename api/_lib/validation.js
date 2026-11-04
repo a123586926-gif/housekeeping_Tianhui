@@ -15,7 +15,7 @@ export function validateEvent(data) {
   if (!data || typeof data !== "object" || Array.isArray(data)) return null;
   if (!validDate(data.event_date) || typeof data.event_name !== "string" ||
     data.event_name.trim().length < 1 || data.event_name.trim().length > 120 ||
-    !["活動", "一般活動"].includes(data.event_type) ||
+    !["活動", "一般活動", "住宿"].includes(data.event_type) ||
     (data.notes !== undefined && (typeof data.notes !== "string" || data.notes.length > 2000))) return null;
   return {
     event_date: data.event_date,
