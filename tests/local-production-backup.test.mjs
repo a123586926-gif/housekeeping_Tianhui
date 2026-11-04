@@ -105,3 +105,8 @@ test("invalid folder paths are rejected before any download",async()=>{
    assert.equal(fake.calls.some(x=>x[0]==="download"),false);
  }finally{await fs.rm(dir,{recursive:true,force:true})}
 });
+
+test("Windows reserved filenames and trailing dots are rejected",()=>{
+ for(const name of ["CON","NUL.png","folder/COM1.jpg","folder/LPT9","photo.jpg.","photo.jpg ","room/pic:ads","room/photo<test>.jpg"])
+   assert.throws(()=>validateStorageKey(name));
+});
