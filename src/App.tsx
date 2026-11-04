@@ -59,6 +59,7 @@ type Room = {
   roomNo: string;
   assignedTo: string;
   cleanerId?: number | null;
+  assignedCleanerId?: number | null;
   occupant: string;
   status: RoomStatus;
   checklist: ChecklistItem[];
@@ -408,7 +409,7 @@ export default function App() {
   const [newRoomFloor, setNewRoomFloor] = useState<FloorType>("2F");
   const [newRoomNo, setNewRoomNo] = useState("209");
   const [newOccupant, setNewOccupant] = useState("");
-  const [newRoomStaff, setNewRoomStaff] = useState("未分配");
+  const [newRoomStaff, setNewRoomStaff] = useState("");
 
   const [showStaffModal, setShowStaffModal] = useState(false);
   const staffMutationBusy = useRef(false);
@@ -889,10 +890,11 @@ export default function App() {
         await updateRoomChecklist(room.dbId,flags(updates.checklist),
           photoJustUploaded?undefined:flags(room.checklist));
       }
-      if(updates.assignedTo!==undefined||updates.occupant!==undefined){
+      if(updates.assignedTo!==undefined||updates.assignedCleanerId!==undefined||updates.occupant!==undefined){
         if(currentUser?.role!=="admin")throw new Error("僅管理員可以修改入住者及指派");
         await updateRoomAdministration(room.dbId,{
           ...(updates.assignedTo!==undefined?{assignedTo:updates.assignedTo}:{}),
+          ...(updates.assignedCleanerId!==undefined?{assignedCleanerId:updates.assignedCleanerId}:{}),
           ...(updates.occupant!==undefined?{occupant:updates.occupant}:{}),
         });
       }
@@ -1105,15 +1107,15 @@ export default function App() {
         eventId:selectedActivity.dbId,building:newRoomBuilding,floor:newRoomFloor,roomNo,
       });
       createdRoomId=created.roomId;
-      if(newRoomStaff!=="未分配"||newOccupant.trim()){
+      if(newRoomStaff!==""||newOccupant.trim()){
         await updateRoomAdministration(created.roomId,{
-          ...(newRoomStaff!=="未分配"?{assignedTo:newRoomStaff}:{}),
+          ...(newRoomStaff!==""?{assignedCleanerId:Number(newRoomStaff)}:{}),
           ...(newOccupant.trim()?{occupant:newOccupant}:{}),
         });
       }
       setShowRoomModal(false);
       setNewOccupant("");
-      setNewRoomStaff("未分配");
+      setNewRoomStaff("");
     }catch(error){
       const detail=error instanceof Error?error.message:"房間操作失敗";
       window.alert(createdRoomId
@@ -2053,17 +2055,17 @@ export default function App() {
                               />
 
                               <select
-                                value={room.assignedTo}
+                                value={room.cleanerId == null ? "" : String(room.cleanerId)}
                                 onChange={(e) =>
-                                  updateRoomField(selectedActivity.id, room.id, {
-                                    assignedTo: e.target.value,
+                                  void updateRoomField(selectedActivity.id, room.id, {
+                                    assignedCleanerId: e.target.value ? Number(e.target.value) : null,
                                   })
                                 }
                                 className="h-[46px] rounded-[14px] border border-[#ddd4c6] bg-[#fdfaf6] px-2 text-[12px] text-[#5f5444] focus:outline-none"
                               >
-                                <option value="未分配">未分配</option>
+                                <option value="">未分配</option>
                                 {staffUsers.map((user) => (
-                                  <option key={user.id} value={user.name}>
+                                  <option key={user.id} value={String(user.dbId)}>
                                     {user.name}
                                   </option>
                                 ))}
@@ -2549,9 +2551,9 @@ export default function App() {
                 onChange={(e) => setNewRoomStaff(e.target.value)}
                 className="w-full rounded-[20px] border border-[#ddd3c4] bg-[#fffdfa] px-3 py-2.5 text-sm text-[#5f5444]"
               >
-                <option value="未分配">未分配</option>
+                <option value="">未分配</option>
                 {staffUsers.map((user) => (
-                  <option key={user.id} value={user.name}>
+                  <option key={user.id} value={String(user.dbId)}>
                     {user.name}
                   </option>
                 ))}
