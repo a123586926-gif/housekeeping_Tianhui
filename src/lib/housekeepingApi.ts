@@ -28,7 +28,7 @@ export type CleanerInfo = {
 };
 export type ActivityInput = {
   event_date: string; event_name: string;
-  event_type: "活動" | "一般活動"; notes: string;
+  event_type: "活動" | "一般活動" | "住宿"; notes: string;
 };
 export type ChecklistUpdate = {
   id: string; done: boolean; photo: boolean;
