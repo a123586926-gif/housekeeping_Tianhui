@@ -1,5 +1,5 @@
 import { adminDb, allowSameOrigin, getSession, json } from "../_lib/auth.js";
-import { validateCleanerManagementInput } from "../_lib/cleanerManagementPolicy.js";
+import { manageQaCleaner } from "../_lib/qaCleanerManagement.js";
 
 // No PIN values are ever sent to the browser.
 export default async function handler(req, res) {
@@ -13,25 +13,13 @@ export default async function handler(req, res) {
       // Temporary staging-only management RPC. All new accounts start disabled
       // with a random, unrecoverable credential. Real staff PIN provisioning
       // requires a separately reviewed endpoint before production rollout.
-      const parsed = validateCleanerManagementInput({
+      const result = await manageQaCleaner({
+        role: session.user.role,
         method: req.method,
-        action: req.body?.action,
-        name: req.body?.name,
-        cleanerId: req.body?.cleanerId,
-        mode: "qa",
+        body: req.body,
+        rpc: (name, args) => adminDb().rpc(name, args),
       });
-      if (!parsed.ok || !parsed.executableInQa)
-        return json(res, 400, { error: parsed.error || "QA restrictions apply" });
-      const {action, cleanerId:id, name} = parsed;
-      const { data: managedId, error: mutationError } = await adminDb().rpc("hk_qa_manage_cleaner", {
-        p_action: action,
-        p_cleaner_id: action === "create" ? null : id,
-        p_name: name,
-      });
-      if (mutationError) return json(res, 400, { error: "Cleaner management rejected" });
-      return json(res, req.method === "POST" ? 201 : 200, {
-        ok: true, cleanerId: Number(managedId),
-      });
+      return json(res, result.status, result.body);
     }
     const { data, error } = await adminDb().from("cleaners")
       .select("id, name, is_active, created_at").order("id", { ascending: true });
