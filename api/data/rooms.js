@@ -180,6 +180,9 @@ export default async function handler(req, res) {
     if ("occupant" in changes && !validText(changes.occupant,3000)) return bad(res);
     if ("assignedTo" in changes && !validText(changes.assignedTo,120)) return bad(res);
     if ("checklist" in changes && !validChecklist(changes.checklist)) return bad(res);
+    // Optional optimistic-lock snapshot supplied by the editing UI.
+    // Exclude server-owned labels and descriptions from the comparison.
+    if ("expectedChecklist" in body && !validChecklist(body.expectedChecklist)) return bad(res);
     if (role === "cleaner" && keys.some(key => key !== "checklist")) {
       return json(res, 403, { error: "Cleaners can only update checklists" });
     }
@@ -211,6 +214,12 @@ export default async function handler(req, res) {
       }
     }
     if ("checklist" in changes) {
+      const previous = Array.isArray(existing.checklist) ? existing.checklist : [];
+      if ("expectedChecklist" in body &&
+        JSON.stringify(sanitizeChecklist(previous)) !==
+        JSON.stringify(sanitizeChecklist(body.expectedChecklist))) {
+        return json(res,409,{error:"Checklist changed since it was opened; reload room before saving"});
+      }
       const next = sanitizeChecklist(changes.checklist);
       // Keep server-side definitions; only apply incoming completion flags.
       const original = Array.isArray(existing.checklist) ? existing.checklist : [];
@@ -246,10 +255,18 @@ export default async function handler(req, res) {
     if (role === "cleaner") {
       updateQuery = updateQuery.eq("cleaner_id", cleanerId);
     }
+    // Database compare-and-swap also guards races between the read above and
+    // the UPDATE. The UI then reloads and lets the user retry safely.
+    if ("checklist" in changes) {
+      updateQuery = updateQuery.eq("checklist",JSON.stringify(existing.checklist));
+    }
     const { data: updated, error: updateError } = await updateQuery
       .select("id, event_id, status, progress").maybeSingle();
     if (updateError) throw updateError;
-    if (!updated) return json(res, 403, { error: "Room assignment changed; update rejected" });
+    if (!updated) return json(res,"checklist" in changes ? 409 : 403, {
+      error:"checklist" in changes ? "Checklist changed while saving; reload required" :
+        "Room assignment changed; update rejected",
+    });
     return json(res, 200, { room: updated });
   } catch {
     return json(res, 503, { error: "Unable to update room" });
