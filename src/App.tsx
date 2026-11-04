@@ -390,6 +390,8 @@ export default function App() {
   const [calendarSheetDate, setCalendarSheetDate] = useState("");
 
   const [showActivityModal, setShowActivityModal] = useState(false);
+  const activityMutationBusy = useRef(false);
+  const [activitySaving, setActivitySaving] = useState(false);
   const [activityModalMode, setActivityModalMode] = useState<"add" | "edit">("add");
   const [editingActivityId, setEditingActivityId] = useState("");
   const [activityName, setActivityName] = useState("");
@@ -1028,7 +1030,7 @@ export default function App() {
   }
 
   async function saveActivityModal() {
-    if(currentUser?.role!=="admin")return;
+    if(currentUser?.role!=="admin" || activityMutationBusy.current)return;
     if(!activityName.trim()||!activityDate.trim()){window.alert("請輸入活動名稱與日期");return;}
     const input={
       event_date:activityDate,
@@ -1039,6 +1041,8 @@ export default function App() {
           ? "住宿" : activityNeedsCleaning?"活動":"一般活動") as "活動"|"一般活動"|"住宿",
       notes:activityContact.trim(),
     };
+    activityMutationBusy.current = true;
+    setActivitySaving(true);
     try {
       if(activityModalMode==="edit"){
         await editActivity(Number(editingActivityId),input);
@@ -1048,11 +1052,14 @@ export default function App() {
       setShowActivityModal(false);
       await loadEventsFromSupabase();
     } catch(error) {window.alert(error instanceof Error?error.message:"活動儲存失敗");}
+    finally { activityMutationBusy.current = false; setActivitySaving(false); }
   }
 
   async function deleteCurrentActivity() {
-    if(currentUser?.role!=="admin"||activityModalMode!=="edit"||!editingActivityId)return;
+    if(currentUser?.role!=="admin"||activityModalMode!=="edit"||!editingActivityId||activityMutationBusy.current)return;
     if(!window.confirm("刪除測試活動？此操作不可還原。"))return;
+    activityMutationBusy.current = true;
+    setActivitySaving(true);
     try {
       await deleteActivity(Number(editingActivityId));
       setShowActivityModal(false);
@@ -1061,6 +1068,7 @@ export default function App() {
       setSelectedPrintRoomIds([]);
       await loadEventsFromSupabase();
     }catch(error){window.alert(error instanceof Error?error.message:"活動刪除失敗");}
+    finally { activityMutationBusy.current = false; setActivitySaving(false); }
   }
 
   async function saveNewRoom() {
@@ -2412,6 +2420,7 @@ export default function App() {
                 {activityModalMode === "edit" && (
                   <button
                     onClick={deleteCurrentActivity}
+                    disabled={activitySaving}
                     className="rounded-[20px] bg-[#e7d9d5] px-3 py-2 text-sm font-medium text-[#8a4f43]"
                   >
                     刪除活動
@@ -2422,15 +2431,17 @@ export default function App() {
               <div className="flex gap-2">
                 <button
                   onClick={() => setShowActivityModal(false)}
+                  disabled={activitySaving}
                   className="rounded-[20px] bg-[#ece5d9] px-3 py-2 text-sm font-medium text-[#5f5444]"
                 >
                   取消
                 </button>
                 <button
                   onClick={saveActivityModal}
+                  disabled={activitySaving}
                   className="rounded-[20px] bg-[linear-gradient(135deg,#8b8462_0%,#9a946f_52%,#b5ae86_100%)] px-3 py-2 text-sm font-medium text-white"
                 >
-                  儲存
+                  {activitySaving ? "處理中…" : "儲存"}
                 </button>
               </div>
             </div>
