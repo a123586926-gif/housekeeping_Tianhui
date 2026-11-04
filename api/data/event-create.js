@@ -54,7 +54,8 @@ export default async function handler(req, res) {
       if (error) throw error;
       return data ? json(res, 200, { ok: true }) : json(res, 404, { error: "Event not found" });
     }
-    const rooms = event.event_type === "活動" ? buildDefaultEventRooms() : [];
+    // Both regular cleaning events and overnight stays require a room roster.
+    const rooms = event.event_type !== "一般活動" ? buildDefaultEventRooms() : [];
     const { data, error } = await db.rpc("hk_create_event_with_rooms", {
       p_event_date: event.event_date,
       p_event_name: event.event_name,
