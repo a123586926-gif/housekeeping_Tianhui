@@ -300,3 +300,23 @@ test("cleaner cannot reassign room using stable cleaner ID",async()=>{
  assert.equal(res.statusCode,403);
  assert.equal(mock.calls.some(x=>x[0]==="update"),false);
 });
+
+test("legacy name-based room assignment rejects ambiguous duplicate names",async()=>{
+ const db={
+  from(table){
+   if(table==="event_rooms"){
+    return {select(){return this;},eq(){return this;},
+      async maybeSingle(){return {data:{id:701,cleaner_id:null,event_id:9101,checklist:[]},error:null};},
+      update(){throw Error("must not update");}};
+   }
+   assert.equal(table,"cleaners");
+   return {select(){return this;},eq(){return this;},limit(){return this;},
+     then(resolve){return Promise.resolve({data:[
+       {id:901,name:"同名測試"}, {id:902,name:"同名測試"}],error:null}).then(resolve);}};
+  },
+ };
+ const handler=createRoomsHandler({originAllowed:()=>true,sessionReader:async()=>admin,dbFactory:()=>db});
+ const res=response();
+ await handler({method:"PATCH",body:{roomId:701,changes:{assignedTo:"同名測試"}}},res);
+ assert.equal(res.statusCode,409);
+});
