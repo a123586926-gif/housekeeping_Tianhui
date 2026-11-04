@@ -76,3 +76,21 @@ Get-FileHash .\roles.sql, .\schema.sql, .\data.sql -Algorithm SHA256 | Select-Ob
 - **不產生額外可能計費的 Supabase 專案或 branch**。
 
 需要使用者在自己可信任的電腦完成本手冊的 A/B 階段，或提供可受控操作的專用備份環境後，才能進入真正的還原演練。
+
+## F. Windows 一鍵匯出工具（2026-11-04 新增，尚未在正式資料執行）
+
+開發分支已新增以下可執行程式：
+- `scripts/backup/backup-production.ps1`：檢查 BitLocker 受保護磁碟、Docker/Node/CLI、固定正式專案來源，匯出 roles/schema/data SQL 與照片，最後寫入 `backup-report.json`（狀態為 `EXPORTED_NOT_RESTORED`）。
+- `scripts/backup/backup-storage.mjs`：以**僅存放在本機環境變數中的正式 Storage 服務金鑰**列出並下載 `cleaning-photos` 所有檔案，產生 `storage-manifest.json`（物件 key、byte size、MIME、SHA-256）。沒有 upload、update、remove 或 alter policy。
+- `scripts/backup/storage-backup-core.mjs`：禁止連接非正式 Supabase、阻止檔名路徑穿越、拒絕重複或無效檔案 manifest。
+- `tests/local-production-backup.test.mjs`：以虛構檔案測試拒絕錯誤來源、路徑穿越、hash 與重複檔；已加入 Preview build 與 CI。
+
+在**本人可信任的 Windows 電腦**上：先從 [正式 Supabase Dashboard](https://supabase.com/dashboard/project/xmdznhkkvtohwxkahisr) 的 Settings / API Keys 安全取得正式服務端 Secret（只在本機設定，不得貼在聊天、GitHub、CI 或 Vercel 前端）。將備份目錄放在已確認 BitLocker 保護的磁碟；先以本機環境變數設定 `SUPABASE_SERVICE_ROLE_KEY`，再從 repo 根目錄啟動：
+
+```powershell
+.\scripts\backup\backup-production.ps1 -EncryptedBackupParent "D:\EncryptedBackups" -IUnderstandCliProcessArgumentsCanExposeDbUrl
+```
+
+執行時會以安全提示要求提供正式資料庫連線字串；腳本把它傳給官方 `supabase db dump --db-url`，因此**仍可能在本機程序列出的命令參數中短暫顯示**。請僅在可信任、限制存取的電腦操作。腳本會要求確認此風險。使用結束會清空本機程序的暫時環境金鑰。若在任何步驟失敗，備份目錄可能留下不完整檔案，**不得將其視為可還原備份**。
+
+為保護正式資料，以上程式只在開發分支建立，**我尚未在你的 Windows 電腦執行，也未讀取正式相片 bytes 或取得秘密金鑰**。成功匯出後仍需要在隔離環境實際還原並核對 checksum，不能只看報告。檔案與 manifest 本身可能透露個資及相片路徑，絕不應上傳至此對話或 GitHub。
