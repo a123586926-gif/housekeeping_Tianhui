@@ -4,15 +4,16 @@ import { buildDefaultEventRooms } from "../_lib/defaultRooms.js";
 
 // Admin-only atomic event + default rooms creation.
 // The database RPC must be installed in the isolated test environment first.
-export default async function handler(req, res) {
+export function createEventHandler({dbFactory=adminDb,sessionReader=getSession,originAllowed=allowSameOrigin}={}) {
+  return async function handler(req, res) {
   if (!["POST", "PATCH", "DELETE"].includes(req.method)) return json(res, 405, { error: "Method not allowed" });
-  if (!allowSameOrigin(req)) return json(res, 403, { error: "Origin rejected" });
+  if (!originAllowed(req)) return json(res, 403, { error: "Origin rejected" });
   try {
-    const session = await getSession(req);
+    const session = await sessionReader(req);
     if (!session) return json(res, 401, { error: "Not authenticated" });
     if (session.user.role !== "admin") return json(res, 403, { error: "Admin required" });
 
-    const db = adminDb();
+    const db = dbFactory();
     let existingEvent = null;
     if (req.method !== "POST") {
       const eventId = req.body?.eventId;
@@ -79,4 +80,7 @@ export default async function handler(req, res) {
   } catch {
     return json(res, 503, { error: "Unable to create event" });
   }
+  };
 }
+
+export default createEventHandler();
