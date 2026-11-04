@@ -82,3 +82,15 @@ test("session name changes update only the same immutable user identity",()=>{
  assert.match(app,/session\.user\.name !== currentUser\?\.name/);
  assert.match(app,/previous\?\.id === expectedId \? session\.user : previous/);
 });
+
+test("print selection persists across floor/building filters and counts whole activity",()=>{
+ assert.match(app,/selectedActivity\?\.rooms\.filter\(room =>\s*selectedPrintRoomIds\.includes\(room\.id\)\)/);
+ assert.match(app,/setSelectedPrintRoomIds\(prev => Array\.from\(new Set\(\[/);
+ assert.match(app,/const selectedRooms = selectedActivity\.rooms\.filter\(room =>/);
+ assert.match(app,/將目前篩選的房間加入列印勾選/);
+});
+test("mobile room editor has fluid columns and print waits for fonts",()=>{
+ assert.match(app,/grid-cols-\[24px_minmax\(0,1fr\)_76px\]/);
+ assert.match(app,/sm:grid-cols-\[24px_minmax\(0,1fr\)_96px_64px_36px_30px\]/);
+ assert.match(app,/document\.fonts\.ready\.then\(\(\) => window\.print\(\)\)/);
+});
