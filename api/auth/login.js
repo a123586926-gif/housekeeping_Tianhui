@@ -1,4 +1,5 @@
 import { adminDb, allowSameOrigin, cookieString, json, MAX_AGE_SECONDS, newSessionToken, shaToken } from "../_lib/auth.js";
+import { verifiedLoginIdentity } from "../_lib/sessionAccess.js";
 
 export function createLoginHandler({dbFactory=adminDb,originAllowed=allowSameOrigin,issueToken=newSessionToken,now=()=>Date.now()}={}) {
   return async function handler(req, res) {
