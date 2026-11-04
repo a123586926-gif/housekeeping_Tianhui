@@ -4,16 +4,17 @@ const pinIsStrong = value => typeof value === "string" && /^[0-9]{8,32}$/.test(v
 
 // GET remains unchanged. POST and PATCH are session-protected PIN operations.
 // Consolidated into this existing function to stay under Vercel Hobby limits.
-export default async function handler(req, res) {
+export function createSessionHandler({dbFactory=adminDb,sessionReader=getSession,originAllowed=allowSameOrigin}={}) {
+  return async function handler(req, res) {
   if (!["GET", "POST", "PATCH"].includes(req.method)) return json(res, 405, { error: "Method not allowed" });
-  if (req.method !== "GET" && !allowSameOrigin(req)) return json(res, 403, { error: "Origin rejected" });
+  if (req.method !== "GET" && !originAllowed(req)) return json(res, 403, { error: "Origin rejected" });
   try {
-    const session = await getSession(req);
+    const session = await sessionReader(req);
     if (!session) return json(res, req.method === "GET" ? 200 : 401,
       req.method === "GET" ? { authenticated: false } : { error: "Not authenticated" });
     if (req.method !== "GET") {
       const body = req.body || {};
-      const db = adminDb();
+      const db = dbFactory();
       if (req.method === "POST") {
         if (session.user.role !== "admin") return json(res, 403, { error: "Admin required" });
         if (!Number.isSafeInteger(body.cleanerId) || body.cleanerId < 1 || !pinIsStrong(body.newPin))
@@ -42,4 +43,7 @@ export default async function handler(req, res) {
   } catch {
     return json(res, 503, { error: "Authentication service unavailable" });
   }
+  };
 }
+
+export default createSessionHandler();
