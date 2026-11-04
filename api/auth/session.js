@@ -16,7 +16,7 @@ export function createSessionHandler({dbFactory=adminDb,sessionReader=getSession
       const body = req.body || {};
       const db = dbFactory();
       if (req.method === "POST") {
-        if (session.user.role !== "admin") return json(res, 403, { error: "Admin required" });
+        if (session.user?.role !== "admin" || session.user.id !== "admin") return json(res, 403, { error: "Admin required" });
         if (!Number.isSafeInteger(body.cleanerId) || body.cleanerId < 1 || !pinIsStrong(body.newPin))
           return json(res, 400, { error: "Use an 8-32 digit PIN for QA account" });
         const { data, error } = await db.rpc("hk_qa_provision_pin", {
