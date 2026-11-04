@@ -151,3 +151,12 @@ test("logout with no cookie is idempotent and clears stale browser state",async(
  assert.equal(called,0);
  assert.match(res.headers["set-cookie"],/Max-Age=0/);
 });
+
+test("spoofed admin role cannot provision PIN or query DB",async()=>{
+ let accesses=0;
+ const handler=createSessionHandler({originAllowed:()=>true,sessionReader:async()=>({user:{role:"admin",id:"cleaner-901"}}),dbFactory:()=>{accesses++;throw Error("Unexpected DB");}});
+ const res=response();
+ await handler({method:"POST",body:{cleanerId:902,newPin:"82930146"}},res);
+ assert.equal(res.statusCode,403);
+ assert.equal(accesses,0);
+});
