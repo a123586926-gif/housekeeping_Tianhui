@@ -1381,7 +1381,16 @@ export default function App() {
     printWindow.document.close();
   }
 
+  function roomHasPendingOccupant(room: Room): boolean {
+    return roomAdministrationSaving.current.has(room.id) ||
+      (occupantDrafts[room.id] !== undefined && occupantDrafts[room.id] !== room.occupant);
+  }
+
   function printSingleRoomA4(room: Room) {
+    if(roomHasPendingOccupant(room)){
+      window.alert("住宿人資料尚未儲存完成，請確認完成後再列印，避免印到舊名單。");
+      return;
+    }
     const html = buildPrintDocument(buildA4RoomPage(room));
     openPrintWindow(html);
   }
@@ -1419,6 +1428,10 @@ export default function App() {
 
     if (selectedRooms.length === 0) {
       window.alert("請先勾選要列印的房間");
+      return;
+    }
+    if (selectedRooms.some(roomHasPendingOccupant)) {
+      window.alert("部分勾選房間的住宿人資料尚未儲存完成，請確認完成後再列印。");
       return;
     }
 
