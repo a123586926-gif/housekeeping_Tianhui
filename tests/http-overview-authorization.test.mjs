@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import {createOverviewHandler} from "../api/data/overview.js";
+import {createOverviewHandler,collectPagedRows} from "../api/data/overview.js";
 
 function response(){
  const headers={};
@@ -29,9 +29,11 @@ function makeDatabase(){
        select(){return this;},
        order(){return this;},
        eq(key,val){calls.push(["eq",key,val]);this.filter={key,val};return this;},
+       range(from,to){calls.push(["range",from,to]);this.from=from;this.to=to;return this;},
        then(resolve,reject){
          const source=table==="events"?EVENTS:table==="event_rooms"?ROOMS:[];
-         const data=this.filter?source.filter(r=>r[this.filter.key]===this.filter.val):source;
+         const rows=this.filter?source.filter(r=>r[this.filter.key]===this.filter.val):source;
+         const data=rows.slice(this.from ?? 0,(this.to ?? rows.length-1)+1);
          return Promise.resolve({data,error:null}).then(resolve,reject);
        },
      };
@@ -125,4 +127,48 @@ test("DB read failure cannot return partial room data",async()=>{
  await handler({method:"GET"},res);
  assert.equal(res.statusCode,503);
  assert.equal(res.body.events,undefined);
+});
+
+test("pagination reads multiple pages completely without silently hiding rows",async()=>{
+ const source=Array.from({length:1201},(_,index)=>({id:index+1}));
+ const calls=[];
+ const rows=await collectPagedRows(()=>({
+   async range(from,to){calls.push([from,to]);return {data:source.slice(from,to+1),error:null};},
+ }),{pageSize:500,maxPages:5});
+ assert.equal(rows.length,1201);
+ assert.equal(rows.at(-1).id,1201);
+ assert.deepEqual(calls,[[0,499],[500,999],[1000,1499]]);
+});
+test("pagination returns 503-style error rather than incomplete data on page error",async()=>{
+ let pages=0;
+ await assert.rejects(
+   ()=>collectPagedRows(()=>({
+     async range(){pages++;return pages===2
+       ? {data:null,error:new Error("Simulated network failure")}
+       : {data:Array.from({length:2},(_,i)=>({id:i+1})),error:null};},
+   }),{pageSize:2,maxPages:4}),
+   /Simulated network failure/,
+ );
+});
+test("pagination refuses to represent a truncated max-page response as complete",async()=>{
+ await assert.rejects(
+   ()=>collectPagedRows(()=>({async range(){return {data:[{id:1},{id:2}],error:null}}}),
+     {pageSize:2,maxPages:2}),
+   /exceeds the validated pagination limit/,
+ );
+});
+test("invalid or malformed cleaner identity is rejected before querying events",async()=>{
+ for(const user of [
+   {id:"cleaner-abc",role:"cleaner"}, {id:"cleaner-001",role:"cleaner"},
+   {id:"cleaner-0",role:"cleaner"}, {id:"cleaner-1",role:"admin"},
+   {id:"admin",role:"cleaner"},
+ ]){
+   let calls=0;
+   const handler=createOverviewHandler({sessionReader:async()=>({user}),
+     dbFactory:()=>{calls++;throw Error("DB must not be accessed");}});
+   const res=response();
+   await handler({method:"GET"},res);
+   assert.equal(res.statusCode,403);
+   assert.equal(calls,0);
+ }
 });
