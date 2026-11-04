@@ -306,14 +306,15 @@ function parseDateStart(value: string): Date {
 }
 
 function isPastActivity(date: string, today: Date): boolean {
-  return parseDateStart(date).getTime() < today.getTime();
+  const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime();
+  return parseDateStart(date).getTime() < todayStart;
 }
 
 function sortActivitiesByClosestDate(list: Activity[], today: Date): Activity[] {
   return [...list].sort((a, b) => {
     const aDate = parseDateStart(a.date).getTime();
     const bDate = parseDateStart(b.date).getTime();
-    const todayTime = today.getTime();
+    const todayTime = new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime();
 
     const aPast = aDate < todayTime;
     const bPast = bDate < todayTime;
