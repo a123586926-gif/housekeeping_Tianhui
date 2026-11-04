@@ -728,11 +728,9 @@ export default function App() {
     setPhotoFileName("");
   }
 
-  function openPhotoModal(action: PhotoAction) {
-    setPendingPhotoAction(action);
-    setPhotoFile(null);
-    setPhotoFileName("");
-    setShowPhotoModal(true);
+  function openPhotoModal(_action: PhotoAction) {
+    // Intentional pause: retain preexisting photo viewing, never open upload modal.
+    window.alert("照片上傳功能目前暫停。已儲存照片仍可檢視；需要照片的清潔項目暫時無法新標記完成。");
   }
 
   async function uploadCleaningPhoto(room: Room,itemId:string,file:File):Promise<string|null>{
@@ -1584,6 +1582,8 @@ export default function App() {
                                   {item.requiredPhoto && (
                                     <button
                                       type="button"
+                                      disabled
+                                      title="照片上傳功能暫停"
                                       onClick={() =>
                                         openPhotoModal({
                                           roomId: room.id,
@@ -1599,7 +1599,7 @@ export default function App() {
                                     >
                                       <span className="inline-flex items-center gap-1">
                                         <ImageIcon className="h-3.5 w-3.5" />
-                                        {item.photo ? "更換照片" : "拍照"}
+                                        {item.photo ? "照片暫停更換" : "照片上傳暫停"}
                                       </span>
                                     </button>
                                   )}
