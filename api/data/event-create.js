@@ -13,6 +13,23 @@ export default async function handler(req, res) {
     if (session.user.role !== "admin") return json(res, 403, { error: "Admin required" });
 
     const db = adminDb();
+    if (req.method !== "POST") {
+      const eventId = Number(req.body?.eventId);
+      if (!validId(eventId)) return json(res,400,{error:"Invalid event ID"});
+      const {data: existing, error: guardError} = await db.from("events")
+        .select("id,event_name").eq("id",eventId).maybeSingle();
+      if (guardError) throw guardError;
+      if (!existing) return json(res,404,{error:"Event not found"});
+      if (!existing.event_name.startsWith("【權限驗收】"))
+        return json(res,403,{error:"Only QA events may be modified in sandbox"});
+      if (req.method === "DELETE") {
+        const {data: photos,error: photoError} = await db.from("event_rooms")
+          .select("id").eq("event_id",eventId)
+          .or("floor_photo.not.is.null,bathroom_photo.not.is.null,final_photo.not.is.null").limit(1);
+        if(photoError) throw photoError;
+        if(photos?.length) return json(res,409,{error:"Event has cleaning photos; deletion blocked"});
+      }
+    }
     if (req.method === "DELETE") {
       if (!validId(req.body?.eventId)) return json(res, 400, { error: "Invalid event ID" });
       // event_rooms in the isolated test schema use ON DELETE CASCADE.
@@ -25,7 +42,6 @@ export default async function handler(req, res) {
     const event = validateEvent(req.body?.event);
     if (!event) return json(res, 400, { error: "Invalid event data" });
     if (req.method === "PATCH") {
-      if (!validId(req.body?.eventId)) return json(res, 400, { error: "Invalid event ID" });
       const { data, error } = await db.from("events").update(event)
         .eq("id", Number(req.body.eventId)).select("id").maybeSingle();
       if (error) throw error;
