@@ -1,4 +1,5 @@
 import { adminDb, allowSameOrigin, getSession, json } from "../_lib/auth.js";
+import { validateCleanerManagementInput } from "../_lib/cleanerManagementPolicy.js";
 
 // No PIN values are ever sent to the browser.
 export default async function handler(req, res) {
@@ -12,27 +13,20 @@ export default async function handler(req, res) {
       // Temporary staging-only management RPC. All new accounts start disabled
       // with a random, unrecoverable credential. Real staff PIN provisioning
       // requires a separately reviewed endpoint before production rollout.
-      const action = req.method === "POST" ? "create" : req.body?.action;
-      if (!["create", "rename", "disable"].includes(action) ||
-          (req.method === "POST" && action !== "create") ||
-          (req.method === "PATCH" && action === "create")) {
-        return json(res, 400, { error: "Invalid management action" });
-      }
-      const name = req.body?.name;
-      const id = req.body?.cleanerId;
-      if (action !== "disable" && (typeof name !== "string" ||
-          !name.trim().startsWith("【權限驗收】") ||
-          name.trim().length > 100 ||
-          name.trim().length <= "【權限驗收】".length)) {
-        return json(res, 400, { error: "QA test names only" });
-      }
-      if (action !== "create" && (!Number.isSafeInteger(id) || id < 1)) {
-        return json(res, 400, { error: "Invalid cleaner ID" });
-      }
+      const parsed = validateCleanerManagementInput({
+        method: req.method,
+        action: req.body?.action,
+        name: req.body?.name,
+        cleanerId: req.body?.cleanerId,
+        mode: "qa",
+      });
+      if (!parsed.ok || !parsed.executableInQa)
+        return json(res, 400, { error: parsed.error || "QA restrictions apply" });
+      const {action, cleanerId:id, name} = parsed;
       const { data: managedId, error: mutationError } = await adminDb().rpc("hk_qa_manage_cleaner", {
         p_action: action,
         p_cleaner_id: action === "create" ? null : id,
-        p_name: action === "disable" ? "" : name.trim(),
+        p_name: name,
       });
       if (mutationError) return json(res, 400, { error: "Cleaner management rejected" });
       return json(res, req.method === "POST" ? 201 : 200, {
