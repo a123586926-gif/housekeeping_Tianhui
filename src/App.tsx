@@ -58,6 +58,7 @@ type Room = {
   floor: FloorType;
   roomNo: string;
   assignedTo: string;
+  cleanerId?: number | null;
   occupant: string;
   status: RoomStatus;
   checklist: ChecklistItem[];
@@ -506,6 +507,7 @@ export default function App() {
             floor: (room.floor || "2F") as FloorType,
             roomNo: room.room_no || "201",
             assignedTo: room.assigned_to || "未分配",
+            cleanerId: room.cleaner_id ?? null,
             occupant: occupantValue,
             checklist,
             status: statusFromDb as RoomStatus,
@@ -662,7 +664,10 @@ export default function App() {
     const source =
       role === "admin"
         ? latestRooms
-        : latestRooms.filter((room) => room.assignedTo === currentUser.name);
+        : latestRooms.filter((room) =>
+            /^cleaner-[1-9]\\d*$/.test(currentUser.id) &&
+            room.cleanerId === Number(currentUser.id.slice("cleaner-".length))
+          );
 
     if (roomFilter === "completed") return source.filter((r) => r.status === "completed");
     if (roomFilter === "pending") return source.filter((r) => r.status !== "completed");
