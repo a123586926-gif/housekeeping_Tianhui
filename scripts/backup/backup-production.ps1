@@ -89,4 +89,5 @@ try {
   if ($bstr -ne [IntPtr]::Zero) {[Runtime.InteropServices.Marshal]::ZeroFreeBSTR($bstr)}
   $dbUrl = $null
   $env:SUPABASE_URL = $null
+  $env:SUPABASE_SERVICE_ROLE_KEY = $null
 }
