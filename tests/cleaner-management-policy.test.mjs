@@ -26,7 +26,7 @@ test("existing QA rename and disable semantics stay unchanged",()=>{
 test("invalid IDs, malformed names, invalid mode or unsupported operations are rejected",()=>{
  for(const id of [-1,0,"2",null])
    assert.equal(validateCleanerManagementInput({method:"PATCH",action:"disable",cleanerId:id}).ok,false);
- for(const name of ["", "  ", "a".repeat(81), "【權限驗收】\nX"])
+ for(const name of ["", "  ", "a".repeat(101), "【權限驗收】\nX"])
    assert.equal(validateCleanerManagementInput({method:"POST",name}).ok,false);
  assert.equal(validateCleanerManagementInput({method:"PATCH",action:"create",cleanerId:7,name:"【權限驗收】清潔丁"}).ok,false);
  assert.equal(validateCleanerManagementInput({method:"POST",action:"disable",name:"【權限驗收】清潔丁"}).ok,false);
