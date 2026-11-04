@@ -383,6 +383,7 @@ export default function App() {
   const [roomFilter, setRoomFilter] = useState<"all" | "completed" | "pending">("all");
   const [adminView, setAdminView] = useState<AdminView>("overview");
   const [overviewFilter, setOverviewFilter] = useState<OverviewFilter>("all");
+  const [overviewSearch, setOverviewSearch] = useState("");
   const [expandedRoomId, setExpandedRoomId] = useState("");
   const [expandedStaffName, setExpandedStaffName] = useState("");
   const [calendarMonth, setCalendarMonth] = useState(new Date());
@@ -683,11 +684,14 @@ export default function App() {
   }, [latestRooms]);
 
   const overviewRooms = useMemo(() => {
-    if (overviewFilter === "completed") return latestRooms.filter((room) => room.status === "completed");
-    if (overviewFilter === "in_progress") return latestRooms.filter((room) => room.status === "in_progress");
-    if (overviewFilter === "pending") return latestRooms.filter((room) => room.status === "pending");
-    return latestRooms;
-  }, [latestRooms, overviewFilter]);
+    const search = overviewSearch.trim().toLocaleLowerCase();
+    return latestRooms.filter((room) => {
+      if (overviewFilter !== "all" && room.status !== overviewFilter) return false;
+      if (!search) return true;
+      return [roomLabel(room), room.roomNo, room.assignedTo, room.occupant]
+        .some(value => value.toLocaleLowerCase().includes(search));
+    });
+  }, [latestRooms, overviewFilter, overviewSearch]);
 
   const filteredActivityRooms = useMemo(() => {
     if (!selectedActivity) return [];
@@ -1683,6 +1687,13 @@ export default function App() {
                   ))}
                 </div>
 
+                <label className="mt-3 block">
+                  <span className="sr-only">搜尋房號、房務人員或入住者</span>
+                  <input type="search" value={overviewSearch}
+                    onChange={e=>setOverviewSearch(e.target.value)}
+                    placeholder="搜尋房號、房務人員、入住者"
+                    className="w-full rounded-[14px] border border-[#ddd3c4] bg-white px-3 py-2 text-sm text-[#524736] focus:outline-[#9a946f]"/>
+                </label>
                 <div className="mt-2 space-y-2 rounded-[20px] border border-[#e2d8c8] bg-[#faf6f0] p-2">
                   {overviewRooms.map((room) => {
                     const guests = splitGuestLines(room.occupant);
