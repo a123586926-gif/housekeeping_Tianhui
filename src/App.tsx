@@ -910,6 +910,7 @@ export default function App() {
     const activity=activities.find(a=>a.id===activityId);
     const room=activity?.rooms.find(r=>r.id===roomId);
     if(!room?.dbId)return false;
+    const mutationEpoch=dataEpoch.current;
     const savingChecklist=updates.checklist!==undefined;
     const savingAdministration=updates.assignedTo!==undefined ||
       updates.assignedCleanerId!==undefined || updates.occupant!==undefined;
@@ -944,11 +945,15 @@ export default function App() {
           ...(updates.occupant!==undefined?{occupant:updates.occupant}:{}),
         });
       }
+      if(mutationEpoch!==dataEpoch.current)return false;
       await loadEventsFromSupabase();
-      return true;
+      return mutationEpoch===dataEpoch.current;
     }catch(error) {
-      window.alert(error instanceof Error?error.message:"房間資料儲存失敗");
-      await loadEventsFromSupabase();
+      // Never display an old account's write result after logout or account switch.
+      if(mutationEpoch===dataEpoch.current){
+        window.alert(error instanceof Error?error.message:"房間資料儲存失敗");
+        await loadEventsFromSupabase();
+      }
       return false;
     }finally{
       if(savingAdministration){
