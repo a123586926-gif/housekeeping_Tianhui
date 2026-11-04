@@ -1725,11 +1725,11 @@ export default function App() {
                         <div className="flex items-start gap-2 text-[13px] leading-5 text-[#524736]">
                           <ClipboardList className="mt-0.5 h-4 w-4 shrink-0 text-[#8a7756]" />
                           <div className="min-w-0 flex-1">
-                            <div className="grid grid-cols-[auto_auto_1fr_auto_auto] items-start gap-x-2 gap-y-0.5 font-medium">
-                              <span>{roomLabel(room)}</span>
+                            <div className="grid grid-cols-[auto_auto_minmax(0,1fr)_auto_auto] items-start gap-x-2 gap-y-1 font-medium">
+                              <span className="whitespace-nowrap">{roomLabel(room)}</span>
                               <span>客：</span>
-                              <span>{guests[0] || "-"}</span>
-                              <span className="justify-self-end whitespace-nowrap">
+                              <span className="min-w-0 break-words">{guests[0] || "-"}</span>
+                              <span className="max-w-20 justify-self-end break-words text-right">
                                 {room.assignedTo || "未分配"}
                               </span>
                               <span className="justify-self-end whitespace-nowrap">
