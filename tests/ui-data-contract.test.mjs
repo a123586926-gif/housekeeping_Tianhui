@@ -19,7 +19,7 @@ test("photo upload pause does not block room checklist completion",()=>{
  assert.match(app,/photo:\s*item\.photo/);
 });
 test("admin summary and progress follow checklist and have filterable search",()=>{
- assert.match(app,/checklist\.length\s*>\s*0\s*\?\s*computeRoomStatus\(checklist\)/);
+ assert.match(app,/Array\.isArray\(room\.checklist\)\s*&&\s*room\.checklist\.length\s*>\s*0\s*\?\s*computeRoomStatus\(checklist\)/);
  assert.match(app,/const \[overviewSearch, setOverviewSearch\]/);
  assert.match(app,/placeholder="搜尋房號、房務人員、入住者"/);
 });
@@ -30,4 +30,13 @@ test("local date sorting and printing remain usable for 6, 7, 8 or more people",
  assert.match(app,/guests\.slice\(splitAt\)/);
  assert.match(app,/overflow-wrap:\s*anywhere/);
  assert.doesNotMatch(app,/guests\.slice\(4,\s*8\)/);
+});
+
+test("admin management uses cleaner IDs and mutations cannot be submitted twice",()=>{
+ assert.match(app,/user\.dbId != null && room\.cleanerId === user\.dbId/);
+ assert.match(app,/expandedStaffName === user\.id/);
+ assert.match(app,/if\(currentUser\?\.role!=="admin" \|\| activityMutationBusy\.current\)return/);
+ assert.match(app,/if\(currentUser\?\.role!=="admin" \|\| staffMutationBusy\.current\)return/);
+ assert.match(app,/roomMutationBusy\.current=true/);
+ assert.match(app,/createdRoomId\s*\?\s*"房間已建立/);
 });
