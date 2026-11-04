@@ -19,16 +19,16 @@
 
 注意：這些是**檢查基準，不是備份**，且正式資料會持續變更，執行實際備份時必須重新取同一時間點的彙總。
 
-## 2. 方案與能力限制（尚未驗證帳戶方案）
+## 2. 方案與能力限制（2026-11-04 已查證 Free 方案）
 
-Supabase 官方（2026-11）說明：Pro、Team、Enterprise 有每日資料庫備份（各自保留期有所不同），PITR 需另外啟用；Free 不應依賴 Dashboard 可用自動備份。需於來源專案的 Database > Backups 查核實際可還原點與方案。即使有 DB 備份，Storage 檔案**內容不包含其中**。
+Supabase 官方（2026-11）說明：Pro、Team、Enterprise 有每日資料庫備份（各自保留期有所不同），PITR 需另外啟用；Free 不應依賴 Dashboard 可用自動備份。Supabase 組織 API 已確認方案為 `free` / `tier_free`，且目前有兩個啟用專案。Free 方案沒有 Pro／Team／Enterprise 的每日自動備份保障，應主動使用 CLI `db dump` 建立受限的異地備份；不可將可用恢復點視為已存在。即使有 DB 備份，Storage 檔案**內容不包含其中**。
 
 參考：
 - https://supabase.com/docs/guides/platform/backups
 - https://supabase.com/kb/faqs/platform/free-plan-backups
 - https://supabase.com/docs/guides/platform/clone-project
 
-本連接工具目前未提供列出現有備份／下載實際備份的可用操作。**不得宣稱已產生資料庫備份或完成 restore。**
+本連接工具目前未提供列出現有備份／下載實際備份的可用操作；已另建立 [Free 方案實際備份執行手冊](./free-plan-real-backup-runbook-20261104.md)，包含 Windows 本機 SQL/Storage 備份、檔案 SHA-256、與本機隔離還原。**不得宣稱已產生資料庫備份或完成 restore。**
 
 ## 3. 正式操作前的備份 SOP（人工受控操作；尚未執行）
 
@@ -53,7 +53,8 @@ Supabase 官方（2026-11）說明：Pro、Team、Enterprise 有每日資料庫�
 |--|--|
 | 正式資料唯讀彙總 | 完成 |
 | 官方備份選項資訊 | 已確認 |
-| 正式方案及可用恢復點 | **未確認** |
+| 正式方案 | **已確認為 Free**，不能依賴每日自動備份 | 
+| 可用備份／恢復點 | **未確認／不可假設存在** |
 | 實際資料庫備份檔 | **尚未建立/驗證** |
 | Storage 真實物件備份與 SHA-256 | **尚未建立/驗證** |
 | 隔離 restore 演練 | **未執行** |
