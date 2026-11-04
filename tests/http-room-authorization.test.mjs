@@ -132,3 +132,20 @@ test("room optimistic concurrency failure responds 409 and no false success",asy
  assert.equal(res.body.room,undefined);
  assert.equal(mock.calls.some(c=>c[0]==="eq"&&c[1]==="cleaner_id"&&c[2]===901),true);
 });
+
+test("room IDs reject coercible, noncanonical and unsafe values without querying rooms",async()=>{
+  const mock=mockRoomDb();
+  const handler=createRoomsHandler({originAllowed:()=>true,sessionReader:async()=>admin,
+    dbFactory:()=>mock.db});
+  const invalid=[true,false,[701],{"id":701},"0701","7e2","701.0"," 701 ","+701",0,-1,1.5,Number.MAX_SAFE_INTEGER+1,{},null];
+  for(const roomId of invalid){
+    const res=response();
+    await handler({method:"PATCH",body:{roomId,changes:{occupant:"測試"}}},res);
+    assert.equal(res.statusCode,400,`roomId=${JSON.stringify(roomId)}`);
+  }
+  assert.equal(mock.calls.length,0);
+  const valid=response();
+  await handler({method:"PATCH",body:{roomId:"701",changes:{occupant:"測試"}}},valid);
+  assert.equal(valid.statusCode,200);
+  assert.equal(mock.calls.some(c=>c[0]==="update"),true);
+});
