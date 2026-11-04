@@ -385,6 +385,8 @@ export default function App() {
   const [overviewFilter, setOverviewFilter] = useState<OverviewFilter>("all");
   const [overviewSearch, setOverviewSearch] = useState("");
   const [expandedRoomId, setExpandedRoomId] = useState("");
+  const checklistSavingRooms = useRef(new Set<string>());
+  const [savingChecklistRoomIds, setSavingChecklistRoomIds] = useState<string[]>([]);
   const [expandedStaffName, setExpandedStaffName] = useState("");
   const [calendarMonth, setCalendarMonth] = useState(new Date());
   const [calendarSheetDate, setCalendarSheetDate] = useState("");
@@ -868,6 +870,12 @@ export default function App() {
     const activity=activities.find(a=>a.id===activityId);
     const room=activity?.rooms.find(r=>r.id===roomId);
     if(!room?.dbId)return;
+    const savingChecklist=updates.checklist!==undefined;
+    if(savingChecklist){
+      if(checklistSavingRooms.current.has(roomId))return;
+      checklistSavingRooms.current.add(roomId);
+      setSavingChecklistRoomIds(prev=>[...prev,roomId]);
+    }
     try {
       if(updates.checklist){
         const flags=(items:ChecklistItem[])=>items.map(item=>({
@@ -892,6 +900,11 @@ export default function App() {
     }catch(error) {
       window.alert(error instanceof Error?error.message:"房間資料儲存失敗");
       await loadEventsFromSupabase();
+    }finally{
+      if(savingChecklist){
+        checklistSavingRooms.current.delete(roomId);
+        setSavingChecklistRoomIds(prev=>prev.filter(id=>id!==roomId));
+      }
     }
   }
 
@@ -1602,6 +1615,7 @@ export default function App() {
                               <input
                                 type="checkbox"
                                 checked={item.done}
+                                disabled={savingChecklistRoomIds.includes(room.id)}
                                 onChange={(e) => {
                                   const checked = e.target.checked;
 
@@ -1671,6 +1685,7 @@ export default function App() {
                                       <input
                                         type="checkbox"
                                         checked={sub.done}
+                                        disabled={savingChecklistRoomIds.includes(room.id)}
                                         onChange={(e) => {
                                           const checked = e.target.checked;
 
