@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "npm run test:sql-contract && npm run test:photo-migration && npm run test:restore-readiness && npm run test:local-backup && npm run test:cleaner-policy && npm run test:cleaner-management && npm run test:cleaner-lifecycle && npm run test:session-access && npm run test:http-auth && npm run test:http-overview && npm run test:http-session && npm run test:session-database && npm run test:http-rooms && tsc -b && vite build",
+    "build": "npm run test:sql-contract && npm run test:photo-migration && npm run test:restore-readiness && npm run test:local-backup && npm run test:ui-contract && npm run test:cleaner-policy && npm run test:cleaner-management && npm run test:cleaner-lifecycle && npm run test:session-access && npm run test:http-auth && npm run test:http-overview && npm run test:http-session && npm run test:session-database && npm run test:http-rooms && tsc -b && vite build",
     "test:photo-migration": "node --test tests/production-photo-migration-audit.test.mjs",
     "test:restore-readiness": "node --test tests/restore-readiness.test.mjs",
     "test:local-backup": "node --test tests/local-production-backup.test.mjs",
@@ -19,7 +19,8 @@
     "test:session-database": "node --test tests/session-database-lookup.test.mjs",
     "test:http-rooms": "node --test tests/http-room-authorization.test.mjs",
     "preview": "vite preview",
-    "test:sql-contract": "node --test tests/staging-sql-contract.test.mjs"
+    "test:sql-contract": "node --test tests/staging-sql-contract.test.mjs",
+    "test:ui-contract": "node --test tests/ui-data-contract.test.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.104.0",
