@@ -25,9 +25,9 @@ test("admin summary and progress follow checklist and have filterable search",()
  assert.match(app,/const \[overviewSearch, setOverviewSearch\]/);
  assert.match(app,/placeholder="搜尋房號、房務人員、入住者"/);
 });
-test("local date sorting and printing remain usable for 6, 7, 8 or more people",()=>{
+test("local activity dates and guest printing split at 6 people",()=>{
  assert.match(app,/todayStart\s*=\s*new Date\(today\.getFullYear\(\),\s*today\.getMonth\(\),\s*today\.getDate\(\)\)/);
- assert.match(app,/const useTwoColumns = guests\.length > 10/);
+ assert.match(app,/const useTwoColumns = guests\.length >= 6/);
  assert.match(app,/const splitAt = Math\.ceil\(guests\.length \/ 2\)/);
  assert.match(app,/guests\.slice\(splitAt\)/);
  assert.match(app,/overflow-wrap:\s*anywhere/);
@@ -187,22 +187,23 @@ test("session name changes update only the same immutable user identity",()=>{
  assert.match(app,/previous\?\.id === expectedId \? session\.user : previous/);
 });
 
-test("reference A4 print design uses large plain room numbers and per-count single/dual column",()=>{
+test("approved A4 preview uses 1.5x bold heading and even single or dual name columns",()=>{
  const start=app.indexOf("function buildA4RoomPage(room: Room)");
  const stop=app.indexOf("function openPrintWindow(",start);
  const print=app.slice(start,stop);
  assert.ok(start>=0 && stop>start);
- assert.match(print,/const useTwoColumns = guests\.length > 10/);
- assert.match(print,/guests\.length <= 2 \? "single-xl"/);
- assert.match(print,/guests\.length <= 6 \? "single-lg"/);
- assert.match(print,/guests\.length <= 10 \? "single-md"/);
+ assert.match(print,/const useTwoColumns = guests\.length >= 6/);
+ assert.match(print,/guests\.length <= 1 \? "single-xl"/);
+ assert.match(print,/guests\.length <= 5 \? "single-lg"/);
+ assert.match(print,/guests\.length <= 8 \? "double" : "double dense"/);
  assert.match(print,/const printedRoomNo = \(room\.building \+ room\.roomNo\)\.toUpperCase\(\)/);
  assert.match(print,/escapeHtml\(printedRoomNo\)/);
- assert.match(print,/font-size: 46mm/);
- assert.match(print,/\.single-xl \.guest-area/);
- assert.match(print,/\.single-lg \.guest-area/);
- assert.match(print,/\.single-md \.guest-area/);
- assert.match(print,/\.double \.guest-area/);
+ assert.match(print,/font-size: 69mm/);
+ assert.match(print,/font-weight: 900/);
+ assert.match(print,/\.guest-grid-one[\s\S]*?justify-content: space-evenly/);
+ assert.match(print,/\.guest-col[\s\S]*?justify-content: space-evenly/);
+ assert.match(print,/padding: 10mm 0 14mm/);
+ assert.match(print,/\.double\.dense \.guest-row/);
  assert.match(print,/overflow-wrap: anywhere/);
  assert.match(print,/page-break-after: always/);
  assert.match(print,/\.a4-page:last-child/);
