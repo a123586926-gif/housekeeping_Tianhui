@@ -207,6 +207,12 @@ export function createRoomsHandler({
     // Optional optimistic-lock snapshot supplied by the editing UI.
     // Exclude server-owned labels and descriptions from the comparison.
     if ("expectedChecklist" in body && !validChecklist(body.expectedChecklist)) return bad(res);
+    if ("expectedAssignedCleanerId" in body &&
+        body.expectedAssignedCleanerId !== null &&
+        (typeof body.expectedAssignedCleanerId !== "number" ||
+         !validId(body.expectedAssignedCleanerId))) return bad(res);
+    if ("expectedAssignedCleanerId" in body &&
+        !("assignedCleanerId" in changes || "assignedTo" in changes)) return bad(res);
     if (role === "cleaner" && keys.some(key => key !== "checklist")) {
       return json(res, 403, { error: "Cleaners can only update checklists" });
     }
@@ -217,6 +223,12 @@ export function createRoomsHandler({
     if (!existing) return json(res, 404, { error: "Room not found" });
     if (role === "cleaner" && existing.cleaner_id !== cleanerId) {
       return json(res, 403, { error: "Room not assigned to this cleaner" });
+    }
+    // An admin may leave a room editor open while another admin changes the
+    // assignment. Never overwrite a newer assignment from a stale editor.
+    if ("expectedAssignedCleanerId" in body &&
+        existing.cleaner_id !== body.expectedAssignedCleanerId) {
+      return json(res, 409, { error: "Room assignment changed; reload before reassigning" });
     }
 
     const payload = {};
@@ -296,6 +308,11 @@ export function createRoomsHandler({
     if (role === "cleaner") {
       updateQuery = updateQuery.eq("cleaner_id", cleanerId);
     }
+    if ("expectedAssignedCleanerId" in body) {
+      updateQuery = body.expectedAssignedCleanerId === null
+        ? updateQuery.is("cleaner_id", null)
+        : updateQuery.eq("cleaner_id", body.expectedAssignedCleanerId);
+    }
     // Database compare-and-swap also guards races between the read above and
     // the UPDATE. The UI then reloads and lets the user retry safely.
     if ("checklist" in changes) {
@@ -304,9 +321,10 @@ export function createRoomsHandler({
     const { data: updated, error: updateError } = await updateQuery
       .select("id, event_id, status, progress").maybeSingle();
     if (updateError) throw updateError;
-    if (!updated) return json(res,"checklist" in changes ? 409 : 403, {
-      error:"checklist" in changes ? "Checklist changed while saving; reload required" :
-        "Room assignment changed; update rejected",
+    if (!updated) return json(res,
+      "checklist" in changes || "expectedAssignedCleanerId" in body ? 409 : 403, {
+      error: "checklist" in changes ? "Checklist changed while saving; reload required" :
+        "Room assignment changed; reload before updating",
     });
     return json(res, 200, { room: updated });
   } catch {
