@@ -11,11 +11,12 @@ export default defineConfig(({ mode }) => {
   const ref = process.env.VERCEL_GIT_COMMIT_REF
   const sandboxRequested =
     (process.env.VITE_AUTH_SANDBOX ?? loaded.VITE_AUTH_SANDBOX) === 'enabled'
+  const releaseReady = process.env.HOUSEKEEPING_RELEASE_READY === 'enabled'
   const isQaBranch = ref === 'feature/remember-login-30d' ||
     ref === 'integration/full-release-review-20261105'
 
-  if (vercelEnvironment === 'production' && sandboxRequested) {
-    throw new Error('Auth sandbox cannot run in production')
+  if (vercelEnvironment === 'production' && (!releaseReady || ref !== 'main' || sandboxRequested)) {
+    throw new Error('Production release requires explicit readiness and main branch')
   }
   if (vercelEnvironment === 'preview' && sandboxRequested && !isQaBranch) {
     throw new Error('Auth sandbox requested outside the permitted QA branches')
@@ -40,8 +41,8 @@ export default defineConfig(({ mode }) => {
             // entry in index.html. Treat that as valid rather than failing
             // when build metadata starts working as intended.
             if (html.includes('/src/authSandboxMain.tsx')) {
-              if (vercelEnvironment === 'production') {
-                throw new Error('Auth sandbox HTML must not ship to production')
+              if (vercelEnvironment === 'production' && (!releaseReady || ref !== 'main')) {
+                throw new Error('Protected app entry requires approved production release')
               }
               if (vercelEnvironment === 'preview' && !isQaBranch) {
                 throw new Error('Auth sandbox HTML is limited to the QA branches')
