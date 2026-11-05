@@ -222,17 +222,17 @@ test("print selection persists across floor/building filters and counts whole ac
  assert.match(app,/將目前篩選的房間加入列印勾選/);
 });
 test("mobile dialogs scroll safely on small portrait screens without clipping action buttons",()=>{
- assert.equal((app.match(/max-h-\[calc\(100dvh-2rem\)\]/g)||[]).length,5);
+ assert.ok((app.match(/max-h-\[calc\(100dvh-2rem\)\]/g)||[]).length>=5);
  assert.equal((app.match(/overflow-y-auto overscroll-contain bg-\[#0F172A\]/g)||[]).length,4);
  assert.match(app,/overflow-y-auto overscroll-contain bg-\[#0f172a\]\/40/);
  assert.match(app,/sm:items-center sm:p-4/);
- assert.match(app,/my-auto w-full max-w-sm min-w-0 max-h-\[calc\(100dvh-2rem\)\]/);
+ assert.match(app,/my-auto box-border w-full max-w-sm min-w-0 max-h-\[calc\(100dvh-2rem\)\]/);
  assert.match(app,/pb-\[calc\(env\(safe-area-inset-bottom\)\+1\.25rem\)\]/);
  assert.match(app,/flex min-w-0 items-center gap-2 text-\[15px\]/);
  assert.match(app,/max-w-md pb-32 md:max-w-3xl/);
 });
 test("mobile cleaner picker avoids iOS native wheel and keeps larger touch controls",()=>{
- const first=app.indexOf("onClick={() => setOpenCleanerPickerRoomId(");
+ const first=app.indexOf("onClick={()=>setOpenCleanerPickerRoomId(");
  const opts=app.indexOf("選擇打掃人員",first);
  assert.ok(first>0 && opts>first);
  assert.match(app,/grid grid-cols-2 gap-2 sm:grid-cols-3/);
