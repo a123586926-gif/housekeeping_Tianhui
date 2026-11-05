@@ -133,6 +133,57 @@ test("room optimistic concurrency failure responds 409 and no false success",asy
  assert.equal(mock.calls.some(c=>c[0]==="eq"&&c[1]==="cleaner_id"&&c[2]===901),true);
 });
 
+test("stale admin reassignment is rejected without changing the previous cleaner or checklist",async()=>{
+ const originalChecklist=[{id:"flooring",done:true,photo:false,subItems:[{id:"sweep",done:true}]}];
+ const mock=mockRoomDb({room:{id:701,event_id:9101,cleaner_id:902,checklist:originalChecklist}});
+ const handler=createRoomsHandler({originAllowed:()=>true,sessionReader:async()=>admin,dbFactory:()=>mock.db});
+ const res=response();
+ await handler({method:"PATCH",body:{
+   roomId:701,changes:{assignedCleanerId:901},expectedAssignedCleanerId:901,
+ }},res);
+ assert.equal(res.statusCode,409);
+ assert.equal(mock.calls.some(call=>call[0]==="update"),false);
+ assert.deepEqual(originalChecklist,[{id:"flooring",done:true,photo:false,subItems:[{id:"sweep",done:true}]}]);
+});
+test("admin assignment uses atomic compare-and-swap for the previous cleaner",async()=>{
+ const calls=[];
+ const db={from(table){
+   if(table==="event_rooms")return {
+     updating:false,select(){return this;},
+     eq(field,value){calls.push(["eq",field,value]);return this;},
+     update(payload){this.updating=true;calls.push(["update",payload]);return this;},
+     async maybeSingle(){return {data:this.updating?{id:701,event_id:9101,status:"in_progress",progress:50}:
+       {id:701,event_id:9101,cleaner_id:901,checklist:[{id:"flooring",done:true}]},error:null};},
+   };
+   if(table==="cleaners")return {
+     select(){return this;},eq(){return this;},
+     async maybeSingle(){return {data:{id:902,name:"房務二"},error:null};},
+   };
+   throw new Error("unexpected table");
+ }};
+ const res=response();
+ await createRoomsHandler({originAllowed:()=>true,sessionReader:async()=>admin,dbFactory:()=>db})
+   ({method:"PATCH",body:{roomId:701,changes:{assignedCleanerId:902},expectedAssignedCleanerId:901}},res);
+ assert.equal(res.statusCode,200);
+ assert.ok(calls.some(call=>call[0]==="eq"&&call[1]==="cleaner_id"&&call[2]===901));
+ const write=calls.find(call=>call[0]==="update")?.[1];
+ assert.equal(write.cleaner_id,902);
+ assert.equal(write.assigned_to,"房務二");
+ assert.equal(Object.hasOwn(write,"checklist"),false);
+ assert.equal(Object.hasOwn(write,"progress"),false);
+});
+test("malformed reassignment snapshots are rejected before touching database",async()=>{
+ let touched=0;
+ const handler=createRoomsHandler({originAllowed:()=>true,sessionReader:async()=>admin,
+ dbFactory:()=>{touched++;throw Error("no database access expected");}});
+ for(const bad of ["901",0,-1,{},[],1.5]){
+   const res=response();
+   await handler({method:"PATCH",body:{roomId:701,changes:{assignedCleanerId:902},
+     expectedAssignedCleanerId:bad}},res);
+   assert.equal(res.statusCode,400);
+ }
+ assert.equal(touched,0);
+});
 test("room IDs reject coercible, noncanonical and unsafe values without querying rooms",async()=>{
   const mock=mockRoomDb();
   const handler=createRoomsHandler({originAllowed:()=>true,sessionReader:async()=>admin,
