@@ -397,6 +397,7 @@ export default function App() {
   const [authBusy,setAuthBusy] = useState(false);
   const [loginFeedback,setLoginFeedback] = useState("");
   const [staffFeedback,setStaffFeedback] = useState("");
+  const [staffSaveStage,setStaffSaveStage] = useState("等待操作");
   const [staffSaveStatus,setStaffSaveStatus] = useState<"idle"|"saving"|"error">("idle");
   const [staffButtonPresses,setStaffButtonPresses] = useState(0);
   const [staffSuccess,setStaffSuccess] = useState("");
@@ -1572,6 +1573,7 @@ export default function App() {
     setStaffButtonPresses(0);
     setStaffFeedback("");
     setStaffSaveStatus("idle");
+    setStaffSaveStage("等待操作");
     setStaffSuccess("");
     setShowStaffModal(true);
   }
@@ -1584,6 +1586,7 @@ export default function App() {
     setStaffButtonPresses(0);
     setStaffFeedback("");
     setStaffSaveStatus("idle");
+    setStaffSaveStage("等待操作");
     setStaffSuccess("");
     setShowStaffModal(true);
   }
@@ -1592,6 +1595,7 @@ export default function App() {
     setStaffButtonPresses(x=>x+1);
     const rejectSave=(message:string)=>{
       setStaffSaveStatus("error");
+      setStaffSaveStage("送出前驗證失敗");
       setStaffFeedback(message);
     };
     if(staffMutationBusy.current){
@@ -1601,6 +1605,7 @@ export default function App() {
     setStaffFeedback("");
     setStaffSuccess("");
     setStaffSaveStatus("saving");
+    setStaffSaveStage("檢查輸入資料");
     setStaffFeedback("已收到儲存操作，正在驗證。");
     if(currentUser?.role!=="admin"){
       rejectSave("管理員登入狀態已失效，請重新登入後設定 PIN。");
@@ -1632,7 +1637,8 @@ export default function App() {
     }
     staffMutationBusy.current=true;
     setStaffSaveStatus("saving");
-    setStaffFeedback("正在安全設定 PIN，儲存期間請勿關閉視窗。");
+    setStaffSaveStage("等待 PIN 設定 API 回應");
+    setStaffFeedback("正在向伺服器設定 PIN；若逾時會顯示失敗階段。");
     setStaffSaving(true);
     try {
       if(staffModalMode==="edit"){
@@ -1643,16 +1649,19 @@ export default function App() {
         if(!created?.cleanerId)throw new Error("新增人員沒有回傳有效編號。");
         await provisionQaPin(created.cleanerId,pinValue);
       }
-      // Newly provisioned accounts must appear in the login picker without F5.
+      // PIN update was acknowledged by the server. Account directory refresh
+      // is best-effort and must never keep a successful PIN save stuck open.
+      setStaffSaveStage("PIN API 已確認，更新登入名單");
       if(pinValue){
-        const response=await fetch("/api/auth/accounts",{credentials:"same-origin",cache:"no-store"});
-        if(response.ok){
-          const directory=await response.json() as {users:Array<{id:string;name:string}>};
-          setLoginUsers(directory.users.map(row=>({
-            id:row.id,name:row.name,role:row.id==="admin"?"admin":"cleaner",
-          })));
-        }
+        void fetch("/api/auth/accounts",{credentials:"same-origin",cache:"no-store"})
+          .then(response=>response.ok?response.json():null)
+          .then((directory:{users?:Array<{id:string;name:string}>}|null)=>{
+            if(Array.isArray(directory?.users))setLoginUsers(directory.users.map(row=>({
+              id:row.id,name:row.name,role:row.id==="admin"?"admin":"cleaner",
+            })));
+          }).catch(()=>{});
       }
+      setStaffSaveStage("PIN 設定成功");
       setNewStaffPin("");
       setShowStaffModal(false);
       setStaffSaveStatus("idle");
@@ -1664,6 +1673,7 @@ export default function App() {
       // Keep the user's in-progress form in place. Previously clearing it here
       // made a failed PIN submission appear to do absolutely nothing.
       setStaffSaveStatus("error");
+      setStaffSaveStage("PIN 設定 API 失敗或逾時");
       setStaffFeedback((error instanceof Error?error.message:"人員操作失敗")+
         "。新 PIN 尚未確認儲存，請先檢查訊息再決定是否重試。");
     }finally{
@@ -2851,7 +2861,7 @@ export default function App() {
               {staffModalMode === "edit" ? "編輯打掃人員" : "新增打掃人員"}
             </div>
 
-            <p className="mt-2 text-xs text-[#8b7755]" role="status">房務 PIN 修正版 11/05-F · 本次點擊：{staffButtonPresses}</p>
+            <p className="mt-2 text-xs text-[#8b7755]" role="status">房務 PIN 修正版 11/05-G · 本次點擊：{staffButtonPresses}</p>
             <div className="mt-3 space-y-3">
               <input
                 value={newStaffName}
@@ -2880,6 +2890,7 @@ export default function App() {
               )}
             </div>
 
+            <p className="mt-3 text-xs text-[#786b54]" role="status">目前階段：{staffSaveStage}</p>
             <p className="mt-3 text-xs text-[#786b54]" role="status">
               {staffSaveStatus==="saving"?"正在儲存，請稍候…":
                staffSaveStatus==="error"?"儲存未成功，請看下方錯誤訊息。":
@@ -2901,7 +2912,7 @@ export default function App() {
                 disabled={staffSaving}
                 className="rounded-[20px] bg-[linear-gradient(135deg,#8b8462_0%,#9a946f_52%,#b5ae86_100%)] px-3 py-2 text-sm font-medium text-white"
               >
-                {staffSaving ? "PIN 處理中…" : "儲存 PIN（11/05-F）"}
+                {staffSaving ? "PIN 處理中…" : "儲存 PIN（11/05-G）"}
               </button>
             </div>
           </div>
