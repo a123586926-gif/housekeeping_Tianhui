@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {createRoomsHandler,summarizeChecklist} from "../api/data/rooms.js";
+import {createGuestMoveHandler} from "../api/data/guest-move.js";
 
 function response(){
  const headers={};
@@ -441,4 +442,54 @@ test("spoofed administrator, malformed cleaner ID are rejected before database a
   assert.equal(res.statusCode,403);
   assert.equal(accesses,0);
  }
+});
+
+test("atomic guest move denies unauthenticated/cleaner/cross-origin requests before database calls",async()=>{
+ let called=0;
+ for(const c of [
+  {originAllowed:()=>false,sessionReader:async()=>admin,status:403},
+  {originAllowed:()=>true,sessionReader:async()=>null,status:401},
+  {originAllowed:()=>true,sessionReader:async()=>cleaner901,status:403},
+ ]) {
+  const handler=createGuestMoveHandler({
+   originAllowed:c.originAllowed,sessionReader:c.sessionReader,
+   dbFactory:()=>{called++;throw Error("database must not be accessed");},
+  });
+  const res=response();
+  await handler({method:"POST",body:{fromRoomId:1,toRoomId:2,name:"李貞儀",expectedFrom:"李貞儀",expectedTo:""}},res);
+  assert.equal(res.statusCode,c.status);
+ }
+ assert.equal(called,0);
+});
+
+test("atomic guest move validates exact input, invokes one SQL transaction and refuses conflicts",async()=>{
+ let calls=0;
+ const handler=createGuestMoveHandler({
+  originAllowed:()=>true,sessionReader:async()=>admin,
+  dbFactory:()=>({rpc:async(name,args)=>{
+   calls++;
+   assert.equal(name,"hk_move_guest_atomic");
+   assert.deepEqual(args,{p_from_room_id:11,p_to_room_id:22,p_name:"李貞儀",
+    p_expected_from:"李貞儀、陳美華",p_expected_to:""});
+   return {data:true,error:null};
+  }}),
+ });
+ const body={fromRoomId:11,toRoomId:22,name:"李貞儀",expectedFrom:"李貞儀、陳美華",expectedTo:""};
+ const res=response();
+ await handler({method:"POST",body},res);
+ assert.equal(res.statusCode,200);
+ assert.equal(res.body.ok,true);
+ assert.equal(calls,1);
+ for(const invalid of [{...body,name:"李貞儀、陳美華"},{...body,toRoomId:11},{...body,expectedFrom:null}]){
+  const reply=response();
+  await handler({method:"POST",body:invalid},reply);
+  assert.equal(reply.statusCode,400);
+ }
+ assert.equal(calls,1);
+ const conflict=createGuestMoveHandler({originAllowed:()=>true,sessionReader:async()=>admin,
+   dbFactory:()=>({rpc:async()=>({data:null,error:{message:"ROOM_CHANGED"}})})});
+ const reply=response();
+ await conflict({method:"POST",body},reply);
+ assert.equal(reply.statusCode,409);
+ assert.notEqual(reply.body.ok,true);
 });
