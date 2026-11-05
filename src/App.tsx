@@ -1,3 +1,4 @@
+declare const __HOUSEKEEPING_PRODUCTION__: boolean;
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   Bell,
@@ -1132,7 +1133,7 @@ export default function App() {
     if(!activityName.trim()||!activityDate.trim()){window.alert("請輸入活動名稱與日期");return;}
     const input={
       event_date:activityDate,
-      event_name:activityModalMode==="add" && !activityName.trim().startsWith("【權限驗收】")
+      event_name:!__HOUSEKEEPING_PRODUCTION__ && activityModalMode==="add" && !activityName.trim().startsWith("【權限驗收】")
         ? "【權限驗收】"+activityName.trim() : activityName.trim(),
       event_type:(activityModalMode==="edit" && activityNeedsCleaning &&
         activities.find(a=>a.id===editingActivityId)?.category==="住宿"
@@ -1155,7 +1156,7 @@ export default function App() {
 
   async function deleteCurrentActivity() {
     if(currentUser?.role!=="admin"||activityModalMode!=="edit"||!editingActivityId||activityMutationBusy.current)return;
-    if(!window.confirm("刪除測試活動？此操作不可還原。"))return;
+    if(!window.confirm("確定刪除此活動及其所有房間？此操作不可還原。"))return;
     activityMutationBusy.current = true;
     setActivitySaving(true);
     try {
@@ -1473,7 +1474,7 @@ export default function App() {
     if(currentUser?.role!=="admin"||!selectedActivity)return;
     const room=selectedActivity.rooms.find(r=>r.id===roomId);
     if(!room?.dbId)return;
-    if(!window.confirm("確定刪除此測試房間？"))return;
+    if(!window.confirm("確定刪除此房間？清潔紀錄也將刪除。"))return;
     try {
       await deleteQaRoom(room.dbId);
       setSelectedPrintRoomIds(prev=>prev.filter(id=>id!==roomId));
@@ -1501,11 +1502,11 @@ export default function App() {
     if(currentUser?.role!=="admin" || staffMutationBusy.current)return;
     const name=newStaffName.trim();
     const pinValue=newStaffPin.trim();
-    if(!name.startsWith("【權限驗收】")){
+    if(!__HOUSEKEEPING_PRODUCTION__ && !name.startsWith("【權限驗收】")){
       window.alert("獨立測試版只允許建立或修改【權限驗收】帳號");return;
     }
     if(pinValue&&!/^[0-9]{8,32}$/.test(pinValue)){
-      window.alert("測試 PIN 必須是 8 到 32 位數字");return;
+      window.alert("PIN 必須是 8 到 32 位數字");return;
     }
     staffMutationBusy.current = true;
     setStaffSaving(true);
@@ -1516,7 +1517,7 @@ export default function App() {
         if(staff.name!==name)await renameQaCleaner(staff.dbId,name);
         if(pinValue)await provisionQaPin(staff.dbId,pinValue);
       }else{
-        if(!pinValue){window.alert("新增測試人員請設定 8 到 32 位數字 PIN");return;}
+        if(!pinValue){window.alert("新增人員請設定 8 到 32 位數字 PIN");return;}
         const created=await createQaCleaner(name);
         await provisionQaPin(created.cleanerId,pinValue);
       }
@@ -2536,7 +2537,7 @@ export default function App() {
             <div className="text-lg font-semibold text-[#4f4435]">
               {activityModalMode === "edit" ? "修改活動" : "新增活動"}
             </div>
-            <p className="mt-2 text-[11px] text-[#847663]">獨立測試環境：新活動將自動加上「【權限驗收】」標記；原有測試活動 A／B／C 可以調整日期與名稱。</p>
+            {!__HOUSEKEEPING_PRODUCTION__ && <p className="mt-2 text-[11px] text-[#847663]">獨立測試環境：新活動將自動加上「【權限驗收】」標記；原有測試活動 A／B／C 可以調整日期與名稱。</p>}
 
             <div className="mt-3 space-y-3">
               <input
