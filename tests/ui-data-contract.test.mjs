@@ -158,10 +158,15 @@ test("admin room creation validates room number before invoking service and stil
  assert.match(body,/selectedActivity\.rooms\.some/);
  assert.match(body,/roomMutationBusy\.current=true/);
 });
-test("admin assignment dropdown sends immutable cleaner IDs",()=>{
- assert.match(app,/assignedCleanerId:\s*e\.target\.value\s*\?\s*Number\(e\.target\.value\)\s*:\s*null/);
- assert.match(app,/value=\{room\.cleanerId == null \? "" : String\(room\.cleanerId\)\}/);
+test("inline iPhone-safe cleaner picker uses immutable IDs without native select overlay",()=>{
+ assert.match(app,/openCleanerPickerRoomId,setOpenCleanerPickerRoomId/);
+ assert.match(app,/aria-expanded=\{openCleanerPickerRoomId===room\.id\}/);
+ assert.match(app,/role="group"/);
+ assert.match(app,/assignedCleanerId=option\.id \? Number\(option\.id\) : null/);
+ assert.match(app,/updateRoomField\(selectedActivity\.id,room\.id,\{assignedCleanerId\}\)/);
+ assert.match(app,/setOpenCleanerPickerRoomId\(""\)/);
  assert.match(app,/assignedCleanerId:Number\(newRoomStaff\)/);
+ assert.doesNotMatch(app,/value=\{room\.cleanerId == null \? "" : String\(room\.cleanerId\)\}/);
  assert.doesNotMatch(app,/value=\{user\.name\}/);
 });
 
@@ -222,13 +227,22 @@ test("mobile dialogs scroll safely on small portrait screens without clipping ac
  assert.match(app,/overflow-y-auto overscroll-contain bg-\[#0f172a\]\/40/);
  assert.match(app,/sm:items-center sm:p-4/);
  assert.match(app,/my-auto w-full max-w-sm min-w-0 max-h-\[calc\(100dvh-2rem\)\]/);
- assert.match(app,/pb-\[max\(0\.75rem,env\(safe-area-inset-bottom\)\)\]/);
+ assert.match(app,/pb-\[calc\(env\(safe-area-inset-bottom\)\+1\.25rem\)\]/);
  assert.match(app,/flex min-w-0 items-center gap-2 text-\[15px\]/);
  assert.match(app,/max-w-md pb-32 md:max-w-3xl/);
 });
+test("mobile cleaner picker avoids iOS native wheel and keeps larger touch controls",()=>{
+ const first=app.indexOf("onClick={() => setOpenCleanerPickerRoomId(");
+ const opts=app.indexOf("選擇打掃人員",first);
+ assert.ok(first>0 && opts>first);
+ assert.match(app,/grid grid-cols-2 gap-2 sm:grid-cols-3/);
+ assert.match(app,/min-h-\[48px\]/);
+ assert.match(app,/text-\[16px\] leading-6 text-\[#5f5444\]/);
+ assert.match(app,/min-h-\[46px\] rounded-\[16px\]/);
+});
 test("mobile room editor has fluid columns and print waits for fonts",()=>{
- assert.match(app,/grid-cols-\[24px_minmax\(0,1fr\)_76px\]/);
- assert.match(app,/sm:grid-cols-\[24px_minmax\(0,1fr\)_96px_64px_36px_30px\]/);
+ assert.match(app,/grid-cols-\[24px_minmax\(0,1fr\)_106px\]/);
+ assert.match(app,/sm:grid-cols-\[24px_minmax\(0,1fr\)_112px_64px_36px_30px\]/);
  assert.match(app,/document\.fonts\.ready\.then\(\(\) => window\.print\(\)\)/);
 });
 
