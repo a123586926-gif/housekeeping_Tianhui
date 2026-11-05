@@ -140,3 +140,14 @@ test("visible dashboard refreshes periodically without polling background tabs",
  assert.match(app,/document\.addEventListener\("visibilitychange",onVisible\)/);
  assert.match(app,/window\.clearInterval\(timer\)/);
 });
+
+
+test("integration build uses the QA entry only on allowlisted branches and never in production",()=>{
+ const vite=fs.readFileSync(fileURLToPath(new URL("../vite.config.ts",import.meta.url)),"utf8");
+ const html=fs.readFileSync(fileURLToPath(new URL("../index.html",import.meta.url)),"utf8");
+ assert.match(vite,/ref === 'feature\/remember-login-30d'/);
+ assert.match(vite,/ref === 'integration\/full-release-review-20261105'/);
+ assert.match(vite,/vercelEnvironment === 'production'/);
+ assert.match(vite,/throw new Error\('Auth sandbox HTML must not ship to production'\)/);
+ assert.match(html,/\/src\/authSandboxMain\.tsx/);
+});
