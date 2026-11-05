@@ -51,6 +51,19 @@ test("checklist writes are serialized per room to avoid rapid-click conflicts",(
  assert.match(app,/checklistSavingRooms\.current\.delete\(roomId\)/);
  assert.match(app,/disabled=\{savingChecklistRoomIds\.includes\(room\.id\)\}/);
 });
+test("checkbox updates optimistically but retain server authorization and failure resync",()=>{
+ const start=app.indexOf("async function updateRoomField(");
+ const end=app.indexOf("async function updateLatestActivityChecklist",start);
+ const body=app.slice(start,end);
+ assert.ok(start>=0 && end>start);
+ assert.ok(body.indexOf("setActivities(prev=>prev.map(")<body.indexOf("await updateRoomChecklist("),
+   "local render must precede the awaited server round trip");
+ assert.match(body,/checklistSavingRooms\.current\.has\(roomId\)/);
+ assert.match(body,/expectedChecklist/);
+ assert.match(body,/if\(!savingChecklist\)await loadEventsFromSupabase\(\)/);
+ assert.match(body,/catch\(error\)[\s\S]*?await loadEventsFromSupabase\(\)/);
+ assert.match(body,/mutationEpoch!==dataEpoch\.current/);
+});
 test("activity, room, staff modals cannot be dismissed during pending mutation",()=>{
  for(const name of ["activitySaving","roomSaving","staffSaving"]){
   assert.match(app,new RegExp("if\\(!"+name+"\\) setShow"));
