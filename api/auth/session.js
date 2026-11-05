@@ -16,8 +16,10 @@ export function createSessionHandler({dbFactory=adminDb,sessionReader=getSession
       const body = req.body || {};
       if (req.method === "POST") {
         if (session.user?.role !== "admin" || session.user.id !== "admin") return json(res, 403, { error: "Admin required" });
-        if (!Number.isSafeInteger(body.cleanerId) || body.cleanerId < 1 || !pinIsStrong(body.newPin))
-          return json(res, 400, { error: "Use a strong 8-32 digit PIN" });
+        if (!Number.isSafeInteger(body.cleanerId) || body.cleanerId < 1)
+          return json(res, 400, { error: "找不到有效的房務人員編號，請重新整理後選擇人員。" });
+        if (!pinIsStrong(body.newPin))
+          return json(res, 400, { error: "PIN 需為 8～32 位數字，不可使用連號、全部相同數字或重複的短數字組合。" });
         const { data, error } = await dbFactory().rpc(scope==="production" ? "hk_provision_cleaner_pin" : "hk_qa_provision_pin", {
           p_cleaner_id: body.cleanerId, p_new_pin: body.newPin,
         });
