@@ -237,7 +237,7 @@ test("mobile cleaner picker avoids iOS native wheel and keeps larger touch contr
  assert.ok(first>0 && opts>first);
  assert.match(app,/grid grid-cols-2 gap-2 sm:grid-cols-3/);
  assert.match(app,/min-h-\[48px\]/);
- assert.match(app,/text-\[16px\] leading-6 text-\[#5f5444\]/);
+ assert.match(app,/text-\[15px\] leading-6 text-\[#514837\]/);
  assert.match(app,/min-h-\[46px\] rounded-\[16px\]/);
 });
 test("mobile room editor has fluid columns and print waits for fonts",()=>{
