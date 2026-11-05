@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import {createRoomsHandler} from "../api/data/rooms.js";
+import {createRoomsHandler,summarizeChecklist} from "../api/data/rooms.js";
 
 function response(){
  const headers={};
@@ -208,6 +208,36 @@ test("paused photo upload does not prevent legitimate checklist 100% completion"
  assert.equal(write?.checklist.every(item=>item.done),true);
  assert.equal(write?.checklist.every(item=>item.photo===false),true,
   "client must never be able to fake persisted photo evidence");
+});
+test("progress and both legacy/new status fields agree for 0%, 50% and 100% completion",async()=>{
+ const cases=[
+   {done:[false,false],status:"pending",pct:0,zh:"未開始"},
+   {done:[true,false],status:"in_progress",pct:50,zh:"進行中"},
+   {done:[true,true],status:"completed",pct:100,zh:"已完成"},
+ ];
+ for(const state of cases){
+   const roomChecklist=cleaningChecklist.map(item=>({
+     ...item,done:false,subItems:item.subItems.map(sub=>({...sub,done:false})),
+   }));
+   const next=roomChecklist.map((item,i)=>({
+     ...item,done:state.done[i],
+     subItems:item.subItems.map(sub=>({...sub,done:state.done[i]})),
+   }));
+   const summary=summarizeChecklist(next);
+   assert.deepEqual(summary,{status:state.status,progress:state.pct,cleaningStatus:state.zh});
+   const mock=mockRoomDb({room:{id:701,event_id:9101,cleaner_id:901,checklist:roomChecklist}});
+   const handler=createRoomsHandler({originAllowed:()=>true,sessionReader:async()=>cleaner901,dbFactory:()=>mock.db});
+   const res=response();
+   await handler({method:"PATCH",body:{roomId:701,changes:{checklist:flags(next)},expectedChecklist:flags(roomChecklist)}},res);
+   assert.equal(res.statusCode,200);
+   const write=mock.calls.find(call=>call[0]==="update")?.[1];
+   assert.equal(write?.status,state.status);
+   assert.equal(write?.cleaning_status,state.zh);
+   assert.equal(write?.progress,state.pct);
+   assert.equal(write?.cleaning_progress,state.pct);
+   assert.deepEqual(write?.checklist.map(item=>item.done),state.done);
+ }
+ assert.deepEqual(summarizeChecklist([]),{status:"pending",progress:0,cleaningStatus:"未開始"});
 });
 test("pausing photos preserves existing photo evidence when checklist is unchecked",async()=>{
  const roomChecklist=cleaningChecklist.map((item,i)=>({
