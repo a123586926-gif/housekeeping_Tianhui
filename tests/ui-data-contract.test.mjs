@@ -45,24 +45,23 @@ test("admin management uses cleaner IDs and mutations cannot be submitted twice"
  assert.match(app,/createdRoomId\s*\?\s*"房間已建立/);
 });
 
-test("checklist writes are serialized per room to avoid rapid-click conflicts",()=>{
- assert.match(app,/checklistSavingRooms\.current\.has\(roomId\)/);
- assert.match(app,/checklistSavingRooms\.current\.add\(roomId\)/);
- assert.match(app,/checklistSavingRooms\.current\.delete\(roomId\)/);
- assert.match(app,/disabled=\{savingChecklistRoomIds\.includes\(room\.id\)\}/);
-});
-test("checkbox updates optimistically but retain server authorization and failure resync",()=>{
- const start=app.indexOf("async function updateRoomField(");
- const end=app.indexOf("async function updateLatestActivityChecklist",start);
- const body=app.slice(start,end);
- assert.ok(start>=0 && end>start);
- assert.ok(body.indexOf("setActivities(prev=>prev.map(")<body.indexOf("await updateRoomChecklist("),
-   "local render must precede the awaited server round trip");
- assert.match(body,/checklistSavingRooms\.current\.has\(roomId\)/);
- assert.match(body,/photoJustUploaded\?undefined:flags\(room\.checklist\)/);
- assert.match(body,/if\(!savingChecklist\)await loadEventsFromSupabase\(\)/);
+test("rapid room checklists remain interactive and serialize writes with optimistic locks",()=>{
+ const a=app.indexOf("async function flushChecklistQueue(");
+ const b=app.indexOf("async function confirmPhotoUploadAndComplete()",a);
+ const body=app.slice(a,b);
+ assert.ok(a>=0 && b>a);
+ assert.match(body,/pendingChecklistWrites\.current\.get\(roomId\)/);
+ assert.match(body,/task\.writing=true/);
+ assert.match(body,/while\(task\.epoch===dataEpoch\.current/);
+ assert.match(body,/await updateRoomChecklist\(task\.dbId,checklistFlags\(next\),checklistFlags\(task\.committed\)\)/);
+ assert.match(body,/task\.committed=next/);
+ assert.match(body,/const desired=transform\(task\?\.desired\?\?room\.checklist\)/);
+ assert.match(body,/setActivities\(prev=>prev\.map\(/);
  assert.match(body,/catch\(error\)[\s\S]*?await loadEventsFromSupabase\(\)/);
- assert.match(body,/mutationEpoch!==dataEpoch\.current/);
+ assert.doesNotMatch(app,/disabled=\{savingChecklistRoomIds\.includes\(room\.id\)\}/);
+ assert.match(app,/savingChecklistRoomIds\.includes\(room\.id\) && \(/);
+ assert.match(app,/const pending = pendingChecklistWrites\.current\.get/);
+ assert.match(app,/pendingChecklistWrites\.current\.clear\(\)/);
 });
 test("activity, room, staff modals cannot be dismissed during pending mutation",()=>{
  for(const name of ["activitySaving","roomSaving","staffSaving"]){
