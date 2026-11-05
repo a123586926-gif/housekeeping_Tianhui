@@ -206,8 +206,11 @@ function buildChecklist(): ChecklistItem[] {
 function isApprovedProductionUI(): boolean {
   // Trust the build-time HTML marker, not a Vite env key that may be missing
   // from the shipped bundle. Server handlers always enforce real permissions.
-  return typeof document !== "undefined" &&
-    document.querySelector('meta[name="hk-production-release"]')?.getAttribute("content") === "approved";
+  // UI-only distinction for the published production hostname. Vercel
+  // preview deployments cannot enable production-only editing screens.
+  // Backend authorization always relies on the validated server session.
+  return typeof window !== "undefined" &&
+    window.location.hostname.toLowerCase() === "housekeeping-tianhui.vercel.app";
 }
 
 function validateNewStaffPin(value: string): string {
@@ -2872,7 +2875,7 @@ export default function App() {
               {staffModalMode === "edit" ? "編輯打掃人員" : "新增打掃人員"}
             </div>
 
-            <p className="mt-2 text-xs text-[#8b7755]" role="status">房務 PIN 修正版 11/05-J · 本次點擊：{staffButtonPresses}</p>
+            <p className="mt-2 text-xs text-[#8b7755]" role="status">房務 PIN 修正版 11/05-K · 本次點擊：{staffButtonPresses}</p>
             <div className="mt-3 space-y-3">
               <input
                 value={newStaffName}
@@ -2932,7 +2935,7 @@ export default function App() {
                 disabled={staffSaving}
                 className="rounded-[20px] bg-[linear-gradient(135deg,#8b8462_0%,#9a946f_52%,#b5ae86_100%)] px-3 py-2 text-sm font-medium text-white"
               >
-                {staffSaving ? "PIN 處理中…" : "儲存 PIN（11/05-J）"}
+                {staffSaving ? "PIN 處理中…" : "儲存 PIN（11/05-K）"}
               </button>
             </div>
           </div>
