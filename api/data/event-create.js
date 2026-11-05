@@ -3,7 +3,7 @@ import { validateEvent, validId } from "../_lib/validation.js";
 import { buildDefaultEventRooms } from "../_lib/defaultRooms.js";
 
 // Admin-only atomic event + default rooms creation.
-// The database RPC must be installed in the isolated test environment first.
+// The event transaction RPC is installed in the target environment; the server authenticates all callers.
 export function createEventHandler({dbFactory=adminDb,sessionReader=getSession,originAllowed=allowSameOrigin,releaseScope=process.env.VERCEL_ENV==="production"?"production":"qa"}={}) {
   return async function handler(req, res) {
   if (!["POST", "PATCH", "DELETE"].includes(req.method)) return json(res, 405, { error: "Method not allowed" });
@@ -30,7 +30,7 @@ export function createEventHandler({dbFactory=adminDb,sessionReader=getSession,o
           return json(res,403,{error:"Seed fixture event cannot be deleted"});
         const {data: photos,error: photoError} = await db.from("event_rooms")
           .select("id").eq("event_id",eventId)
-          .or("floor_photo.not.is.null,bathroom_photo.not.is.null,final_photo.not.is.null").limit(1);
+          .or("floor_photo.not.is.null,bathroom_photo.not.is.null,final_photo.not.is.null,floor_photo_url.not.is.null,bathroom_photo_url.not.is.null,final_photo_url.not.is.null").limit(1);
         if(photoError) throw photoError;
         if(photos?.length) return json(res,409,{error:"Event has cleaning photos; deletion blocked"});
       }
