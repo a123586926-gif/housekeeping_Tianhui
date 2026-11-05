@@ -440,6 +440,7 @@ export default function App() {
   const [roomFilter, setRoomFilter] = useState<"all" | "completed" | "pending">("all");
   const [adminView, setAdminView] = useState<AdminView>("overview");
   const [activitySection,setActivitySection] = useState<"summary"|"rooms">("summary");
+  const [roomDisplay,setRoomDisplay] = useState<"cards"|"table">("cards");
   const [activityScope,setActivityScope] = useState(()=>String(new Date().getFullYear()));
   const [overviewFilter, setOverviewFilter] = useState<OverviewFilter>("all");
   const [overviewSearch, setOverviewSearch] = useState("");
@@ -2562,7 +2563,75 @@ export default function App() {
                           className="rounded-[13px] border border-[#ded1bc] bg-[#fffdfa] px-1 py-2 text-[13px] font-medium text-[#6a5a3c]">批次列印</button>
                       </div>
                     )}
+                    {selectedActivity.requiresCleaning && (
+                      <div className="mt-2 flex justify-end gap-2">
+                        <button type="button" onClick={()=>setRoomDisplay("cards")}
+                          className={"rounded-[12px] px-3 py-2 text-[13px] "+(roomDisplay==="cards"?"bg-[#888465] text-white":"border border-[#ddd2c0] bg-white")}>
+                          卡片檢視
+                        </button>
+                        <button type="button" onClick={()=>setRoomDisplay("table")}
+                          className={"rounded-[12px] px-3 py-2 text-[13px] "+(roomDisplay==="table"?"bg-[#888465] text-white":"border border-[#ddd2c0] bg-white")}>
+                          Excel 式表格
+                        </button>
+                      </div>
+                    )}
                     {selectedActivity.requiresCleaning ? (
+                      roomDisplay==="table" ? (
+                        <div className="mt-2 overflow-x-auto rounded-[18px] border border-[#e2d8c8] bg-white">
+                          <table className="min-w-[780px] w-full border-collapse text-left text-[14px]">
+                            <thead className="bg-[#f1eadf] text-[#544735]">
+                              <tr>
+                                <th className="p-2">列印</th>
+                                <th className="p-2">房間</th>
+                                <th className="p-2">住宿人名單（直接編輯）</th>
+                                <th className="p-2">人數</th>
+                                <th className="p-2">房務</th>
+                                <th className="p-2">操作</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {filteredActivityRooms.map(room=>(
+                                <tr key={room.id} className="border-t border-[#ede4d7] align-top">
+                                  <td className="p-2"><input type="checkbox" aria-label={"勾選列印 "+roomLabel(room)}
+                                    checked={selectedPrintRoomIds.includes(room.id)} onChange={()=>togglePrintRoom(room.id)}/></td>
+                                  <td className="whitespace-nowrap p-2 font-bold">{roomLabel(room)}</td>
+                                  <td className="min-w-[260px] p-2">
+                                    <textarea
+                                      value={occupantDrafts[room.id]??splitGuestLines(room.occupant).join("、")}
+                                      onChange={e=>setOccupantDrafts(prev=>({...prev,[room.id]:e.target.value}))}
+                                      onBlur={()=>{
+                                        const draft=occupantDrafts[room.id];
+                                        if(draft!==undefined)void saveOccupantList(selectedActivity.id,room.id,draft);
+                                      }}
+                                      disabled={savingRoomAdministrationIds.includes(room.id)}
+                                      ref={node=>{if(node){node.style.height="auto";node.style.height=node.scrollHeight+"px";}}}
+                                      rows={2}
+                                      className="min-h-[46px] w-full resize-none overflow-hidden rounded-[9px] border border-[#dfd4c1] bg-[#fffcf7] p-2 text-[15px] leading-6"
+                                      placeholder="輸入住宿人姓名"/>
+                                  </td>
+                                  <td className="whitespace-nowrap p-2">{splitGuestLines(occupantDrafts[room.id]??room.occupant).length} 位</td>
+                                  <td className="p-2">
+                                    <select value={room.cleanerId==null?"":String(room.cleanerId)}
+                                      onChange={e=>void updateRoomField(selectedActivity.id,room.id,
+                                        {assignedCleanerId:e.target.value?Number(e.target.value):null})}
+                                      disabled={savingRoomAdministrationIds.includes(room.id)}
+                                      className="min-h-[42px] w-full rounded-[10px] border border-[#ddd3c4] bg-white px-2 text-[14px]">
+                                      <option value="">未分配</option>
+                                      {staffUsers.map(user=><option key={user.id} value={String(user.dbId)}>{user.name}</option>)}
+                                    </select>
+                                  </td>
+                                  <td className="whitespace-nowrap p-2">
+                                    <button type="button" onClick={()=>openGuestMove(room.id)}
+                                      className="mr-1 rounded-[8px] bg-[#efe9db] px-2 py-2">移動</button>
+                                    <button type="button" onClick={()=>printSingleRoomA4(room)}
+                                      className="rounded-[8px] bg-[#efe9db] px-2 py-2">列印</button>
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      ) : (
                       <div className="mt-2 space-y-2 rounded-[20px] border border-[#e2d8c8] bg-[#faf6f0] p-2">
                         {filteredActivityRooms.map((room) => (
                           <div
@@ -2648,6 +2717,7 @@ export default function App() {
                           </div>
                         )}
                       </div>
+                      )
                     ) : (
                       <div className="mt-2 rounded-[20px] border border-[#e2d8c8] bg-[#faf6f0] px-4 py-6 text-center text-sm text-[#8d8272]">
                         此活動未勾選需打掃，因此不建立房間列表。
