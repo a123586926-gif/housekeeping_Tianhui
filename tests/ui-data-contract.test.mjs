@@ -37,7 +37,8 @@ test("admin management uses cleaner IDs and mutations cannot be submitted twice"
  assert.match(app,/user\.dbId != null && room\.cleanerId === user\.dbId/);
  assert.match(app,/expandedStaffName === user\.id/);
  assert.match(app,/if\(currentUser\?\.role!=="admin" \|\| activityMutationBusy\.current\)return/);
- assert.match(app,/if\(staffMutationBusy\.current\)return/);
+ assert.match(app,/if\(staffMutationBusy\.current\)/);
+ assert.match(app,/setStaffButtonPresses\(x=>x\+1\)/);
  assert.match(app,/if\(currentUser\?\.role!=="admin"\)/);
  assert.match(app,/staffMutationBusy\.current=true/);
  assert.match(app,/roomMutationBusy\.current=true/);
