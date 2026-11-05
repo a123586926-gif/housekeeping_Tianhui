@@ -166,19 +166,19 @@ export function createRoomsHandler({
         if(!eventId || !BUILDING.has(building) || !FLOOR.has(floor) ||
            typeof roomNo !== "string" || !/^[A-Za-z0-9]{1,8}$/.test(roomNo))
           return bad(res);
-        const {data:id,error}=await db.rpc("hk_qa_create_room_full",{
+        const {data:id,error}=await db.rpc(process.env.VERCEL_ENV==="production" ? "hk_create_room_full" : "hk_qa_create_room_full",{
           p_event_id:eventId,p_building:building,p_floor:floor,
           p_room_no:roomNo.toUpperCase(),p_checklist:buildChecklist(),
         });
-        if(error) return json(res,409,{error:"Room create rejected (duplicate, limit or protected event)"});
+        if(error) return json(res,409,{error:"Room create rejected (duplicate, limit or unsupported event)"});
         return json(res,201,{ok:true,roomId:Number(id)});
       }
       const roomId=validId(body.roomId);
       if(!roomId) return bad(res);
-      const {data:deleted,error}=await db.rpc("hk_qa_delete_room",{p_room_id:roomId});
+      const {data:deleted,error}=await db.rpc(process.env.VERCEL_ENV==="production" ? "hk_delete_room" : "hk_qa_delete_room",{p_room_id:roomId});
       if(error) return json(res,503,{error:"Unable to remove room"});
       return deleted===true ? json(res,200,{ok:true}) :
-        json(res,403,{error:"Protected room or room has photos"});
+        json(res,403,{error:"Room cannot be deleted (not found or has photos)"});
     }
     if (req.method === "POST") return await uploadPhoto(req,res,db,session);
     if (req.method === "GET") return await viewPhoto(req,res,db,session);
