@@ -17,7 +17,7 @@ import { readSession, signInWithPin, signOutSession, provisionQaPin } from "./li
 import SharedActivityCalendar from "./components/SharedActivityCalendar";
 import { HousekeepingApiError, getBusinessOverview, getCleaners, createActivity, editActivity, deleteActivity, type CalendarEvent,
   createQaRoom, deleteQaRoom, updateRoomChecklist, updateRoomAdministration,
-  createQaCleaner, renameQaCleaner } from "./lib/housekeepingApi";
+  createQaCleaner, renameQaCleaner, moveGuestAtomic } from "./lib/housekeepingApi";
 
 type Role = "cleaner" | "admin";
 type RoomStatus = "pending" | "in_progress" | "completed";
@@ -496,6 +496,8 @@ export default function App() {
   const [quickPasteMode,setQuickPasteMode] = useState<"append"|"replace">("append");
   const [duplicatePending,setDuplicatePending] = useState<{activityId:string;roomId:string;names:string;person:string;locations:string[]}|null>(null);
   const [duplicateReport,setDuplicateReport] = useState<Array<{name:string;rooms:string[]}>|null>(null);
+  const [guestMove,setGuestMove] = useState<{fromRoomId:string;name:string;toRoomId:string}|null>(null);
+  const [guestMoving,setGuestMoving] = useState(false);
 
   const [showPhotoModal, setShowPhotoModal] = useState(false);
   const [pendingPhotoAction, setPendingPhotoAction] = useState<PhotoAction | null>(null);
@@ -705,6 +707,7 @@ export default function App() {
       setActivities([]);setStaffUsers([]);setSharedCalendarEvents([]);
       setSelectedPrintRoomIds([]);setOccupantDrafts({});
       setQuickPasteRoomId("");setQuickPasteText("");setDuplicatePending(null);setDuplicateReport(null);
+      setGuestMove(null);
       setOpenCleanerPickerRoomId("");
       setOverviewSearch("");setCalendarSheetDate("");
       setExpandedRoomId("");setExpandedStaffName("");
@@ -1048,6 +1051,39 @@ export default function App() {
     setQuickPasteRoomId(roomId);
     setQuickPasteText("");
     setQuickPasteMode("append");
+  }
+
+  function openGuestMove(roomId:string) {
+    if(!selectedActivity)return;
+    const room=selectedActivity.rooms.find(r=>r.id===roomId);
+    if(!room)return;
+    if(roomHasPendingOccupant(room)){window.alert("此房間的名單尚未儲存，請先完成儲存再移動。");return;}
+    const to=selectedActivity.rooms.find(r=>r.id!==roomId);
+    const name=splitGuestLines(room.occupant)[0]??"";
+    if(!name || !to){window.alert("沒有可移動的住宿人或其他房間。");return;}
+    setGuestMove({fromRoomId:roomId,name,toRoomId:to.id});
+  }
+
+  async function confirmGuestMove() {
+    if(!selectedActivity || !guestMove || guestMoving || currentUser?.role!=="admin")return;
+    const source=selectedActivity.rooms.find(r=>r.id===guestMove.fromRoomId);
+    const target=selectedActivity.rooms.find(r=>r.id===guestMove.toRoomId);
+    if(!source?.dbId || !target?.dbId || source.id===target.id)return;
+    if(roomHasPendingOccupant(source)||roomHasPendingOccupant(target)){
+      window.alert("有尚未儲存的住宿人名單，請先完成儲存。");return;
+    }
+    const epoch=dataEpoch.current;
+    setGuestMoving(true);
+    try{
+      await moveGuestAtomic({fromRoomId:source.dbId,toRoomId:target.dbId,name:guestMove.name,
+        expectedFrom:source.occupant,expectedTo:target.occupant});
+      if(epoch===dataEpoch.current){setGuestMove(null);await loadEventsFromSupabase();}
+    }catch(error){
+      if(epoch===dataEpoch.current){
+        window.alert((error instanceof Error?error.message:"移動失敗")+"；兩間房資料未完成更新，請確認最新資料。");
+        await loadEventsFromSupabase();
+      }
+    }finally{setGuestMoving(false);}
   }
 
   function scanDuplicateOccupants() {
@@ -2541,6 +2577,8 @@ export default function App() {
                               <span className="shrink-0 rounded-full bg-[#efe5d6] px-2 py-1 text-[13px] font-semibold text-[#64563c]">
                                 {splitGuestLines(occupantDrafts[room.id] ?? room.occupant).length} 位
                               </span>
+                              <button type="button" onClick={()=>openGuestMove(room.id)}
+                                title="移動住宿人到其他房間" className="shrink-0 rounded-full bg-[#f2ecdf] px-2 py-1 text-[12px] font-semibold text-[#76674f]">移動</button>
                               <button type="button" onClick={()=>deleteSelectedActivityRoom(room.id)}
                                 className="shrink-0 rounded-full px-1 text-[16px] text-[#9b8974]" title="刪除此房間">−</button>
                             </div>
@@ -2943,6 +2981,42 @@ export default function App() {
             <div className="mt-4 flex justify-end gap-2">
               <button type="button" onClick={()=>setQuickPasteRoomId("")} className="rounded-[13px] bg-[#eee8dc] px-4 py-3 text-[15px]">取消</button>
               <button type="button" onClick={()=>void applyQuickPaste()} className="rounded-[13px] bg-[#888465] px-4 py-3 text-[15px] text-white">預覽檢查並儲存</button>
+            </div>
+          </div>
+        </div>
+      )}
+      {guestMove && selectedActivity && currentUser?.role==="admin" && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-[#0F172A]/45 p-3" role="dialog" aria-label="移動住宿人">
+          <div className="w-full max-w-sm rounded-[24px] bg-[#fffdf8] p-4 shadow-xl">
+            <h3 className="text-[19px] font-bold text-[#544735]">跨房間移動住宿人</h3>
+            <p className="mt-2 text-[14px] text-[#806f5c]">移動會一次更新原房與目的房，失敗時不會只刪除其中一間。</p>
+            <label className="mt-3 block text-[14px] font-semibold">選擇住宿人
+              <select value={guestMove.name}
+                onChange={e=>setGuestMove(prev=>prev?{...prev,name:e.target.value}:null)}
+                disabled={guestMoving}
+                className="mt-1 w-full min-w-0 rounded-[12px] border border-[#d9cbb7] bg-white px-3 py-3 text-[16px]">
+                {splitGuestLines(selectedActivity.rooms.find(r=>r.id===guestMove.fromRoomId)?.occupant??"").map((name,i)=>(
+                  <option key={name+"-"+i} value={name}>{name}</option>
+                ))}
+              </select>
+            </label>
+            <label className="mt-3 block text-[14px] font-semibold">目的房間
+              <select value={guestMove.toRoomId}
+                onChange={e=>setGuestMove(prev=>prev?{...prev,toRoomId:e.target.value}:null)}
+                disabled={guestMoving}
+                className="mt-1 w-full min-w-0 rounded-[12px] border border-[#d9cbb7] bg-white px-3 py-3 text-[16px]">
+                {selectedActivity.rooms.filter(room=>room.id!==guestMove.fromRoomId).map(room=>(
+                  <option key={room.id} value={room.id}>{roomLabel(room)}</option>
+                ))}
+              </select>
+            </label>
+            <div className="mt-4 grid grid-cols-2 gap-2">
+              <button type="button" disabled={guestMoving} onClick={()=>setGuestMove(null)}
+                className="rounded-[12px] bg-[#efe8dc] px-3 py-3 text-[15px]">取消</button>
+              <button type="button" disabled={guestMoving} onClick={()=>void confirmGuestMove()}
+                className="rounded-[12px] bg-[#858264] px-3 py-3 text-[15px] text-white">
+                {guestMoving?"移動中…":"確認移動"}
+              </button>
             </div>
           </div>
         </div>
