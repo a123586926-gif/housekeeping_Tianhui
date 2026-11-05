@@ -27,7 +27,7 @@ test("admin summary and progress follow checklist and have filterable search",()
 });
 test("local date sorting and printing remain usable for 6, 7, 8 or more people",()=>{
  assert.match(app,/todayStart\s*=\s*new Date\(today\.getFullYear\(\),\s*today\.getMonth\(\),\s*today\.getDate\(\)\)/);
- assert.match(app,/const useTwoColumns = guests\.length > 6/);
+ assert.match(app,/const useTwoColumns = guests\.length > 10/);
  assert.match(app,/const splitAt = Math\.ceil\(guests\.length \/ 2\)/);
  assert.match(app,/guests\.slice\(splitAt\)/);
  assert.match(app,/overflow-wrap:\s*anywhere/);
@@ -187,26 +187,27 @@ test("session name changes update only the same immutable user identity",()=>{
  assert.match(app,/previous\?\.id === expectedId \? session\.user : previous/);
 });
 
-test("A4 printing keeps six people single-column, seven/eight people two-column and compact long names",()=>{
+test("reference A4 print design uses large plain room numbers and per-count single/dual column",()=>{
  const start=app.indexOf("function buildA4RoomPage(room: Room)");
  const stop=app.indexOf("function openPrintWindow(",start);
- const printing=app.slice(start,stop);
+ const print=app.slice(start,stop);
  assert.ok(start>=0 && stop>start);
- assert.match(printing,/const useTwoColumns = guests\.length > 6/);
- assert.match(printing,/const splitAt = Math\.ceil\(guests\.length \/ 2\)/);
- assert.match(printing,/const hasLongNames = guests\.some/);
- assert.match(printing,/const compactPrint = hasLongNames \|\| guests\.length > 8/);
- assert.match(printing,/const pageClass = compactPrint \? "a4-page compact-print" : "a4-page"/);
- assert.match(printing,/class="\$\{pageClass\}"/);
- assert.match(printing,/padding-bottom: 12mm/);
- assert.match(printing,/break-inside: avoid/);
- assert.match(printing,/\.compact-print \.guest-row/);
- assert.match(printing,/@page \{/);
- assert.match(printing,/size: A4 portrait/);
- assert.match(printing,/page-break-after: always/);
- assert.match(printing,/\.a4-page:last-child/);
- assert.match(printing,/escapeHtml\(guest\)/);
- assert.match(printing,/escapeHtml\(roomLabel\(room\)\)/);
+ assert.match(print,/const useTwoColumns = guests\.length > 10/);
+ assert.match(print,/guests\.length <= 2 \? "single-xl"/);
+ assert.match(print,/guests\.length <= 6 \? "single-lg"/);
+ assert.match(print,/guests\.length <= 10 \? "single-md"/);
+ assert.match(print,/const printedRoomNo = \(room\.building \+ room\.roomNo\)\.toUpperCase\(\)/);
+ assert.match(print,/escapeHtml\(printedRoomNo\)/);
+ assert.match(print,/font-size: 46mm/);
+ assert.match(print,/\.single-xl \.guest-area/);
+ assert.match(print,/\.single-lg \.guest-area/);
+ assert.match(print,/\.single-md \.guest-area/);
+ assert.match(print,/\.double \.guest-area/);
+ assert.match(print,/overflow-wrap: anywhere/);
+ assert.match(print,/page-break-after: always/);
+ assert.match(print,/\.a4-page:last-child/);
+ assert.match(print,/escapeHtml\(guest\)/);
+ assert.match(print,/document\.fonts\.ready/);
 });
 test("print selection persists across floor/building filters and counts whole activity",()=>{
  assert.match(app,/selectedActivity\?\.rooms\.filter\(room =>\s*selectedPrintRoomIds\.includes\(room\.id\)\)/);
