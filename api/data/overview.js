@@ -39,17 +39,21 @@ export function createOverviewHandler({dbFactory=adminDb,sessionReader=getSessio
       if (role === "cleaner" && !Number.isSafeInteger(cleanerId))
         return json(res, 403, { error: "Invalid account" });
       const db = dbFactory();
-      const events = await collectPagedRows(() => db.from("events")
-        .select("id, event_date, event_name, event_type, status, notes")
-        .order("event_date", { ascending: true })
-        .order("id", { ascending: true }));
-      const eventRooms = await collectPagedRows(() => {
-        let query = db.from("event_rooms").select(
-          "id, event_id, building, floor, room_no, assigned_to, occupant, progress, status, checklist, room_id, cleaner_id, guest_name, stay_status, cleaning_status, cleaning_progress, floor_photo, bathroom_photo, final_photo"
-        ).order("id", { ascending: true });
-        if (role === "cleaner") query = query.eq("cleaner_id", cleanerId);
-        return query;
-      });
+      // Independent event and room reads can run concurrently: waiting for
+      // two sequential network round trips made each overview refresh slower.
+      const [events,eventRooms] = await Promise.all([
+        collectPagedRows(() => db.from("events")
+          .select("id, event_date, event_name, event_type, status, notes")
+          .order("event_date", { ascending: true })
+          .order("id", { ascending: true })),
+        collectPagedRows(() => {
+          let query = db.from("event_rooms").select(
+            "id, event_id, building, floor, room_no, assigned_to, occupant, progress, status, checklist, room_id, cleaner_id, guest_name, stay_status, cleaning_status, cleaning_progress, floor_photo, bathroom_photo, final_photo"
+          ).order("id", { ascending: true });
+          if (role === "cleaner") query = query.eq("cleaner_id", cleanerId);
+          return query;
+        }),
+      ]);
 
       const assignedEventIds = new Set(eventRooms.map(room => room.event_id));
       const permittedEvents = role === "admin"
