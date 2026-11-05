@@ -495,6 +495,7 @@ export default function App() {
   const [quickPasteText,setQuickPasteText] = useState("");
   const [quickPasteMode,setQuickPasteMode] = useState<"append"|"replace">("append");
   const [duplicatePending,setDuplicatePending] = useState<{activityId:string;roomId:string;names:string;person:string;locations:string[]}|null>(null);
+  const [duplicateReport,setDuplicateReport] = useState<Array<{name:string;rooms:string[]}>|null>(null);
 
   const [showPhotoModal, setShowPhotoModal] = useState(false);
   const [pendingPhotoAction, setPendingPhotoAction] = useState<PhotoAction | null>(null);
@@ -703,7 +704,7 @@ export default function App() {
     if(!currentUser){
       setActivities([]);setStaffUsers([]);setSharedCalendarEvents([]);
       setSelectedPrintRoomIds([]);setOccupantDrafts({});
-      setQuickPasteRoomId("");setQuickPasteText("");setDuplicatePending(null);
+      setQuickPasteRoomId("");setQuickPasteText("");setDuplicatePending(null);setDuplicateReport(null);
       setOpenCleanerPickerRoomId("");
       setOverviewSearch("");setCalendarSheetDate("");
       setExpandedRoomId("");setExpandedStaffName("");
@@ -1049,11 +1050,26 @@ export default function App() {
     setQuickPasteMode("append");
   }
 
+  function scanDuplicateOccupants() {
+    if(!selectedActivity)return;
+    const names=new Map<string,Set<string>>();
+    for(const room of selectedActivity.rooms){
+      for(const name of splitGuestLines(occupantDrafts[room.id]??room.occupant)){
+        const rooms=names.get(name)??new Set<string>();
+        rooms.add(roomLabel(room));
+        names.set(name,rooms);
+      }
+    }
+    const results=Array.from(names,([name,rooms])=>({name,rooms:Array.from(rooms)}))
+      .filter(row=>row.rooms.length>1);
+    setDuplicateReport(results);
+  }
+
   async function applyQuickPaste() {
     if(!selectedActivity || !quickPasteRoomId)return;
     const room=selectedActivity.rooms.find(r=>r.id===quickPasteRoomId);
     if(!room)return;
-    const incoming=splitGuestLines(quickPasteText.replace(/\\t/g,"、"));
+    const incoming=splitGuestLines(quickPasteText.replace(/\t/g,"、"));
     if(!incoming.length){window.alert("請先貼上至少一位住宿人姓名。");return;}
     const existing=splitGuestLines(occupantDrafts[room.id]??room.occupant);
     const names=quickPasteMode==="append"?[...existing,...incoming]:incoming;
@@ -1391,7 +1407,7 @@ export default function App() {
 
   function selectActivity(activityId: string) {
     setSelectedActivityId(activityId);
-    setOpenCleanerPickerRoomId("");
+    setOpenCleanerPickerRoomId("");setDuplicateReport(null);
     setActivitySelectedBuilding("all");
     setActivitySelectedFloor("all");
     setActivityRoomSearch("");
@@ -2498,6 +2514,16 @@ export default function App() {
                       )}
                     </div>
 
+                    {selectedActivity.requiresCleaning && (
+                      <div className="mt-2 grid grid-cols-3 gap-2">
+                        <button type="button" onClick={()=>openQuickPaste(filteredActivityRooms[0]?.id??selectedActivity.rooms[0]?.id??"")}
+                          className="rounded-[13px] border border-[#ded1bc] bg-[#fffdfa] px-1 py-2 text-[13px] font-medium text-[#6a5a3c]">快速貼上</button>
+                        <button type="button" onClick={scanDuplicateOccupants}
+                          className="rounded-[13px] border border-[#ded1bc] bg-[#fffdfa] px-1 py-2 text-[13px] font-medium text-[#6a5a3c]">重複檢查</button>
+                        <button type="button" onClick={printSelectedRoomsA4}
+                          className="rounded-[13px] border border-[#ded1bc] bg-[#fffdfa] px-1 py-2 text-[13px] font-medium text-[#6a5a3c]">批次列印</button>
+                      </div>
+                    )}
                     {selectedActivity.requiresCleaning ? (
                       <div className="mt-2 space-y-2 rounded-[20px] border border-[#e2d8c8] bg-[#faf6f0] p-2">
                         {filteredActivityRooms.map((room) => (
@@ -2888,6 +2914,78 @@ export default function App() {
         </div>
       )}
 
+      {quickPasteRoomId && selectedActivity && currentUser?.role==="admin" && (
+        <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-[#0F172A]/40 px-3 py-5 sm:items-center"
+          onClick={()=>setQuickPasteRoomId("")}>
+          <div className="my-auto w-full max-w-md rounded-[24px] bg-[#fffdf8] p-4 shadow-xl"
+            onClick={e=>e.stopPropagation()}>
+            <div className="flex items-center justify-between">
+              <h3 className="text-[20px] font-bold text-[#4f4435]">快速貼上住宿人</h3>
+              <button type="button" onClick={()=>setQuickPasteRoomId("")} aria-label="關閉快速貼上" className="p-2 text-[#746854]">✕</button>
+            </div>
+            <p className="mt-2 text-[13px] leading-5 text-[#81735f]">從 Excel、Word、LINE 複製名單，一行一位，或直接貼上多個儲存格。系統會保留姓名順序。</p>
+            <label className="mt-3 block text-[14px] font-semibold">目標房間
+              <select value={quickPasteRoomId} onChange={e=>setQuickPasteRoomId(e.target.value)}
+                className="mt-1 w-full min-w-0 rounded-[12px] border border-[#dacebb] bg-white px-3 py-3 text-[16px]">
+                {selectedActivity.rooms.map(room=><option key={room.id} value={room.id}>{roomLabel(room)}</option>)}
+              </select>
+            </label>
+            <textarea value={quickPasteText} onChange={e=>setQuickPasteText(e.target.value)}
+              rows={7} placeholder={"李貞儀\n陳美華\n黃彩戀\n許樊密"}
+              className="mt-3 w-full rounded-[14px] border border-[#dacebb] bg-white p-3 text-[16px] leading-7"/>
+            <p className="text-[13px] text-[#75684f]">辨識到 {splitGuestLines(quickPasteText.replace(/\t/g,"、")).length} 位住宿人</p>
+            <div className="mt-3 grid grid-cols-2 gap-2">
+              <button type="button" onClick={()=>setQuickPasteMode("append")}
+                className={"rounded-[13px] px-2 py-3 text-[14px] font-semibold "+(quickPasteMode==="append"?"bg-[#888465] text-white":"border border-[#ddd1be] bg-white")}>追加（預設）</button>
+              <button type="button" onClick={()=>setQuickPasteMode("replace")}
+                className={"rounded-[13px] px-2 py-3 text-[14px] font-semibold "+(quickPasteMode==="replace"?"bg-[#888465] text-white":"border border-[#ddd1be] bg-white")}>取代現有名單</button>
+            </div>
+            <div className="mt-4 flex justify-end gap-2">
+              <button type="button" onClick={()=>setQuickPasteRoomId("")} className="rounded-[13px] bg-[#eee8dc] px-4 py-3 text-[15px]">取消</button>
+              <button type="button" onClick={()=>void applyQuickPaste()} className="rounded-[13px] bg-[#888465] px-4 py-3 text-[15px] text-white">預覽檢查並儲存</button>
+            </div>
+          </div>
+        </div>
+      )}
+      {duplicatePending && currentUser?.role==="admin" && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-[#0f172a]/45 p-3" role="alertdialog"
+          aria-label="重複姓名提醒">
+          <div className="w-full max-w-sm rounded-[22px] border border-[#e2aaa0] bg-[#fff9f4] p-4 shadow-xl">
+            <h3 className="text-[20px] font-bold text-[#a53c2d]">發現重複姓名！</h3>
+            <p className="mt-2 text-[16px] font-semibold text-[#5b4637]">{duplicatePending.person}</p>
+            <p className="mt-1 text-[14px] text-[#6b5548]">同活動已出現在：{duplicatePending.locations.join("、")}</p>
+            <p className="mt-2 text-[13px] text-[#806a5e]">姓名必須完全相同才提醒。不同人同名時仍可選擇儲存。</p>
+            <div className="mt-4 grid grid-cols-2 gap-2">
+              <button type="button" className="rounded-[13px] border border-[#d9b5a8] bg-white px-2 py-3 text-[14px]"
+                onClick={()=>setDuplicatePending(null)}>返回檢查</button>
+              <button type="button" className="rounded-[13px] bg-[#858264] px-2 py-3 text-[14px] text-white"
+                onClick={()=>{
+                  const pending=duplicatePending;
+                  setDuplicatePending(null);
+                  void saveOccupantList(pending.activityId,pending.roomId,pending.names,true);
+                }}>仍要儲存</button>
+            </div>
+            <button type="button" className="mt-3 w-full text-[14px] text-[#857359]"
+              onClick={()=>{
+                const matched=selectedActivity?.rooms.find(r=>roomLabel(r)===duplicatePending.locations[0]);
+                if(matched){setActivityRoomSearch(matched.roomNo);setActivitySelectedBuilding(matched.building);setActivitySelectedFloor(matched.floor);}
+                setDuplicatePending(null);
+              }}>查看該房間</button>
+          </div>
+        </div>
+      )}
+      {duplicateReport && currentUser?.role==="admin" && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#0f172a]/40 p-3" onClick={()=>setDuplicateReport(null)}>
+          <div className="w-full max-w-sm rounded-[22px] bg-white p-4 shadow-xl" onClick={e=>e.stopPropagation()}>
+            <h3 className="text-[18px] font-bold">活動住宿人重複檢查</h3>
+            {duplicateReport.length===0 ? <p className="mt-3 text-[15px]">目前沒有跨房間完全同名的住宿人。</p>
+              : duplicateReport.map(row=><p className="mt-3 rounded-[12px] bg-[#f8eee6] p-3 text-[14px]" key={row.name}>
+                <strong>{row.name}</strong>：{row.rooms.join("、")}
+              </p>)}
+            <button type="button" onClick={()=>setDuplicateReport(null)} className="mt-4 rounded-[12px] bg-[#858264] px-4 py-2 text-white">關閉</button>
+          </div>
+        </div>
+      )}
       {showActivityModal && currentUser && (
         <div
           className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto overscroll-contain bg-[#0F172A]/40 px-3 py-4 sm:items-center sm:p-4"
