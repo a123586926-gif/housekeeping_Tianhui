@@ -39,7 +39,7 @@ test("staging migration is explicitly non-production and inserts rooms atomicall
 test("staging service-role guard fails closed against production environment and database",()=>{
  const sandboxUrl="https://"+QA_PROJECT_REF+".supabase.co";
  assert.equal(assertQaEnvironment({vercelEnv:"preview",supabaseUrl:sandboxUrl}),true);
- assert.throws(()=>assertQaEnvironment({vercelEnv:"production",supabaseUrl:sandboxUrl}),/cannot run in Vercel Production/);
+ assert.throws(()=>assertQaEnvironment({vercelEnv:"production",supabaseUrl:sandboxUrl}),/requires explicit release readiness/);
  assert.throws(()=>assertQaEnvironment({vercelEnv:"preview",supabaseUrl:"https://xmdznhkkvtohwxkahisr.supabase.co"}),/not connected to the allowlisted/);
- assert.throws(()=>assertQaEnvironment({vercelEnv:"preview",supabaseUrl:"not a URL"}),/Invalid QA Supabase URL/);
+ assert.throws(()=>assertQaEnvironment({vercelEnv:"preview",supabaseUrl:"not a URL"}),/Invalid Supabase URL/);
 });
