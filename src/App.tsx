@@ -676,7 +676,7 @@ export default function App() {
       if(currentUser.role==="admin")void loadCleanersFromSupabase();
     };
     const onVisible=()=>{if(document.visibilityState==="visible")refresh();};
-    const timer=window.setInterval(refresh,60_000);
+    const timer=window.setInterval(refresh,currentUser.role==="cleaner"?15_000:30_000);
     window.addEventListener("focus",refresh);
     document.addEventListener("visibilitychange",onVisible);
     return ()=>{
@@ -997,7 +997,8 @@ export default function App() {
           ...(updates.assignedTo!==undefined?{assignedTo:updates.assignedTo}:{}),
           ...(updates.assignedCleanerId!==undefined?{assignedCleanerId:updates.assignedCleanerId}:{}),
           ...(updates.occupant!==undefined?{occupant:updates.occupant}:{}),
-        });
+        }, updates.assignedCleanerId!==undefined || updates.assignedTo!==undefined
+          ? room.cleanerId ?? null : undefined);
       }
       if(mutationEpoch!==dataEpoch.current)return false;
       // Checklist results are deterministic and already reflected in local state.
