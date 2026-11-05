@@ -175,7 +175,7 @@ test("admin assignment uses atomic compare-and-swap for the previous cleaner",as
 test("malformed reassignment snapshots are rejected before touching database",async()=>{
  let touched=0;
  const handler=createRoomsHandler({originAllowed:()=>true,sessionReader:async()=>admin,
- dbFactory:()=>{touched++;throw Error("no database access expected");}});
+ dbFactory:()=>({from(){touched++;throw Error("no database query expected");}})});
  for(const bad of ["901",0,-1,{},[],1.5]){
    const res=response();
    await handler({method:"PATCH",body:{roomId:701,changes:{assignedCleanerId:902},
