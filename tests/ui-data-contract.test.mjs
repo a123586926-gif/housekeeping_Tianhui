@@ -148,6 +148,8 @@ test("integration build uses the QA entry only on allowlisted branches and never
  assert.match(vite,/ref === 'feature\/remember-login-30d'/);
  assert.match(vite,/ref === 'integration\/full-release-review-20261105'/);
  assert.match(vite,/vercelEnvironment === 'production'/);
- assert.match(vite,/throw new Error\('Auth sandbox HTML must not ship to production'\)/);
+ assert.match(vite,/throw new Error\('Protected app entry requires approved production release'\)/);
+ assert.match(vite,/releaseReady = process.env.HOUSEKEEPING_RELEASE_READY/);
+ assert.match(vite,/ref !== 'main'/);
  assert.match(html,/\/src\/authSandboxMain\.tsx/);
 });
