@@ -85,7 +85,7 @@ test("PIN editing preserves entered values and exposes persistent outcome when s
  assert.match(body,/setStaffFeedback\(\(error instanceof Error/);
  const failure=body.slice(body.indexOf("}catch(error){"),body.indexOf("}finally{"));
  assert.doesNotMatch(failure,/setNewStaffPin\(" "\)|setNewStaffPin\(""\)/);
- assert.match(app,/房務 PIN 修正版 11\/05-G/);
+ assert.match(app,/房務 PIN 修正版 11\/05-H/);
  assert.match(app,/新 PIN 尚未確認儲存/);
  assert.match(app,/尚未輸入新 PIN/);
 });
@@ -116,6 +116,15 @@ test("PIN success does not await directory fetching and shows current API stage"
  assert.match(handler,/void fetch\("\/api\/auth\/accounts"/);
  assert.doesNotMatch(handler,/await fetch\("\/api\/auth\/accounts"/);
  assert.match(app,/目前階段：\{staffSaveStage\}/);
+});
+test("PIN preflight synchronous errors are caught rather than leaving modal saving",()=>{
+ const begin=app.indexOf("async function saveStaffModal()");
+ const end=app.indexOf("\n  return (",begin);
+ const handler=app.slice(begin,end);
+ assert.match(handler,/setStaffSaveStage\("檢查輸入資料"\);[\s\S]*?try\s*\{[\s\S]*?if\(currentUser\?\.role/);
+ assert.match(handler,/catch\(error\)[\s\S]*?setStaffSaveStatus\("error"\)/);
+ assert.match(handler,/送出前程式錯誤/);
+ assert.match(app,/saveStaffModal\(\)\.catch\(\(\)=>\{/);
 });
 test("admin assignment dropdown sends immutable cleaner IDs",()=>{
  assert.match(app,/assignedCleanerId:\s*e\.target\.value\s*\?\s*Number\(e\.target\.value\)\s*:\s*null/);
