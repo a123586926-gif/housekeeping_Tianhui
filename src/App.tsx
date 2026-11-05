@@ -373,6 +373,7 @@ export default function App() {
   const [authBusy,setAuthBusy] = useState(false);
   const [loginFeedback,setLoginFeedback] = useState("");
   const [staffFeedback,setStaffFeedback] = useState("");
+  const [staffSuccess,setStaffSuccess] = useState("");
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const dataEpoch=useRef(0);
   const overviewRequestSequence=useRef(0);
@@ -1492,6 +1493,7 @@ export default function App() {
     setNewStaffName("");
     setNewStaffPin("");
     setStaffFeedback("");
+    setStaffSuccess("");
     setShowStaffModal(true);
   }
 
@@ -1506,6 +1508,7 @@ export default function App() {
   async function saveStaffModal() {
     if(staffMutationBusy.current)return;
     setStaffFeedback("");
+    setStaffSuccess("");
     if(currentUser?.role!=="admin"){
       setStaffFeedback("管理員登入狀態已失效，請重新登入後設定 PIN。");
       return;
@@ -1530,11 +1533,12 @@ export default function App() {
       setStaffFeedback("請輸入新的 8～32 位數字 PIN，才能啟用或更新登入密碼。");
       return;
     }
-    if(pinValue && !/^[0-9]{8,32}$/.test(pinValue)){
-      setStaffFeedback("PIN 必須是 8～32 位數字，不能有空格或其他符號。");
+    if(pinValue && (!/^[0-9]{8,32}$/.test(pinValue) || /^([0-9]{1,4})\\1+$/.test(pinValue) || [...pinValue].every((d,i,a)=>i===0 || Number(d)===(Number(a[i-1])+1)%10) || [...pinValue].every((d,i,a)=>i===0 || Number(d)===(Number(a[i-1])+9)%10))){
+      setStaffFeedback("PIN 請使用 8～32 位數字，不能是連續數字、重複組合或簡單規律。");
       return;
     }
     staffMutationBusy.current=true;
+    setStaffFeedback("正在向伺服器設定 PIN，請勿重複點擊。");
     setStaffSaving(true);
     try {
       if(staffModalMode==="edit"){
@@ -1557,11 +1561,10 @@ export default function App() {
       }
       setNewStaffPin("");
       setShowStaffModal(false);
-      await loadCleanersFromSupabase();
-      await loadEventsFromSupabase();
-      window.alert(pinValue
-        ? "PIN 設定成功，這位房務人員現在可以使用新 PIN 登入。"
-        : "房務人員資料已儲存。");
+      setStaffFeedback("");
+      setStaffSuccess(pinValue ? "PIN 已設定成功，這位房務人員可以使用新 PIN 登入。" : "房務人員資料已儲存。");
+      void loadCleanersFromSupabase();
+      void loadEventsFromSupabase();
     }catch(error){
       setNewStaffPin("");
       setStaffFeedback((error instanceof Error?error.message:"人員操作失敗")+
@@ -2291,6 +2294,7 @@ export default function App() {
                 </div>
 
                 <div className="space-y-2">
+                  {staffSuccess && <p role="status" className="mb-2 rounded-xl border border-green-300 bg-green-50 p-3 text-sm text-green-800">{staffSuccess}</p>}
                   {staffUsers.map((user) => {
                     const assignedRooms = latestRooms.filter(
                       (room) => user.dbId != null && room.cleanerId === user.dbId
