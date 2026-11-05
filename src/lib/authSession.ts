@@ -41,19 +41,39 @@ function isAuthenticatedUser(value: unknown): value is AuthenticatedUser {
 }
 
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
-  const response = await fetch(path, {
-    ...init,
-    credentials: "same-origin",
-    headers: {
-      ...(init.body ? { "Content-Type": "application/json" } : {}),
-      ...init.headers,
-    },
-  });
-
-  if (!response.ok) {
-    throw new Error(`Authentication request failed (HTTP ${response.status})`);
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 15000);
+  try {
+    const response = await fetch(path, {
+      ...init,
+      credentials: "same-origin",
+      cache: "no-store",
+      signal: controller.signal,
+      headers: {
+        ...(init.body ? { "Content-Type": "application/json" } : {}),
+        ...init.headers,
+      },
+    });
+    if (!response.ok) {
+      if (response.status === 401) {
+        throw new Error(path === "/api/auth/login"
+          ? "PIN 不正確或帳號暫時鎖定。請勿連續嘗試。"
+          : "登入已失效，請重新登入管理員後再儲存。");
+      }
+      const details = await response.json().catch(() => null) as {error?:unknown}|null;
+      const reason = typeof details?.error === "string" && details.error.length < 150
+        ? details.error : "服務暫時無法完成";
+      throw new Error(`操作失敗（HTTP ${response.status}）：${reason}`);
+    }
+    return (await response.json()) as T;
+  } catch (error) {
+    if (controller.signal.aborted) {
+      throw new Error("伺服器超過 15 秒未回應，請勿重複送出，重新整理確認帳號狀態。");
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeout);
   }
-  return (await response.json()) as T;
 }
 
 /** Checks a server-side session. Does not infer authentication from a local flag. */
