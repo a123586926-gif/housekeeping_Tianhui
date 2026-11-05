@@ -69,6 +69,11 @@ test("activity, room, staff modals cannot be dismissed during pending mutation",
  }
 });
 
+test("admin reassignments include old immutable cleaner ID and reload after conflict",()=>{
+ assert.match(app,/room\.cleanerId \?\? null : undefined/);
+ assert.match(app,/if\(!savingChecklist\)await loadEventsFromSupabase\(\)/);
+ assert.match(app,/catch\(error\)[\s\S]*?await loadEventsFromSupabase\(\)/);
+});
 test("admin assignment dropdown sends immutable cleaner IDs",()=>{
  assert.match(app,/assignedCleanerId:\s*e\.target\.value\s*\?\s*Number\(e\.target\.value\)\s*:\s*null/);
  assert.match(app,/value=\{room\.cleanerId == null \? "" : String\(room\.cleanerId\)\}/);
@@ -150,7 +155,7 @@ test("pending room mutations cannot clear new account drafts after logout",()=>{
 
 test("visible dashboard refreshes periodically without polling background tabs",()=>{
  assert.match(app,/if\(document\.visibilityState!=="visible"\)return/);
- assert.match(app,/window\.setInterval\(refresh,60_000\)/);
+ assert.match(app,/window\.setInterval\(refresh,currentUser\.role==="cleaner"\?15_000:30_000\)/);
  assert.match(app,/window\.addEventListener\("focus",refresh\)/);
  assert.match(app,/document\.addEventListener\("visibilitychange",onVisible\)/);
  assert.match(app,/window\.clearInterval\(timer\)/);
