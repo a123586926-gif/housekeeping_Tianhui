@@ -266,7 +266,7 @@ test("V2.1 new annual overview, quick paste and exact-match duplicate warnings",
  assert.match(app,/發現重複姓名/);
  assert.match(app,/role="alertdialog"/);
  assert.match(app,/splitGuestLines\(quickPasteText/);
- assert.match(app,/app-icon\.svg/);
+ assert.match(app,/brand-logo\.svg/);
 });
 test("account switch clears previous user drafts, selections and admin filters",()=>{
  assert.match(app,/setActivities\(\[\]\);\s*setStaffUsers\(\[\]\);\s*setSharedCalendarEvents\(\[\]\);\s*setSelectedPrintRoomIds\(\[\]\);\s*setOccupantDrafts\(\{\}\);/);
