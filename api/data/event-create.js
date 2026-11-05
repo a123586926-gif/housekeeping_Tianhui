@@ -4,7 +4,7 @@ import { buildDefaultEventRooms } from "../_lib/defaultRooms.js";
 
 // Admin-only atomic event + default rooms creation.
 // The database RPC must be installed in the isolated test environment first.
-export function createEventHandler({dbFactory=adminDb,sessionReader=getSession,originAllowed=allowSameOrigin,releaseScope="qa"}={}) {
+export function createEventHandler({dbFactory=adminDb,sessionReader=getSession,originAllowed=allowSameOrigin,releaseScope=process.env.VERCEL_ENV==="production"?"production":"qa"}={}) {
   return async function handler(req, res) {
   if (!["POST", "PATCH", "DELETE"].includes(req.method)) return json(res, 405, { error: "Method not allowed" });
   if (!originAllowed(req)) return json(res, 403, { error: "Origin rejected" });
@@ -37,8 +37,13 @@ export function createEventHandler({dbFactory=adminDb,sessionReader=getSession,o
     }
     if (req.method === "DELETE") {
       if (!validId(req.body?.eventId)) return json(res, 400, { error: "Invalid event ID" });
-      // event_rooms in the isolated test schema use ON DELETE CASCADE.
-      // Production compatibility must be checked before real integration.
+      // Both QA and production have cascade for dependent rooms, but require
+      // the atomic RPC in production so the operation has one reviewed boundary.
+      if (releaseScope === "production") {
+        const { data, error } = await db.rpc("hk_delete_event_with_rooms", {p_event_id:Number(req.body.eventId)});
+        if (error) throw error;
+        return data === true ? json(res,200,{ok:true}) : json(res,404,{error:"Event not found"});
+      }
       const { data, error } = await db.from("events")
         .delete().eq("id", Number(req.body.eventId)).select("id").maybeSingle();
       if (error) throw error;
