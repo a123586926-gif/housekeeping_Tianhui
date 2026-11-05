@@ -164,6 +164,23 @@ export function createRoomsHandler({
         (role !== "admin" && role !== "cleaner"))
       return json(res, 403, { error: "Invalid account" });
     const db = dbFactory();
+    // Reuse the existing serverless room route so Hobby deployments do not
+    // exceed the twelve-function limit. This RPC is a single DB transaction.
+    if (req.method === "PATCH" && req.body?.action === "moveGuest") {
+      if (role !== "admin") return json(res,403,{error:"Admin only"});
+      const {fromRoomId,toRoomId,name,expectedFrom,expectedTo}=req.body;
+      if (!validId(fromRoomId)||!validId(toRoomId)||fromRoomId===toRoomId||
+        typeof name!=="string"||!name.trim()||name.length>100||name.trim()!==name||
+        /[\n\r\t、,，]/.test(name)||
+        !validText(expectedFrom,3000)||!validText(expectedTo,3000))
+        return bad(res);
+      const {data,error}=await db.rpc("hk_move_guest_atomic",{
+        p_from_room_id:fromRoomId,p_to_room_id:toRoomId,p_name:name,
+        p_expected_from:expectedFrom,p_expected_to:expectedTo,
+      });
+      if(error||data!==true)return json(res,409,{error:"Guest movement rejected or room changed. Refresh and retry."});
+      return json(res,200,{ok:true});
+    }
     if (req.method === "PUT" || req.method === "DELETE") {
       if (role !== "admin") return json(res,403,{error:"Admin required"});
       const body=req.body || {};
