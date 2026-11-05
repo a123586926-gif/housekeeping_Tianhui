@@ -11,7 +11,8 @@ export function adminDb() {
   const url = process.env.SUPABASE_URL;
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!url || !key) throw new Error("Server-side Supabase configuration is missing");
-  assertQaEnvironment({vercelEnv:process.env.VERCEL_ENV,supabaseUrl:url});
+  assertQaEnvironment({vercelEnv:process.env.VERCEL_ENV,supabaseUrl:url,
+    releaseReady:process.env.HOUSEKEEPING_RELEASE_READY});
   if (!client) client = createClient(url, key, {
     auth: { persistSession: false, autoRefreshToken: false },
   });
