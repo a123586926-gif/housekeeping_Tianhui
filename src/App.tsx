@@ -856,7 +856,8 @@ export default function App() {
   }
 
   async function handleLogin() {
-    if(authBusy||authRestoring||!selectedUserId||!pin)return;
+    if(authBusy||authRestoring)return;
+    if(!selectedUserId||!pin){window.alert("請先選擇帳號並輸入 PIN。");return;}
     setAuthBusy(true);
     try {
       const session=await signInWithPin(selectedUserId,pin);
@@ -1499,37 +1500,72 @@ export default function App() {
   }
 
   async function saveStaffModal() {
-    if(currentUser?.role!=="admin" || staffMutationBusy.current)return;
+    if(staffMutationBusy.current)return;
+    if(currentUser?.role!=="admin"){
+      window.alert("管理員登入狀態已失效，請重新登入後設定 PIN。");
+      return;
+    }
     const name=newStaffName.trim();
     const pinValue=newStaffPin.trim();
+    const staff=staffModalMode==="edit"
+      ? staffUsers.find(x=>x.id===editingStaffId) : null;
+    if(!name){
+      window.alert("請填寫房務人員姓名。");
+      return;
+    }
+    if(staffModalMode==="edit" && !staff?.dbId){
+      window.alert("找不到這位房務人員，請重新整理人員清單後再操作。");
+      return;
+    }
     if(!__HOUSEKEEPING_PRODUCTION__ && !name.startsWith("【權限驗收】")){
-      window.alert("獨立測試版只允許建立或修改【權限驗收】帳號");return;
+      window.alert("獨立測試版只允許建立或修改【權限驗收】帳號");
+      return;
     }
-    if(pinValue&&!/^[0-9]{8,32}$/.test(pinValue)){
-      window.alert("PIN 必須是 8 到 32 位數字");return;
+    if(!pinValue && (staffModalMode==="add" || staff?.name===name)){
+      window.alert("請輸入新的 8～32 位數字 PIN，才能啟用或更新登入密碼。");
+      return;
     }
-    staffMutationBusy.current = true;
+    if(pinValue && !/^[0-9]{8,32}$/.test(pinValue)){
+      window.alert("PIN 必須是 8～32 位數字，不能有空格或其他符號。");
+      return;
+    }
+    staffMutationBusy.current=true;
     setStaffSaving(true);
     try {
       if(staffModalMode==="edit"){
-        const staff=staffUsers.find(x=>x.id===editingStaffId);
-        if(!staff?.dbId)return;
-        if(staff.name!==name)await renameQaCleaner(staff.dbId,name);
-        if(pinValue)await provisionQaPin(staff.dbId,pinValue);
+        if(staff!.name!==name)await renameQaCleaner(staff!.dbId!,name);
+        if(pinValue)await provisionQaPin(staff!.dbId!,pinValue);
       }else{
-        if(!pinValue){window.alert("新增人員請設定 8 到 32 位數字 PIN");return;}
         const created=await createQaCleaner(name);
+        if(!created?.cleanerId)throw new Error("新增人員沒有回傳有效編號。");
         await provisionQaPin(created.cleanerId,pinValue);
+      }
+      // Newly provisioned accounts must appear in the login picker without F5.
+      if(pinValue){
+        const response=await fetch("/api/auth/accounts",{credentials:"same-origin",cache:"no-store"});
+        if(response.ok){
+          const directory=await response.json() as {users:Array<{id:string;name:string}>};
+          setLoginUsers(directory.users.map(row=>({
+            id:row.id,name:row.name,role:row.id==="admin"?"admin":"cleaner",
+          })));
+        }
       }
       setNewStaffPin("");
       setShowStaffModal(false);
       await loadCleanersFromSupabase();
       await loadEventsFromSupabase();
+      window.alert(pinValue
+        ? "PIN 設定成功，這位房務人員現在可以使用新 PIN 登入。"
+        : "房務人員資料已儲存。");
     }catch(error){
       setNewStaffPin("");
-      window.alert((error instanceof Error?error.message:"人員操作失敗")+"；請重新確認人員清單及帳號啟用狀態後再操作。");
+      window.alert((error instanceof Error?error.message:"人員操作失敗")+
+        "；PIN 可能尚未設定成功，請先檢查人員狀態，不要連續重複提交。");
       await loadCleanersFromSupabase();
-    }finally{ staffMutationBusy.current = false; setStaffSaving(false); }
+    }finally{
+      staffMutationBusy.current=false;
+      setStaffSaving(false);
+    }
   }
 
   return (
