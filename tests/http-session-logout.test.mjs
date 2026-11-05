@@ -69,6 +69,19 @@ test("admin provisioning rejects weak PIN and invalid IDs before RPC",async()=>{
  }
  assert.equal(rpcCalls,0);
 });
+test("weak PIN reports clear validation requirements without RPC or storing PIN",async()=>{
+ let rpcCalls=0;
+ const handler=createSessionHandler({sessionReader:async()=>ADMIN,originAllowed:()=>true,
+ dbFactory:()=>({rpc:async()=>{rpcCalls++;return {data:true,error:null};}})});
+ for(const weak of ["12345678","11111111","12121212","12341234","1234"]){
+  const res=response();
+  await handler({method:"POST",body:{cleanerId:901,newPin:weak}},res);
+  assert.equal(res.statusCode,400);
+  assert.match(res.body.error,/8～32 位數字/);
+  assert.doesNotMatch(res.body.error,new RegExp(weak));
+ }
+ assert.equal(rpcCalls,0);
+});
 test("only QA provisioning RPC success returns 200",async()=>{
  const calls=[];
  const handler=createSessionHandler({
