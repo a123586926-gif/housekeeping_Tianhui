@@ -4,7 +4,7 @@ import { buildDefaultEventRooms } from "../_lib/defaultRooms.js";
 
 // Admin-only atomic event + default rooms creation.
 // The event transaction RPC is installed in the target environment; the server authenticates all callers.
-export function createEventHandler({dbFactory=adminDb,sessionReader=getSession,originAllowed=allowSameOrigin,releaseScope=process.env.VERCEL_ENV==="production"?"production":"qa"}={}) {
+export function createEventHandler({dbFactory=adminDb,sessionReader=getSession,originAllowed=allowSameOrigin,releaseScope="qa"}={}) {
   return async function handler(req, res) {
   if (!["POST", "PATCH", "DELETE"].includes(req.method)) return json(res, 405, { error: "Method not allowed" });
   if (!originAllowed(req)) return json(res, 403, { error: "Origin rejected" });
@@ -88,4 +88,4 @@ export function createEventHandler({dbFactory=adminDb,sessionReader=getSession,o
   };
 }
 
-export default createEventHandler();
+export default createEventHandler({releaseScope:process.env.VERCEL_ENV==="production"?"production":"qa"});
