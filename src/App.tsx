@@ -950,6 +950,15 @@ export default function App() {
       if(checklistSavingRooms.current.has(roomId))return false;
       checklistSavingRooms.current.add(roomId);
       setSavingChecklistRoomIds(prev=>[...prev,roomId]);
+      // Optimistic display only. The server is still authoritative and validates
+      // both assignment and expected previous checklist before committing.
+      // The per-room write lock prevents conflicting rapid changes.
+      const nextChecklist=updates.checklist!;
+      setActivities(prev=>prev.map(item=>item.id!==activityId?item:{
+        ...item,rooms:item.rooms.map(entry=>entry.id!==roomId?entry:{
+          ...entry,checklist:nextChecklist,status:computeRoomStatus(nextChecklist),
+        }),
+      }));
     }
     try {
       if(updates.checklist){
@@ -973,7 +982,10 @@ export default function App() {
         });
       }
       if(mutationEpoch!==dataEpoch.current)return false;
-      await loadEventsFromSupabase();
+      // Checklist results are deterministic and already reflected in local state.
+      // Don't block a simple checkbox on reloading all events and rooms.
+      // Periodic refresh and account switching still re-fetch authoritative data.
+      if(!savingChecklist)await loadEventsFromSupabase();
       return mutationEpoch===dataEpoch.current;
     }catch(error) {
       // Never display an old account's write result after logout or account switch.
