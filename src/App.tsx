@@ -1607,6 +1607,9 @@ export default function App() {
     setStaffSaveStatus("saving");
     setStaffSaveStage("檢查輸入資料");
     setStaffFeedback("已收到儲存操作，正在驗證。");
+    // Entire preflight is inside this catch. Previously any synchronous
+    // exception before the API try left the modal in "saving" forever.
+    try {
     if(currentUser?.role!=="admin"){
       rejectSave("管理員登入狀態已失效，請重新登入後設定 PIN。");
       return;
@@ -1640,7 +1643,6 @@ export default function App() {
     setStaffSaveStage("等待 PIN 設定 API 回應");
     setStaffFeedback("正在向伺服器設定 PIN；若逾時會顯示失敗階段。");
     setStaffSaving(true);
-    try {
       if(staffModalMode==="edit"){
         if(staff!.name!==name)await renameQaCleaner(staff!.dbId!,name);
         if(pinValue)await provisionQaPin(staff!.dbId!,pinValue);
@@ -1670,10 +1672,13 @@ export default function App() {
       void loadCleanersFromSupabase();
       void loadEventsFromSupabase();
     }catch(error){
-      // Keep the user's in-progress form in place. Previously clearing it here
+      // Covers both preflight exceptions and API failures. No PIN or other
+      // credentials are printed or written into the error log.
+
       // made a failed PIN submission appear to do absolutely nothing.
       setStaffSaveStatus("error");
-      setStaffSaveStage("PIN 設定 API 失敗或逾時");
+      setStaffSaveStage(staffMutationBusy.current
+        ? "PIN 設定 API 失敗或逾時" : "送出前程式錯誤");
       setStaffFeedback((error instanceof Error?error.message:"人員操作失敗")+
         "。新 PIN 尚未確認儲存，請先檢查訊息再決定是否重試。");
     }finally{
@@ -2861,7 +2866,7 @@ export default function App() {
               {staffModalMode === "edit" ? "編輯打掃人員" : "新增打掃人員"}
             </div>
 
-            <p className="mt-2 text-xs text-[#8b7755]" role="status">房務 PIN 修正版 11/05-G · 本次點擊：{staffButtonPresses}</p>
+            <p className="mt-2 text-xs text-[#8b7755]" role="status">房務 PIN 修正版 11/05-H · 本次點擊：{staffButtonPresses}</p>
             <div className="mt-3 space-y-3">
               <input
                 value={newStaffName}
@@ -2908,11 +2913,20 @@ export default function App() {
               </button>
               <button
                 type="button"
-                onClick={() => { void saveStaffModal(); }}
+                onClick={() => {
+                  void saveStaffModal().catch(()=>{
+                    // Last-resort guard against uncaught async errors.
+                    setStaffSaveStatus("error");
+                    setStaffSaveStage("未預期的儲存錯誤");
+                    setStaffFeedback("設定 PIN 發生未預期錯誤，尚未確認儲存。請重新開啟編輯畫面。");
+                    staffMutationBusy.current=false;
+                    setStaffSaving(false);
+                  });
+                }}
                 disabled={staffSaving}
                 className="rounded-[20px] bg-[linear-gradient(135deg,#8b8462_0%,#9a946f_52%,#b5ae86_100%)] px-3 py-2 text-sm font-medium text-white"
               >
-                {staffSaving ? "PIN 處理中…" : "儲存 PIN（11/05-G）"}
+                {staffSaving ? "PIN 處理中…" : "儲存 PIN（11/05-H）"}
               </button>
             </div>
           </div>
