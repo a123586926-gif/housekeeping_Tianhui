@@ -491,6 +491,10 @@ export default function App() {
   const [selectedActivityId, setSelectedActivityId] = useState("");
   const [selectedPrintRoomIds, setSelectedPrintRoomIds] = useState<string[]>([]);
   const [occupantDrafts,setOccupantDrafts] = useState<Record<string,string>>({});
+  const [quickPasteRoomId,setQuickPasteRoomId] = useState("");
+  const [quickPasteText,setQuickPasteText] = useState("");
+  const [quickPasteMode,setQuickPasteMode] = useState<"append"|"replace">("append");
+  const [duplicatePending,setDuplicatePending] = useState<{activityId:string;roomId:string;names:string;person:string;locations:string[]}|null>(null);
 
   const [showPhotoModal, setShowPhotoModal] = useState(false);
   const [pendingPhotoAction, setPendingPhotoAction] = useState<PhotoAction | null>(null);
@@ -699,6 +703,7 @@ export default function App() {
     if(!currentUser){
       setActivities([]);setStaffUsers([]);setSharedCalendarEvents([]);
       setSelectedPrintRoomIds([]);setOccupantDrafts({});
+      setQuickPasteRoomId("");setQuickPasteText("");setDuplicatePending(null);
       setOpenCleanerPickerRoomId("");
       setOverviewSearch("");setCalendarSheetDate("");
       setExpandedRoomId("");setExpandedStaffName("");
@@ -999,6 +1004,64 @@ export default function App() {
   function findCleanerIdByName(name: string): number | null {
     const found = staffUsers.find((item) => item.name === name);
     return found?.dbId ?? null;
+  }
+
+  function findDuplicateOccupants(activityId:string,roomId:string,names:string[]) {
+    const activity=activities.find(a=>a.id===activityId);
+    if(!activity)return [] as Array<{person:string;locations:string[]}>;
+    const result:Array<{person:string;locations:string[]}>=[];
+    for(const person of new Set(names)){
+      const locations=activity.rooms.filter(r=>r.id!==roomId && splitGuestLines(r.occupant).includes(person))
+        .map(r=>roomLabel(r));
+      if(names.filter(n=>n===person).length>1)locations.push("目前房間名單內");
+      if(locations.length)result.push({person,locations});
+    }
+    return result;
+  }
+
+  async function saveOccupantList(activityId:string,roomId:string,text:string,allowDuplicate=false) {
+    const activity=activities.find(a=>a.id===activityId);
+    const room=activity?.rooms.find(r=>r.id===roomId);
+    if(!room)return false;
+    const normalized=splitGuestLines(text).join("、");
+    if(normalized===splitGuestLines(room.occupant).join("、")){
+      setOccupantDrafts(prev=>{const next={...prev};if(next[roomId]===text)delete next[roomId];return next;});
+      return true;
+    }
+    if(!allowDuplicate){
+      const duplicates=findDuplicateOccupants(activityId,roomId,splitGuestLines(normalized));
+      if(duplicates.length){
+        setDuplicatePending({activityId,roomId,names:normalized,person:duplicates[0].person,locations:duplicates[0].locations});
+        return false;
+      }
+    }
+    const saved=await updateRoomField(activityId,roomId,{occupant:normalized});
+    if(saved)setOccupantDrafts(prev=>{
+      if(prev[roomId]!==text && prev[roomId]!==normalized)return prev;
+      const next={...prev};delete next[roomId];return next;
+    });
+    return saved;
+  }
+
+  function openQuickPaste(roomId:string) {
+    setQuickPasteRoomId(roomId);
+    setQuickPasteText("");
+    setQuickPasteMode("append");
+  }
+
+  async function applyQuickPaste() {
+    if(!selectedActivity || !quickPasteRoomId)return;
+    const room=selectedActivity.rooms.find(r=>r.id===quickPasteRoomId);
+    if(!room)return;
+    const incoming=splitGuestLines(quickPasteText.replace(/\\t/g,"、"));
+    if(!incoming.length){window.alert("請先貼上至少一位住宿人姓名。");return;}
+    const existing=splitGuestLines(occupantDrafts[room.id]??room.occupant);
+    const names=quickPasteMode==="append"?[...existing,...incoming]:incoming;
+    const text=names.join("、");
+    setOccupantDrafts(prev=>({...prev,[room.id]:text}));
+    setQuickPasteRoomId("");
+    setQuickPasteText("");
+    await saveOccupantList(selectedActivity.id,room.id,text);
   }
 
   async function updateRoomField(activityId:string,roomId:string,updates:Partial<Room>):Promise<boolean> {
@@ -2458,31 +2521,18 @@ export default function App() {
                               </div>
 
                               <textarea
-                                value={occupantDrafts[room.id] ?? room.occupant}
+                                value={occupantDrafts[room.id] ?? splitGuestLines(room.occupant).join("、")}
                                 disabled={savingRoomAdministrationIds.includes(room.id)}
                                 onChange={(e) => setOccupantDrafts(prev=>({...prev,[room.id]:e.target.value}))}
                                 onBlur={() => {
                                   const draft=occupantDrafts[room.id];
                                   if(draft===undefined)return;
-                                  if(draft===room.occupant){
-                                    setOccupantDrafts(prev=>{
-                                      const next={...prev};delete next[room.id];return next;
-                                    });
-                                    return;
-                                  }
-                                  // Keep the draft until the server confirms the write.
-                                  void updateRoomField(selectedActivity.id,room.id,{occupant:draft})
-                                    .then(saved=>{
-                                      if(saved)setOccupantDrafts(prev=>{
-                                        // Never discard newer edits typed while an earlier write was in flight.
-                                        if(prev[room.id]!==draft)return prev;
-                                        const next={...prev};delete next[room.id];return next;
-                                      });
-                                    });
+                                  void saveOccupantList(selectedActivity.id,room.id,draft);
                                 }}
+                                ref={node=>{if(node){node.style.height="auto";node.style.height=node.scrollHeight+"px";}}}
                                 className="min-w-0 w-full resize-none overflow-hidden rounded-[14px] border border-[#ddd4c6] bg-[#fdfaf6] px-3 py-2 text-[16px] leading-6 text-[#5f5444] focus:outline-none"
-                                rows={Math.max(1, splitGuestLines(occupantDrafts[room.id] ?? room.occupant).length || 1)}
-                                placeholder="住宿人"
+                                rows={Math.max(1,Math.ceil((occupantDrafts[room.id] ?? splitGuestLines(room.occupant).join("、")).length / 18))}
+                                placeholder="直接填寫住宿人姓名，可用、或換行分隔"
                               />
 
                               <button
