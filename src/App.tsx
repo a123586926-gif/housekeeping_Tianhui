@@ -1029,11 +1029,13 @@ export default function App() {
     if(!room)return false;
     const normalized=splitGuestLines(text).join("、");
     if(normalized===splitGuestLines(room.occupant).join("、")){
-      setOccupantDrafts(prev=>{const next={...prev};if(next[roomId]===text)delete next[roomId];return next;});
+      setOccupantDrafts(prev=>{const next={...prev};if(next[roomId]===text || splitGuestLines(next[roomId]??"").join("、")===normalized)delete next[roomId];return next;});
       return true;
     }
     if(!allowDuplicate){
-      const duplicates=findDuplicateOccupants(activityId,roomId,splitGuestLines(normalized));
+      const existingNames=splitGuestLines(room.occupant);
+      const introduced=splitGuestLines(normalized).filter(name=>!existingNames.includes(name));
+      const duplicates=findDuplicateOccupants(activityId,roomId,introduced);
       if(duplicates.length){
         setDuplicatePending({activityId,roomId,names:normalized,person:duplicates[0].person,locations:duplicates[0].locations});
         return false;
@@ -1041,7 +1043,7 @@ export default function App() {
     }
     const saved=await updateRoomField(activityId,roomId,{occupant:normalized});
     if(saved)setOccupantDrafts(prev=>{
-      if(prev[roomId]!==text && prev[roomId]!==normalized)return prev;
+      if(prev[roomId]!==text && splitGuestLines(prev[roomId]??"").join("、")!==normalized)return prev;
       const next={...prev};delete next[roomId];return next;
     });
     return saved;
