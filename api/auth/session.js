@@ -4,7 +4,7 @@ import {pinIsStrong} from "../_lib/pinPolicy.js";
 
 // GET remains unchanged. POST and PATCH are session-protected PIN operations.
 // Consolidated into this existing function to stay under Vercel Hobby limits.
-export function createSessionHandler({dbFactory=adminDb,sessionReader=getSession,originAllowed=allowSameOrigin}={}) {
+export function createSessionHandler({dbFactory=adminDb,sessionReader=getSession,originAllowed=allowSameOrigin,scope="qa"}={}) {
   return async function handler(req, res) {
   if (!["GET", "POST", "PATCH"].includes(req.method)) return json(res, 405, { error: "Method not allowed" });
   if (req.method !== "GET" && !originAllowed(req)) return json(res, 403, { error: "Origin rejected" });
@@ -18,7 +18,7 @@ export function createSessionHandler({dbFactory=adminDb,sessionReader=getSession
         if (session.user?.role !== "admin" || session.user.id !== "admin") return json(res, 403, { error: "Admin required" });
         if (!Number.isSafeInteger(body.cleanerId) || body.cleanerId < 1 || !pinIsStrong(body.newPin))
           return json(res, 400, { error: "Use a strong 8-32 digit PIN" });
-        const { data, error } = await dbFactory().rpc(process.env.VERCEL_ENV==="production" ? "hk_provision_cleaner_pin" : "hk_qa_provision_pin", {
+        const { data, error } = await dbFactory().rpc(scope==="production" ? "hk_provision_cleaner_pin" : "hk_qa_provision_pin", {
           p_cleaner_id: body.cleanerId, p_new_pin: body.newPin,
         });
         if (error) return json(res, 503, { error: "Unable to provision account" });
@@ -45,4 +45,4 @@ export function createSessionHandler({dbFactory=adminDb,sessionReader=getSession
   };
 }
 
-export default createSessionHandler();
+export default createSessionHandler({scope:process.env.VERCEL_ENV==="production"?"production":"qa"});
