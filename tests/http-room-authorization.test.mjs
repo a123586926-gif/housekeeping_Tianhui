@@ -49,6 +49,36 @@ function mockRoomDb({room={id:701,event_id:9101,cleaner_id:901,checklist:[],
  };
  return {db,calls};
 }
+test("admin room creation requires a positive RPC room ID and preserves exact input",async()=>{
+ for(const [returnedId,expectedStatus] of [[null,503],[0,503],[-1,503],["invalid",503],[812,201]]){
+  const calls=[];
+  const handler=createRoomsHandler({originAllowed:()=>true,sessionReader:async()=>admin,
+   dbFactory:()=>({rpc:async(name,args)=>{calls.push({name,args});return {data:returnedId,error:null};}})});
+  const res=response();
+  await handler({method:"PUT",body:{eventId:9101,building:"A",floor:"2F",roomNo:"A201"}},res);
+  assert.equal(res.statusCode,expectedStatus);
+  assert.equal(calls.length,1);
+  if(expectedStatus===201){
+   assert.equal(res.body.roomId,812);
+   assert.equal(calls[0].args.p_room_no,"A201");
+  } else {
+   assert.equal(res.body.ok,undefined,"must not claim created on invalid DB response");
+  }
+ }
+});
+test("admin room deletion distinguishes database refusal from successful deletion",async()=>{
+ for(const [deleted,expected] of [[false,403],[true,200]]){
+  const calls=[];
+  const handler=createRoomsHandler({originAllowed:()=>true,sessionReader:async()=>admin,
+   dbFactory:()=>({rpc:async(name,args)=>{calls.push({name,args});return {data:deleted,error:null};}})});
+  const res=response();
+  await handler({method:"DELETE",body:{roomId:701}},res);
+  assert.equal(res.statusCode,expected);
+  assert.equal(calls.length,1);
+  assert.equal(calls[0].args.p_room_id,701);
+  assert.equal(res.body.ok,deleted?true:undefined);
+ }
+});
 test("room endpoint denies GET and PATCH when no session (401) without DB access",async()=>{
  let accesses=0;
  const handler=createRoomsHandler({originAllowed:()=>true,sessionReader:async()=>null,
