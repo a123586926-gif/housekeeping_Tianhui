@@ -23,3 +23,9 @@ jobs:
         run: node --test tests/auth-validators.test.js tests/default-rooms.test.js tests/cleaner-validation.test.js tests/cleaner-management-policy.test.mjs tests/qa-cleaner-management-contract.test.mjs tests/qa-cleaner-lifecycle-simulation.test.mjs tests/session-access-authorization.test.mjs tests/http-auth-handler.test.mjs tests/http-overview-authorization.test.mjs tests/http-session-logout.test.mjs tests/session-database-lookup.test.mjs tests/http-room-authorization.test.mjs tests/qa-environment-guard.test.mjs tests/production-compatibility.test.mjs tests/production-account-dry-run.test.mjs tests/production-photo-migration-audit.test.mjs tests/restore-readiness.test.mjs tests/local-production-backup.test.mjs tests/ui-data-contract.test.mjs tests/pin-policy.test.mjs tests/http-event-consistency.test.mjs
       - name: Build existing React application
         run: npm run build
+      - name: Simulate approved production build without production secrets
+        env:
+          VERCEL_ENV: production
+          VERCEL_GIT_COMMIT_REF: main
+          HOUSEKEEPING_RELEASE_READY: enabled
+        run: npx vite build
