@@ -85,7 +85,7 @@ test("PIN editing preserves entered values and exposes persistent outcome when s
  assert.match(body,/setStaffFeedback\(\(error instanceof Error/);
  const failure=body.slice(body.indexOf("}catch(error){"),body.indexOf("}finally{"));
  assert.doesNotMatch(failure,/setNewStaffPin\(" "\)|setNewStaffPin\(""\)/);
- assert.match(app,/房務 PIN 修正版 11\/05-H/);
+ assert.match(app,/房務 PIN 修正版 11\/05-I/);
  assert.match(app,/新 PIN 尚未確認儲存/);
  assert.match(app,/尚未輸入新 PIN/);
 });
@@ -125,6 +125,12 @@ test("PIN preflight synchronous errors are caught rather than leaving modal savi
  assert.match(handler,/catch\(error\)[\s\S]*?setStaffSaveStatus\("error"\)/);
  assert.match(handler,/送出前程式錯誤/);
  assert.match(app,/saveStaffModal\(\)\.catch\(\(\)=>\{/);
+});
+test("production mode never depends on undefined browser global",()=>{
+ assert.doesNotMatch(app,/__HOUSEKEEPING_PRODUCTION__/);
+ assert.match(app,/import\.meta\.env\.VITE_HK_RELEASE_APPROVED/);
+ assert.match(vite,/import\.meta\.env\.VITE_HK_RELEASE_APPROVED/);
+ assert.match(vite,/releaseReady && ref === 'main'/);
 });
 test("admin assignment dropdown sends immutable cleaner IDs",()=>{
  assert.match(app,/assignedCleanerId:\s*e\.target\.value\s*\?\s*Number\(e\.target\.value\)\s*:\s*null/);
