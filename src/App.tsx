@@ -373,6 +373,7 @@ export default function App() {
   const [authBusy,setAuthBusy] = useState(false);
   const [loginFeedback,setLoginFeedback] = useState("");
   const [staffFeedback,setStaffFeedback] = useState("");
+  const [staffButtonPresses,setStaffButtonPresses] = useState(0);
   const [staffSuccess,setStaffSuccess] = useState("");
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const dataEpoch=useRef(0);
@@ -1506,7 +1507,11 @@ export default function App() {
   }
 
   async function saveStaffModal() {
-    if(staffMutationBusy.current)return;
+    setStaffButtonPresses(x=>x+1);
+    if(staffMutationBusy.current){
+      setStaffFeedback("上一次儲存還在進行，請勿重複點擊。");
+      return;
+    }
     setStaffFeedback("");
     setStaffSuccess("");
     if(currentUser?.role!=="admin"){
@@ -2754,6 +2759,7 @@ export default function App() {
               {staffModalMode === "edit" ? "編輯打掃人員" : "新增打掃人員"}
             </div>
 
+            <p className="mt-2 text-xs text-[#8b7755]" role="status">房務 PIN 修正版 11/05-C · 按鈕點擊紀錄：{staffButtonPresses}</p>
             <div className="mt-3 space-y-3">
               <input
                 value={newStaffName}
@@ -2766,7 +2772,9 @@ export default function App() {
                 value={newStaffPin}
                 onChange={(e) => setNewStaffPin(e.target.value)}
                 className="w-full rounded-[20px] border border-[#ddd3c4] bg-[#fffdfa] px-3 py-2.5 text-sm text-[#5f5444]"
-                placeholder="登入密碼"
+                placeholder="輸入新 PIN（8～32 位數字）"
+                inputMode="numeric"
+                autoComplete="new-password"
                 type="password"
               />
             </div>
@@ -2781,11 +2789,12 @@ export default function App() {
                 取消
               </button>
               <button
-                onClick={saveStaffModal}
+                type="button"
+                onClick={() => { void saveStaffModal(); }}
                 disabled={staffSaving}
                 className="rounded-[20px] bg-[linear-gradient(135deg,#8b8462_0%,#9a946f_52%,#b5ae86_100%)] px-3 py-2 text-sm font-medium text-white"
               >
-                {staffSaving ? "處理中…" : "儲存"}
+                {staffSaving ? "PIN 處理中…" : "儲存 PIN（11/05-C）"}
               </button>
             </div>
           </div>
