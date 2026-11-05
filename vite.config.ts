@@ -38,6 +38,14 @@ export default defineConfig(({ mode }) => {
         transformIndexHtml: {
           order: 'pre' as const,
           handler(html: string) {
+            // Inject the production-only UI marker into the actual HTML served
+            // to the browser. Vite replaces import.meta.env keys differently
+            // across build paths, so avoid relying on a virtual env property.
+            // Authorization remains enforced by the server, never this marker.
+            if (vercelEnvironment === 'production' && releaseReady && ref === 'main') {
+              if (!html.includes('</head>')) throw new Error('Missing HTML head for release marker')
+              html = html.replace('</head>', '<meta name="hk-production-release" content="approved" /></head>')
+            }
             // The isolated feature branch already has a dedicated sandbox
             // entry in index.html. Treat that as valid rather than failing
             // when build metadata starts working as intended.
