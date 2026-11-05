@@ -1325,6 +1325,11 @@ export default function App() {
   function buildA4RoomPage(room: Room) {
     const guests = splitGuestLines(room.occupant);
     const useTwoColumns = guests.length > 6;
+    // The six-person layout can be especially tall if names wrap. Keep the
+    // established 6/7/8-column behavior, with compact type when needed.
+    const hasLongNames = guests.some((guest) => [...guest].length > (useTwoColumns ? 4 : 7));
+    const compactPrint = hasLongNames || guests.length > 8;
+    const pageClass = compactPrint ? "a4-page compact-print" : "a4-page";
 
     const splitAt = Math.ceil(guests.length / 2);
     const leftGuests = useTwoColumns ? guests.slice(0, splitAt) : guests;
@@ -1365,7 +1370,7 @@ export default function App() {
     `;
 
     return `
-      <section class="a4-page">
+      <section class="${pageClass}">
         <div class="room-title">${escapeHtml(roomLabel(room))}</div>
         <div class="guest-area">
           ${
@@ -1420,7 +1425,11 @@ export default function App() {
               padding-top: 18mm;
               padding-left: 14mm;
               padding-right: 14mm;
+              padding-bottom: 12mm;
               box-sizing: border-box;
+              overflow: hidden;
+              break-inside: avoid;
+              page-break-inside: avoid;
             }
 
             .a4-page:last-child {
@@ -1478,8 +1487,33 @@ export default function App() {
               font-size: 18mm;
               line-height: 1.15;
               white-space: normal;
+              break-inside: avoid;
+              page-break-inside: avoid;
               overflow-wrap: anywhere;
               word-break: break-word;
+            }
+
+            /* Long names and larger rosters fit without changing the usual
+               six-person single column / seven-eight-person two columns. */
+            .compact-print .room-title {
+              font-size: 23mm;
+              margin-bottom: 12mm;
+            }
+            .compact-print .guest-row {
+              font-size: 13mm;
+              line-height: 1.12;
+            }
+            .compact-print .guest-grid-one,
+            .compact-print .guest-col {
+              gap: 5mm;
+            }
+
+            @media screen {
+              .a4-page { margin: 0 auto 12px; }
+            }
+            @media print {
+              html, body { width: 210mm; }
+              .a4-page { margin: 0; }
             }
           </style>
         </head>
