@@ -29,7 +29,7 @@ export default defineConfig(({ mode }) => {
   console.log(`[housekeeping-build] Vercel environment: ${vercelEnvironment || 'local'}; QA branch: ${isQaBranch}; sandbox: ${sandbox}`)
 
   return {
-    define: { __HOUSEKEEPING_PRODUCTION__: JSON.stringify(vercelEnvironment === 'production' && releaseReady && ref === 'main') },
+    define: { 'import.meta.env.VITE_HK_RELEASE_APPROVED': JSON.stringify(vercelEnvironment === 'production' && releaseReady && ref === 'main' ? 'enabled' : 'disabled') },
     plugins: [
       react(),
       {
