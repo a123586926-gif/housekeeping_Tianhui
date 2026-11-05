@@ -1747,12 +1747,12 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-[radial-gradient(circle_at_top,#f8f4ed_0%,#f2ece2_44%,#e8dfd1_100%)] p-2 text-[#4f4435] sm:p-4">
-      <div className="mx-auto w-full max-w-md pb-28 md:max-w-3xl">
+      <div className="mx-auto w-full max-w-md pb-32 md:max-w-3xl">
         <div className="overflow-hidden rounded-[28px] border border-[#e6ddd0] bg-[#fcfaf6]/95 shadow-[0_18px_40px_rgba(84,69,45,0.12)] backdrop-blur">
           <div className="bg-[linear-gradient(180deg,#f4ede2_0%,#e8ddcb_100%)] px-4 py-3.5 text-[#4f4435]">
             <div className="flex items-start justify-between gap-3">
-              <div className="flex items-center gap-2 text-[19px] font-semibold tracking-[0.08em]">
-                <ShieldCheck className="h-5 w-5 text-[#8a7756]" />
+              <div className="flex min-w-0 items-center gap-2 text-[15px] font-semibold tracking-[0.04em] sm:text-[19px] sm:tracking-[0.08em]">
+                <ShieldCheck className="h-5 w-5 shrink-0 text-[#8a7756]" />
                 天惠會館房務管理系統
               </div>
 
@@ -2654,7 +2654,7 @@ export default function App() {
       </div>
 
       {currentUser && viewMode === "admin" && (
-        <div className="fixed inset-x-0 bottom-0 border-t border-[#e2d8c8] bg-[#fcfaf6]/96 px-3 py-3 shadow-[0_-10px_24px_rgba(84,69,45,0.10)] backdrop-blur">
+        <div className="fixed inset-x-0 bottom-0 z-40 border-t border-[#e2d8c8] bg-[#fcfaf6]/96 px-3 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] shadow-[0_-10px_24px_rgba(84,69,45,0.10)] backdrop-blur">
           <div className="mx-auto grid max-w-md grid-cols-4 gap-2">
             <button
               onClick={() => setAdminView("activity")}
@@ -2694,11 +2694,11 @@ export default function App() {
 
       {calendarSheetDate && currentUser && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-[#0f172a]/40 p-4"
+          className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto overscroll-contain bg-[#0f172a]/40 px-3 py-4 sm:items-center sm:p-4"
           onClick={() => setCalendarSheetDate("")}
         >
           <div
-            className="w-full max-w-md rounded-[24px] bg-white p-4 shadow-[0_20px_40px_rgba(15,23,42,0.18)]"
+            className="my-auto w-full max-w-md min-w-0 max-h-[calc(100dvh-2rem)] overflow-y-auto overscroll-contain rounded-[24px] bg-white p-4 shadow-[0_20px_40px_rgba(15,23,42,0.18)]"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between gap-3">
@@ -2756,11 +2756,11 @@ export default function App() {
 
       {showActivityModal && currentUser && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-[#0F172A]/40 p-4"
+          className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto overscroll-contain bg-[#0F172A]/40 px-3 py-4 sm:items-center sm:p-4"
           onClick={() => { if(!activitySaving) setShowActivityModal(false); }}
         >
           <div
-            className="w-full max-w-sm rounded-[28px] bg-white p-4 shadow-[0_18px_40px_rgba(15,23,42,0.14)]"
+            className="my-auto w-full max-w-sm min-w-0 max-h-[calc(100dvh-2rem)] overflow-y-auto overscroll-contain rounded-[28px] bg-white p-4 shadow-[0_18px_40px_rgba(15,23,42,0.14)]"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="text-lg font-semibold text-[#4f4435]">
@@ -2844,11 +2844,11 @@ export default function App() {
 
       {showRoomModal && currentUser && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-[#0F172A]/40 p-4"
+          className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto overscroll-contain bg-[#0F172A]/40 px-3 py-4 sm:items-center sm:p-4"
           onClick={() => { if(!roomSaving) setShowRoomModal(false); }}
         >
           <div
-            className="w-full max-w-sm rounded-[28px] bg-white p-4 shadow-[0_18px_40px_rgba(15,23,42,0.14)]"
+            className="my-auto w-full max-w-sm min-w-0 max-h-[calc(100dvh-2rem)] overflow-y-auto overscroll-contain rounded-[28px] bg-white p-4 shadow-[0_18px_40px_rgba(15,23,42,0.14)]"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="text-lg font-semibold text-[#4f4435]">新增房間</div>
@@ -2926,11 +2926,11 @@ export default function App() {
 
       {showStaffModal && currentUser && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-[#0F172A]/40 p-4"
+          className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto overscroll-contain bg-[#0F172A]/40 px-3 py-4 sm:items-center sm:p-4"
           onClick={() => { if(!staffSaving) setShowStaffModal(false); }}
         >
           <div
-            className="w-full max-w-sm rounded-[28px] bg-white p-4 shadow-[0_18px_40px_rgba(15,23,42,0.14)]"
+            className="my-auto w-full max-w-sm min-w-0 max-h-[calc(100dvh-2rem)] overflow-y-auto overscroll-contain rounded-[28px] bg-white p-4 shadow-[0_18px_40px_rgba(15,23,42,0.14)]"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="text-lg font-semibold text-[#4f4435]">
@@ -3006,11 +3006,11 @@ export default function App() {
 
       {showPhotoModal && currentUser && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-[#0F172A]/45 p-4"
+          className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto overscroll-contain bg-[#0F172A]/45 px-3 py-4 sm:items-center sm:p-4"
           onClick={resetPhotoModal}
         >
           <div
-            className="w-full max-w-sm rounded-[28px] bg-white p-4 shadow-[0_18px_40px_rgba(15,23,42,0.14)]"
+            className="my-auto w-full max-w-sm min-w-0 max-h-[calc(100dvh-2rem)] overflow-y-auto overscroll-contain rounded-[28px] bg-white p-4 shadow-[0_18px_40px_rgba(15,23,42,0.14)]"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="text-lg font-semibold text-[#4f4435]">請上傳照片</div>
