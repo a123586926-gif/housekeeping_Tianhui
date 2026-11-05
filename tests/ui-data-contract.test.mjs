@@ -59,7 +59,7 @@ test("checkbox updates optimistically but retain server authorization and failur
  assert.ok(body.indexOf("setActivities(prev=>prev.map(")<body.indexOf("await updateRoomChecklist("),
    "local render must precede the awaited server round trip");
  assert.match(body,/checklistSavingRooms\.current\.has\(roomId\)/);
- assert.match(body,/expectedChecklist/);
+ assert.match(body,/photoJustUploaded\?undefined:flags\(room\.checklist\)/);
  assert.match(body,/if\(!savingChecklist\)await loadEventsFromSupabase\(\)/);
  assert.match(body,/catch\(error\)[\s\S]*?await loadEventsFromSupabase\(\)/);
  assert.match(body,/mutationEpoch!==dataEpoch\.current/);
