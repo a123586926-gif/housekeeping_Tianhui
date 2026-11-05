@@ -468,6 +468,7 @@ export default function App() {
 
   const [activitySelectedBuilding, setActivitySelectedBuilding] = useState<"all" | BuildingType>("all");
   const [activitySelectedFloor, setActivitySelectedFloor] = useState<"all" | FloorType>("all");
+  const [activityRoomSearch,setActivityRoomSearch] = useState("");
 
   const [activities, setActivities] = useState<Activity[]>([]);
   const [selectedActivityId, setSelectedActivityId] = useState("");
@@ -813,7 +814,10 @@ export default function App() {
 
   const filteredActivityRooms = useMemo(() => {
     if (!selectedActivity) return [];
+    const term=activityRoomSearch.trim().toLocaleLowerCase();
     return selectedActivity.rooms
+      .filter(room=>!term || [roomLabel(room),room.roomNo,room.assignedTo,room.occupant]
+        .some(value=>value.toLocaleLowerCase().includes(term)))
       .filter(
         (room) =>
           activitySelectedBuilding === "all" || room.building === activitySelectedBuilding
@@ -829,7 +833,7 @@ export default function App() {
         }
         return a.roomNo.localeCompare(b.roomNo, undefined, { numeric: true });
       });
-  }, [selectedActivity, activitySelectedBuilding, activitySelectedFloor]);
+  }, [selectedActivity, activitySelectedBuilding, activitySelectedFloor, activityRoomSearch]);
 
   const selectedPrintCount = useMemo(() => {
     // Selection belongs to the activity, not the current building/floor filter.
@@ -1265,6 +1269,9 @@ export default function App() {
   async function saveNewRoom() {
     if(currentUser?.role!=="admin" || !selectedActivity?.dbId || roomMutationBusy.current)return;
     const roomNo=newRoomNo.trim().toUpperCase();
+    if(!/^[A-Z0-9]{1,8}$/.test(roomNo)){
+      window.alert("房號請輸入 1～8 位英文字母或數字，不可空白或使用特殊符號。");return;
+    }
     if(selectedActivity.rooms.some(room=>room.building===newRoomBuilding&&
        room.floor===newRoomFloor&&room.roomNo===roomNo)){
       window.alert("此活動已經有相同棟別、樓層與房號，請輸入尚未存在的房間。");return;
@@ -1302,6 +1309,7 @@ export default function App() {
     setSelectedActivityId(activityId);
     setActivitySelectedBuilding("all");
     setActivitySelectedFloor("all");
+    setActivityRoomSearch("");
     setSelectedPrintRoomIds([]);
   }
 
@@ -2280,6 +2288,19 @@ export default function App() {
                               </button>
                             ))}
                           </div>
+                          <label className="mt-2 block">
+                            <span className="sr-only">搜尋活動房號、房務人員或住宿人</span>
+                            <input
+                              type="search"
+                              value={activityRoomSearch}
+                              onChange={e=>setActivityRoomSearch(e.target.value)}
+                              placeholder="搜尋此活動的房號、房務人員、住宿人"
+                              className="w-full rounded-[14px] border border-[#ddd3c4] bg-white px-3 py-2 text-sm text-[#524736] focus:outline-[#9a946f]"
+                            />
+                          </label>
+                          <p role="status" className="mt-1 text-xs text-[#8d8272]">
+                            顯示 {filteredActivityRooms.length} / {selectedActivity.rooms.length} 間房
+                          </p>
                         </>
                       )}
                     </div>
