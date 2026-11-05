@@ -435,6 +435,7 @@ export default function App() {
   const [savingChecklistRoomIds, setSavingChecklistRoomIds] = useState<string[]>([]);
   const roomAdministrationSaving = useRef(new Set<string>());
   const [savingRoomAdministrationIds,setSavingRoomAdministrationIds] = useState<string[]>([]);
+  const [openCleanerPickerRoomId,setOpenCleanerPickerRoomId] = useState("");
   const [expandedStaffName, setExpandedStaffName] = useState("");
   const [calendarMonth, setCalendarMonth] = useState(new Date());
   const [calendarSheetDate, setCalendarSheetDate] = useState("");
@@ -682,6 +683,7 @@ export default function App() {
     if(!currentUser){
       setActivities([]);setStaffUsers([]);setSharedCalendarEvents([]);
       setSelectedPrintRoomIds([]);setOccupantDrafts({});
+      setOpenCleanerPickerRoomId("");
       setOverviewSearch("");setCalendarSheetDate("");
       setExpandedRoomId("");setExpandedStaffName("");
       setShowActivityModal(false);setShowRoomModal(false);setShowStaffModal(false);
@@ -1307,6 +1309,7 @@ export default function App() {
 
   function selectActivity(activityId: string) {
     setSelectedActivityId(activityId);
+    setOpenCleanerPickerRoomId("");
     setActivitySelectedBuilding("all");
     setActivitySelectedFloor("all");
     setActivityRoomSearch("");
@@ -2353,11 +2356,11 @@ export default function App() {
                             key={room.id}
                             className="rounded-[16px] border border-[#e5ddd0] bg-white px-3 py-2 shadow-[0_4px_10px_rgba(84,69,45,0.04)]"
                           >
-                            <div className="text-[13px] font-semibold text-[#524736]">
+                            <div className="text-[16px] font-semibold text-[#524736]">
                               {roomLabel(room)}
                             </div>
 
-                            <div className="mt-1 grid grid-cols-[24px_minmax(0,1fr)_76px] items-start gap-2 sm:grid-cols-[24px_minmax(0,1fr)_96px_64px_36px_30px]">
+                            <div className="mt-2 grid grid-cols-[24px_minmax(0,1fr)_106px] items-start gap-2 sm:grid-cols-[24px_minmax(0,1fr)_112px_64px_36px_30px]">
                               <div className="pt-3">
                                 <input
                                   type="checkbox"
@@ -2391,30 +2394,26 @@ export default function App() {
                                       });
                                     });
                                 }}
-                                className="min-w-0 w-full resize-none overflow-hidden rounded-[14px] border border-[#ddd4c6] bg-[#fdfaf6] px-3 py-2 text-[12px] leading-5 text-[#5f5444] focus:outline-none"
+                                className="min-w-0 w-full resize-none overflow-hidden rounded-[14px] border border-[#ddd4c6] bg-[#fdfaf6] px-3 py-2 text-[16px] leading-6 text-[#5f5444] focus:outline-none"
                                 rows={Math.max(1, splitGuestLines(occupantDrafts[room.id] ?? room.occupant).length || 1)}
                                 placeholder="住宿人"
                               />
 
-                              <select
-                                value={room.cleanerId == null ? "" : String(room.cleanerId)}
+                              <button
+                                type="button"
+                                aria-expanded={openCleanerPickerRoomId===room.id}
+                                aria-controls={`cleaner-options-${room.id}`}
                                 disabled={savingRoomAdministrationIds.includes(room.id)}
-                                onChange={(e) =>
-                                  void updateRoomField(selectedActivity.id, room.id, {
-                                    assignedCleanerId: e.target.value ? Number(e.target.value) : null,
-                                  })
-                                }
-                                className="col-start-3 row-start-1 min-w-0 h-[46px] rounded-[14px] border border-[#ddd4c6] bg-[#fdfaf6] px-1 text-[12px] text-[#5f5444] focus:outline-none sm:col-start-auto sm:row-start-auto"
+                                onClick={() => setOpenCleanerPickerRoomId(prev=>prev===room.id?"":room.id)}
+                                className="col-start-3 row-start-1 min-w-0 min-h-[48px] rounded-[14px] border border-[#ddd4c6] bg-[#fdfaf6] px-2 text-[14px] font-medium text-[#5f5444] focus:outline-[#9a946f] disabled:opacity-70 sm:col-start-auto sm:row-start-auto"
+                                title="點選指派房務人員"
                               >
-                                <option value="">未分配</option>
-                                {staffUsers.map((user) => (
-                                  <option key={user.id} value={String(user.dbId)}>
-                                    {user.name}
-                                  </option>
-                                ))}
-                              </select>
+                                <span className="block truncate">{savingRoomAdministrationIds.includes(room.id)
+                                  ? "儲存中…" : room.assignedTo || "未分配"}</span>
+                                <span className="block text-[11px] text-[#8a7756]">點選更換</span>
+                              </button>
 
-                              <div className="col-start-2 row-start-2 text-[12px] font-semibold text-[#7c715c] sm:col-start-auto sm:row-start-auto sm:pt-3">
+                              <div className="col-start-2 row-start-2 text-[14px] font-semibold text-[#7c715c] sm:col-start-auto sm:row-start-auto sm:pt-3">
                                 {roomProgress(room)}%
                               </div>
 
@@ -2441,6 +2440,30 @@ export default function App() {
                                 -
                               </button>
                             </div>
+                            {openCleanerPickerRoomId===room.id && (
+                              <div id={`cleaner-options-${room.id}`} role="group"
+                                aria-label={`指派 ${roomLabel(room)} 的房務人員`}
+                                className="mt-3 rounded-[16px] border border-[#dbd1c1] bg-[#f8f4ec] p-2">
+                                <p className="mb-2 px-1 text-[14px] font-semibold text-[#524736]">選擇打掃人員</p>
+                                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                                  {[{id:"",name:"未分配"},...staffUsers.map(user=>({id:String(user.dbId),name:user.name}))].map(option=>(
+                                    <button key={option.id || "unassigned"} type="button"
+                                      disabled={savingRoomAdministrationIds.includes(room.id)}
+                                      onClick={()=>{
+                                        setOpenCleanerPickerRoomId("");
+                                        const assignedCleanerId=option.id ? Number(option.id) : null;
+                                        if(assignedCleanerId!== (room.cleanerId??null)){
+                                          void updateRoomField(selectedActivity.id,room.id,{assignedCleanerId});
+                                        }
+                                      }}
+                                      className={`min-h-[48px] rounded-[12px] border px-2 py-2 text-[15px] font-medium ${String(room.cleanerId??"")===option.id
+                                        ? "border-[#8b8462] bg-[#e5dfcf] text-[#4f4435]"
+                                        : "border-[#e4dacc] bg-white text-[#5f5444]"}`}
+                                    >{option.name}</button>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
                           </div>
                         ))}
 
@@ -2654,11 +2677,11 @@ export default function App() {
       </div>
 
       {currentUser && viewMode === "admin" && (
-        <div className="fixed inset-x-0 bottom-0 z-40 border-t border-[#e2d8c8] bg-[#fcfaf6]/96 px-3 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] shadow-[0_-10px_24px_rgba(84,69,45,0.10)] backdrop-blur">
+        <div className="fixed inset-x-0 bottom-0 z-40 border-t border-[#e2d8c8] bg-[#fcfaf6]/96 px-3 pt-3 pb-[calc(env(safe-area-inset-bottom)+1.25rem)] shadow-[0_-10px_24px_rgba(84,69,45,0.10)] backdrop-blur">
           <div className="mx-auto grid max-w-md grid-cols-4 gap-2">
             <button
               onClick={() => setAdminView("activity")}
-              className={`rounded-[16px] border px-2 py-2 text-[11px] font-semibold ${gradientButton(
+              className={`min-h-[46px] rounded-[16px] border px-2 py-2 text-[13px] font-semibold ${gradientButton(
                 adminView === "activity"
               )}`}
             >
