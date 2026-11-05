@@ -9,7 +9,6 @@ import {
   Image as ImageIcon,
   Plus,
   Printer,
-  ShieldCheck,
   UserPlus,
   Users,
   WandSparkles,
@@ -400,6 +399,21 @@ function SectionTitle({
   );
 }
 
+function ZenLotusIcon({className="h-5 w-5"}:{className?:string}) {
+  return <svg className={className} viewBox="0 0 32 32" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d="M16 26C6 22 7 14 16 6c9 8 10 16 0 20Z"/><path d="M15 26C7 27 3 21 3 14c6 0 10 3 12 12Zm2 0c8 1 12-5 12-12-6 0-10 3-12 12Z"/><path d="M3 28c8-2 18-2 26 0"/>
+  </svg>;
+}
+function RoundedPersonIcon({className="h-5 w-5"}:{className?:string}) {
+  return <svg className={className} viewBox="0 0 32 32" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <circle cx="16" cy="9" r="5"/><path d="M5 27c0-7 4-11 11-11s11 4 11 11c-7 3-15 3-22 0Z"/>
+  </svg>;
+}
+function IncenseStatusIcon({className="h-5 w-5"}:{className?:string}) {
+  return <svg className={className} viewBox="0 0 32 32" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d="M9 5c-5 6 5 5 0 12M17 3c-6 7 4 7-1 13M25 5c-5 6 5 6 0 12"/><path d="M4 21h24c-1 7-6 9-12 9S5 28 4 21Z"/>
+  </svg>;
+}
 export default function App() {
   const [staffUsers, setStaffUsers] = useState<User[]>([]);
   const [loginUsers,setLoginUsers] = useState<User[]>([]);
@@ -1760,7 +1774,7 @@ export default function App() {
           <div className="bg-[linear-gradient(180deg,#f4ede2_0%,#e8ddcb_100%)] px-4 py-3.5 text-[#4f4435]">
             <div className="flex items-start justify-between gap-3">
               <div className="flex min-w-0 items-center gap-2 text-[15px] font-semibold tracking-[0.04em] sm:text-[19px] sm:tracking-[0.08em]">
-                <ShieldCheck className="h-5 w-5 shrink-0 text-[#8a7756]" />
+                <img src="/brand-logo.svg" alt="" className="h-7 w-7 shrink-0 object-contain" />
                 天惠會館房務管理系統
               </div>
 
@@ -2759,7 +2773,7 @@ export default function App() {
                 adminView === "activity"
               )}`}
             >
-              活動列表
+              <ZenLotusIcon className="mx-auto mb-1 h-6 w-6"/>活動
             </button>
             <button
               onClick={() => setAdminView("staff")}
@@ -2767,7 +2781,7 @@ export default function App() {
                 adminView === "staff"
               )}`}
             >
-              打掃人員
+              <RoundedPersonIcon className="mx-auto mb-1 h-6 w-6"/>人員
             </button>
             <button
               onClick={() => setAdminView("calendar")}
@@ -2775,7 +2789,7 @@ export default function App() {
                 adminView === "calendar"
               )}`}
             >
-              日曆
+              <CalendarDays className="mx-auto mb-1 h-6 w-6"/>日曆
             </button>
             <button
               onClick={() => setAdminView("overview")}
@@ -2783,7 +2797,7 @@ export default function App() {
                 adminView === "overview"
               )}`}
             >
-              現況
+              <IncenseStatusIcon className="mx-auto mb-1 h-6 w-6"/>現況
             </button>
           </div>
         </div>
