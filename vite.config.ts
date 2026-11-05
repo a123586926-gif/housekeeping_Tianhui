@@ -11,20 +11,21 @@ export default defineConfig(({ mode }) => {
   const ref = process.env.VERCEL_GIT_COMMIT_REF
   const sandboxRequested =
     (process.env.VITE_AUTH_SANDBOX ?? loaded.VITE_AUTH_SANDBOX) === 'enabled'
-  const isFeatureBranch = ref === 'feature/remember-login-30d'
+  const isQaBranch = ref === 'feature/remember-login-30d' ||
+    ref === 'integration/full-release-review-20261105'
 
   if (vercelEnvironment === 'production' && sandboxRequested) {
     throw new Error('Auth sandbox cannot run in production')
   }
-  if (vercelEnvironment === 'preview' && sandboxRequested && !isFeatureBranch) {
-    throw new Error('Auth sandbox requested outside the permitted feature branch')
+  if (vercelEnvironment === 'preview' && sandboxRequested && !isQaBranch) {
+    throw new Error('Auth sandbox requested outside the permitted QA branches')
   }
   const sandbox = vercelEnvironment === 'preview'
-    ? isFeatureBranch
+    ? isQaBranch
     : !vercelEnvironment && sandboxRequested
 
   // No secret values in logs.
-  console.log(`[housekeeping-build] Vercel environment: ${vercelEnvironment || 'local'}; feature branch: ${isFeatureBranch}; sandbox: ${sandbox}`)
+  console.log(`[housekeeping-build] Vercel environment: ${vercelEnvironment || 'local'}; QA branch: ${isQaBranch}; sandbox: ${sandbox}`)
 
   return {
     plugins: [
@@ -42,8 +43,8 @@ export default defineConfig(({ mode }) => {
               if (vercelEnvironment === 'production') {
                 throw new Error('Auth sandbox HTML must not ship to production')
               }
-              if (vercelEnvironment === 'preview' && !isFeatureBranch) {
-                throw new Error('Auth sandbox HTML is limited to the feature branch')
+              if (vercelEnvironment === 'preview' && !isQaBranch) {
+                throw new Error('Auth sandbox HTML is limited to the QA branches')
               }
               return html
             }
