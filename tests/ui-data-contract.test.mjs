@@ -74,6 +74,21 @@ test("admin reassignments include old immutable cleaner ID and reload after conf
  assert.match(app,/if\(!savingChecklist\)await loadEventsFromSupabase\(\)/);
  assert.match(app,/catch\(error\)[\s\S]*?await loadEventsFromSupabase\(\)/);
 });
+test("PIN editing preserves entered values and exposes persistent outcome when server rejects",()=>{
+ const open=app.indexOf("function openEditStaffModal(");
+ const save=app.indexOf("async function saveStaffModal(",open);
+ const end=app.indexOf("\n  return (",save);
+ const body=app.slice(save,end);
+ assert.ok(open>=0&&save>open&&end>save);
+ assert.match(body,/setStaffSaveStatus\("saving"\)/);
+ assert.match(body,/setStaffSaveStatus\("error"\)/);
+ assert.match(body,/setStaffFeedback\(\(error instanceof Error/);
+ const failure=body.slice(body.indexOf("}catch(error){"),body.indexOf("}finally{"));
+ assert.doesNotMatch(failure,/setNewStaffPin\(" "\)|setNewStaffPin\(""\)/);
+ assert.match(app,/房務 PIN 修正版 11\/05-D/);
+ assert.match(app,/新 PIN 尚未確認儲存/);
+ assert.match(app,/尚未輸入新 PIN/);
+});
 test("admin assignment dropdown sends immutable cleaner IDs",()=>{
  assert.match(app,/assignedCleanerId:\s*e\.target\.value\s*\?\s*Number\(e\.target\.value\)\s*:\s*null/);
  assert.match(app,/value=\{room\.cleanerId == null \? "" : String\(room\.cleanerId\)\}/);
