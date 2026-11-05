@@ -241,8 +241,8 @@ test("mobile cleaner picker avoids iOS native wheel and keeps larger touch contr
  assert.match(app,/min-h-\[46px\] rounded-\[16px\]/);
 });
 test("mobile room editor has fluid columns and print waits for fonts",()=>{
- assert.match(app,/grid-cols-\[24px_minmax\(0,1fr\)_106px\]/);
- assert.match(app,/sm:grid-cols-\[24px_minmax\(0,1fr\)_112px_64px_36px_30px\]/);
+ assert.match(app,/flex min-w-0 items-center gap-2/);
+ assert.match(app,/直接填寫住宿人姓名/);
  assert.match(app,/document\.fonts\.ready\.then\(\(\) => window\.print\(\)\)/);
 });
 
@@ -251,9 +251,22 @@ test("admin room writes cannot overlap and failed occupant edits keep drafts",()
  assert.match(app,/roomAdministrationSaving\.current\.add\(roomId\)/);
  assert.match(app,/roomAdministrationSaving\.current\.delete\(roomId\)/);
  assert.match(app,/disabled=\{savingRoomAdministrationIds\.includes\(room\.id\)\}/);
- assert.match(app,/void updateRoomField\(selectedActivity\.id,room\.id,\{occupant:draft\}\)/);
+ assert.match(app,/void saveOccupantList\(selectedActivity\.id,room\.id,draft\)/);
  assert.match(app,/if\(saved\)setOccupantDrafts\(prev=>/);
  assert.match(app,/if\(prev\[room\.id\]!==draft\)return prev/);
+});
+test("V2.1 new annual overview, quick paste and exact-match duplicate warnings",()=>{
+ assert.match(app,/activitySection,setActivitySection/);
+ assert.match(app,/activityScope,setActivityScope/);
+ assert.match(app,/活動總覽/);
+ assert.match(app,/活動總數/);
+ assert.match(app,/findDuplicateOccupants\(/);
+ assert.match(app,/saveOccupantList\(/);
+ assert.match(app,/quickPasteMode==="append"/);
+ assert.match(app,/發現重複姓名/);
+ assert.match(app,/role="alertdialog"/);
+ assert.match(app,/splitGuestLines\(quickPasteText/);
+ assert.match(app,/app-icon\.svg/);
 });
 test("account switch clears previous user drafts, selections and admin filters",()=>{
  assert.match(app,/setActivities\(\[\]\);\s*setStaffUsers\(\[\]\);\s*setSharedCalendarEvents\(\[\]\);\s*setSelectedPrintRoomIds\(\[\]\);\s*setOccupantDrafts\(\{\}\);/);
