@@ -208,7 +208,7 @@ function validateNewStaffPin(value: string): string {
   if(value.length === 0)return "請輸入新 PIN。";
   if(!/^[0-9]{8,32}$/.test(value))
     return "新 PIN 必須是 8～32 位半形數字，不能有空格、英文字或其他符號。";
-  if(/^([0-9]{1,4})\\1+$/.test(value))
+  if(/^([0-9]{1,4})\1+$/.test(value))
     return "這組 PIN 是重複數字或重複組合，請改用較不規律的數字。";
   const digits=[...value].map(Number);
   if(digits.every((digit,i)=>i===0||digit===(digits[i-1]+1)%10))
