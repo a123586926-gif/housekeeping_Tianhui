@@ -216,6 +216,16 @@ test("print selection persists across floor/building filters and counts whole ac
  assert.match(app,/const selectedRooms = selectedActivity\.rooms\.filter\(room =>/);
  assert.match(app,/將目前篩選的房間加入列印勾選/);
 });
+test("mobile dialogs scroll safely on small portrait screens without clipping action buttons",()=>{
+ assert.equal((app.match(/max-h-\[calc\(100dvh-2rem\)\]/g)||[]).length,5);
+ assert.equal((app.match(/overflow-y-auto overscroll-contain bg-\[#0F172A\]/g)||[]).length,4);
+ assert.match(app,/overflow-y-auto overscroll-contain bg-\[#0f172a\]\/40/);
+ assert.match(app,/sm:items-center sm:p-4/);
+ assert.match(app,/my-auto w-full max-w-sm min-w-0 max-h-\[calc\(100dvh-2rem\)\]/);
+ assert.match(app,/pb-\[max\(0\.75rem,env\(safe-area-inset-bottom\)\)\]/);
+ assert.match(app,/flex min-w-0 items-center gap-2 text-\[15px\]/);
+ assert.match(app,/max-w-md pb-32 md:max-w-3xl/);
+});
 test("mobile room editor has fluid columns and print waits for fonts",()=>{
  assert.match(app,/grid-cols-\[24px_minmax\(0,1fr\)_76px\]/);
  assert.match(app,/sm:grid-cols-\[24px_minmax\(0,1fr\)_96px_64px_36px_30px\]/);
