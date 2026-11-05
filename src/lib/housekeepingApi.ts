@@ -167,7 +167,7 @@ export function deleteQaRoom(roomId:number):Promise<{ok:boolean}> {
 export function moveGuestAtomic(input:{
   fromRoomId:number;toRoomId:number;name:string;expectedFrom:string;expectedTo:string;
 }):Promise<{ok:boolean}> {
-  return request("/api/data/guest-move",{
-    method:"POST",body:jsonBody(input),
+  return request("/api/data/rooms",{
+    method:"PATCH",body:jsonBody({action:"moveGuest",...input}),
   });
 }
