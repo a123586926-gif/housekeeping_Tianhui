@@ -85,7 +85,7 @@ test("PIN editing preserves entered values and exposes persistent outcome when s
  assert.match(body,/setStaffFeedback\(\(error instanceof Error/);
  const failure=body.slice(body.indexOf("}catch(error){"),body.indexOf("}finally{"));
  assert.doesNotMatch(failure,/setNewStaffPin\(" "\)|setNewStaffPin\(""\)/);
- assert.match(app,/房務 PIN 修正版 11\/05-E/);
+ assert.match(app,/房務 PIN 修正版 11\/05-F/);
  assert.match(app,/新 PIN 尚未確認儲存/);
  assert.match(app,/尚未輸入新 PIN/);
 });
@@ -104,6 +104,8 @@ test("all pre-submit PIN rejects show persistent error and live complexity feedb
  assert.match(app,/validateNewStaffPin\(newStaffPin\.trim\(\)\)/);
  assert.match(app,/PIN 格式符合安全規則，可以點選儲存/);
  assert.match(app,/setStaffButtonPresses\(0\)/);
+ assert.doesNotMatch(app,/setNewStaffPin\(e\.target\.value\); setStaffFeedback\(""\); setStaffSaveStatus\("idle"\)/);
+ assert.match(app,/if\(!staffMutationBusy\.current\) setNewStaffPin\(e\.target\.value\)/);
 });
 test("admin assignment dropdown sends immutable cleaner IDs",()=>{
  assert.match(app,/assignedCleanerId:\s*e\.target\.value\s*\?\s*Number\(e\.target\.value\)\s*:\s*null/);
