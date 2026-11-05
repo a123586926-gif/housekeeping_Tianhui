@@ -1324,13 +1324,13 @@ export default function App() {
 
   function buildA4RoomPage(room: Room) {
     const guests = splitGuestLines(room.occupant);
-    const useTwoColumns = guests.length > 10;
+    const useTwoColumns = guests.length >= 6;
     // The six-person layout can be especially tall if names wrap. Keep the
     // established 6/7/8-column behavior, with compact type when needed.
-    const hasLongNames = guests.some((guest) => [...guest].length > (useTwoColumns ? 4 : 7));
-    const compactPrint = hasLongNames || guests.length > 10;
-    const layoutClass = guests.length <= 2 ? "single-xl" : guests.length <= 6 ? "single-lg"
-      : guests.length <= 10 ? "single-md" : "double";
+    const hasLongNames = guests.some((guest) => [...guest].length > (useTwoColumns ? 5 : 7));
+    const compactPrint = hasLongNames || guests.length > 16;
+    const layoutClass = guests.length <= 1 ? "single-xl" : guests.length <= 5 ? "single-lg"
+      : guests.length <= 8 ? "double" : "double dense";
     const pageClass = "a4-page " + layoutClass + (compactPrint ? " compact-print" : "");
     const printedRoomNo = (room.building + room.roomNo).toUpperCase();
     const titleLength = [...printedRoomNo].length;
@@ -1442,84 +1442,79 @@ export default function App() {
               break-after: auto;
             }
 
+            /* A4 poster: a 1.5x larger, heavy headline as approved. */
             .room-title {
               width: 100%;
               text-align: center;
-              font-size: 46mm;
-              line-height: 0.98;
+              font-size: 69mm;
+              line-height: 0.96;
               white-space: nowrap;
-              font-weight: 700;
-              letter-spacing: 0;
+              font-weight: 900;
+              letter-spacing: -1mm;
               flex-shrink: 0;
             }
-            .title-md .room-title { font-size: 32mm; }
-            .title-sm .room-title { font-size: 23mm; }
+            .title-md .room-title { font-size: 48mm; }
+            .title-sm .room-title { font-size: 34mm; }
 
+            /* The remaining page height is shared evenly by every name.
+               Internal padding keeps the first/last guest off the edges. */
             .guest-area {
               width: 100%;
               flex: 1;
+              min-height: 0;
               display: flex;
               justify-content: center;
-              align-items: flex-start;
-              min-height: 0;
+              align-items: stretch;
+              padding: 10mm 0 14mm;
               box-sizing: border-box;
             }
             .guest-grid-one {
               width: 100%;
-              max-width: 148mm;
+              max-width: 155mm;
+              height: 100%;
+              min-height: 0;
               display: flex;
               flex-direction: column;
               align-items: center;
+              justify-content: space-evenly;
             }
             .guest-grid-two {
               width: 100%;
-              max-width: 174mm;
+              max-width: 180mm;
+              height: 100%;
+              min-height: 0;
               display: grid;
               grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-              column-gap: 12mm;
-              align-items: start;
+              column-gap: 10mm;
+              align-items: stretch;
             }
             .guest-col {
               min-width: 0;
+              height: 100%;
               display: flex;
               flex-direction: column;
               align-items: center;
+              justify-content: space-evenly;
             }
             .guest-row {
               width: 100%;
               text-align: center;
+              font-size: 19mm;
+              line-height: 1.12;
+              white-space: normal;
               overflow-wrap: anywhere;
               word-break: break-word;
-              line-height: 1.12;
               break-inside: avoid;
               page-break-inside: avoid;
             }
-
-            /* A205 / A301: one to two names are centered with wide spacing. */
-            .single-xl .guest-area { padding-top: 65mm; }
-            .single-xl .guest-grid-one { gap: 37mm; }
-            .single-xl .guest-row { font-size: 23mm; }
-            .single-xl:has(.guest-row:only-child) .guest-area { padding-top: 93mm; }
-
-            /* A201 / A208: one large name per line. */
-            .single-lg .guest-area { padding-top: 37mm; }
-            .single-lg .guest-grid-one { gap: 10mm; }
-            .single-lg .guest-row { font-size: 18mm; }
-            .single-lg:has(.guest-row:nth-child(6)) .guest-grid-one { gap: 5mm; }
-
-            /* Seven to ten people still fit a single centered column. */
-            .single-md .guest-area { padding-top: 26mm; }
-            .single-md .guest-grid-one { gap: 4mm; }
-            .single-md .guest-row { font-size: 13mm; }
-
-            /* AR: dense roster splits into balanced columns. */
-            .double .guest-area { padding-top: 20mm; }
-            .double .guest-col { gap: 5mm; }
-            .double .guest-row { font-size: 14mm; }
-
-            .compact-print .guest-row { font-size: 11mm; }
-            .compact-print.single-xl .guest-row { font-size: 17mm; }
-            .compact-print.single-lg .guest-row { font-size: 14mm; }
+            .single-xl .guest-row { font-size: 24mm; }
+            .single-lg .guest-row { font-size: 21mm; }
+            .double .guest-row { font-size: 18mm; }
+            .double.dense .guest-row { font-size: 15mm; }
+            .compact-print .guest-row { font-size: 12mm; }
+            .compact-print.single-xl .guest-row { font-size: 19mm; }
+            .compact-print.single-lg .guest-row { font-size: 16mm; }
+            .compact-print.double:not(.dense) .guest-row { font-size: 15mm; }
             @media screen {
               .a4-page { margin: 0 auto 12px; }
             }
