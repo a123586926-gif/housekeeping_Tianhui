@@ -1538,7 +1538,7 @@ export default function App() {
       setStaffFeedback("請輸入新的 8～32 位數字 PIN，才能啟用或更新登入密碼。");
       return;
     }
-    if(pinValue && (!/^[0-9]{8,32}$/.test(pinValue) || /^([0-9]{1,4})\\1+$/.test(pinValue) || [...pinValue].every((d,i,a)=>i===0 || Number(d)===(Number(a[i-1])+1)%10) || [...pinValue].every((d,i,a)=>i===0 || Number(d)===(Number(a[i-1])+9)%10))){
+    if(pinValue && (!/^[0-9]{8,32}$/.test(pinValue) || /^([0-9]{1,4})\1+$/.test(pinValue) || [...pinValue].every((d,i,a)=>i===0 || Number(d)===(Number(a[i-1])+1)%10) || [...pinValue].every((d,i,a)=>i===0 || Number(d)===(Number(a[i-1])+9)%10))){
       setStaffFeedback("PIN 請使用 8～32 位數字，不能是連續數字、重複組合或簡單規律。");
       return;
     }
@@ -2777,6 +2777,7 @@ export default function App() {
                 autoComplete="new-password"
                 type="password"
               />
+              <p className="text-xs text-[#786b54]" id="new-staff-pin-help">PIN 需為 8～32 位數字；避免 12345678、87654321、11111111、12121212 或重複組合。</p>
             </div>
 
             {staffFeedback && <p role="alert" className="mt-3 rounded-xl border border-red-300 bg-red-50 p-3 text-sm text-red-800">{staffFeedback}</p>}
