@@ -83,3 +83,24 @@ test("spoofed admin role on cleaner ID cannot mutate events or access database",
  assert.equal(res.statusCode,403);
  assert.equal(dbReads,0);
 });
+
+test("release-mode admin can edit existing non-QA events while QA remains protected",async()=>{
+ const make=(scope)=>{
+  let writes=0;
+  const db={from(table){assert.equal(table,"events");return {
+   select(){return this;},eq(){return this;},
+   maybeSingle(){return Promise.resolve({data:{id:19,event_name:"原有活動",event_type:"活動"},error:null});},
+   update(){writes++;return this;}
+  };}};
+  return {db,getWrites:()=>writes};
+ };
+ for(const [scope,expected] of [["qa",403],["production",200]]){
+  const mock=make(scope);
+  const handler=createEventHandler({releaseScope:scope,dbFactory:()=>mock.db,
+   sessionReader:async()=>admin,originAllowed:()=>true});
+  const res=response();
+  await handler({method:"PATCH",body:{eventId:19,event:{...event(),event_name:"原有活動"}}},res);
+  assert.equal(res.statusCode,expected);
+  assert.equal(mock.getWrites(),scope==="production"?1:0);
+ }
+});
