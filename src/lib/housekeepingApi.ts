@@ -114,10 +114,15 @@ export function updateRoomChecklist(
 
 /** Admin only; server resolves cleaner IDs, never trusts client role flags. */
 export function updateRoomAdministration(
-  roomId: number, changes: { occupant?: string; assignedTo?: string; assignedCleanerId?: number | null },
+  roomId: number,
+  changes: { occupant?: string; assignedTo?: string; assignedCleanerId?: number | null },
+  expectedAssignedCleanerId?: number | null,
 ): Promise<{ room: unknown }> {
   return request("/api/data/rooms", {
-    method: "PATCH", body: jsonBody({ roomId, changes }),
+    method: "PATCH", body: jsonBody({
+      roomId, changes,
+      ...(expectedAssignedCleanerId !== undefined ? { expectedAssignedCleanerId } : {}),
+    }),
   });
 }
 
