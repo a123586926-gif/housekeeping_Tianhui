@@ -39,7 +39,7 @@ function mockRoomDb({room={id:701,event_id:9101,cleaner_id:901,checklist:[],
   },
   storage:{
    from(bucket){
-    assert.equal(bucket,"hk-qa-cleaning-photos");
+    assert.equal(bucket,process.env.VERCEL_ENV==="production" ? "cleaning-photos" : "hk-qa-cleaning-photos");
     return {async createSignedUrl(photoPath,seconds){
       calls.push(["signedUrl",photoPath,seconds]);
       return {data:{signedUrl:"https://example.invalid/signed-mock"},error:null};
