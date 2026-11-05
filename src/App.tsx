@@ -1,4 +1,3 @@
-declare const __HOUSEKEEPING_PRODUCTION__: boolean;
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   Bell,
@@ -1216,7 +1215,7 @@ export default function App() {
     if(!activityName.trim()||!activityDate.trim()){window.alert("請輸入活動名稱與日期");return;}
     const input={
       event_date:activityDate,
-      event_name:!__HOUSEKEEPING_PRODUCTION__ && activityModalMode==="add" && !activityName.trim().startsWith("【權限驗收】")
+      event_name:!(import.meta.env.VITE_HK_RELEASE_APPROVED === "enabled") && activityModalMode==="add" && !activityName.trim().startsWith("【權限驗收】")
         ? "【權限驗收】"+activityName.trim() : activityName.trim(),
       event_type:(activityModalMode==="edit" && activityNeedsCleaning &&
         activities.find(a=>a.id===editingActivityId)?.category==="住宿"
@@ -1626,7 +1625,7 @@ export default function App() {
       rejectSave("找不到這位房務人員，請重新整理人員清單後再操作。");
       return;
     }
-    if(!__HOUSEKEEPING_PRODUCTION__ && !name.startsWith("【權限驗收】")){
+    if(!(import.meta.env.VITE_HK_RELEASE_APPROVED === "enabled") && !name.startsWith("【權限驗收】")){
       rejectSave("獨立測試版只允許建立或修改【權限驗收】帳號");
       return;
     }
@@ -2695,7 +2694,7 @@ export default function App() {
             <div className="text-lg font-semibold text-[#4f4435]">
               {activityModalMode === "edit" ? "修改活動" : "新增活動"}
             </div>
-            {!__HOUSEKEEPING_PRODUCTION__ && <p className="mt-2 text-[11px] text-[#847663]">獨立測試環境：新活動將自動加上「【權限驗收】」標記；原有測試活動 A／B／C 可以調整日期與名稱。</p>}
+            {!(import.meta.env.VITE_HK_RELEASE_APPROVED === "enabled") && <p className="mt-2 text-[11px] text-[#847663]">獨立測試環境：新活動將自動加上「【權限驗收】」標記；原有測試活動 A／B／C 可以調整日期與名稱。</p>}
 
             <div className="mt-3 space-y-3">
               <input
@@ -2866,7 +2865,7 @@ export default function App() {
               {staffModalMode === "edit" ? "編輯打掃人員" : "新增打掃人員"}
             </div>
 
-            <p className="mt-2 text-xs text-[#8b7755]" role="status">房務 PIN 修正版 11/05-H · 本次點擊：{staffButtonPresses}</p>
+            <p className="mt-2 text-xs text-[#8b7755]" role="status">房務 PIN 修正版 11/05-I · 本次點擊：{staffButtonPresses}</p>
             <div className="mt-3 space-y-3">
               <input
                 value={newStaffName}
@@ -2926,7 +2925,7 @@ export default function App() {
                 disabled={staffSaving}
                 className="rounded-[20px] bg-[linear-gradient(135deg,#8b8462_0%,#9a946f_52%,#b5ae86_100%)] px-3 py-2 text-sm font-medium text-white"
               >
-                {staffSaving ? "PIN 處理中…" : "儲存 PIN（11/05-H）"}
+                {staffSaving ? "PIN 處理中…" : "儲存 PIN（11/05-I）"}
               </button>
             </div>
           </div>
