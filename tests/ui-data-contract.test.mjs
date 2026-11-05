@@ -85,9 +85,25 @@ test("PIN editing preserves entered values and exposes persistent outcome when s
  assert.match(body,/setStaffFeedback\(\(error instanceof Error/);
  const failure=body.slice(body.indexOf("}catch(error){"),body.indexOf("}finally{"));
  assert.doesNotMatch(failure,/setNewStaffPin\(" "\)|setNewStaffPin\(""\)/);
- assert.match(app,/房務 PIN 修正版 11\/05-D/);
+ assert.match(app,/房務 PIN 修正版 11\/05-E/);
  assert.match(app,/新 PIN 尚未確認儲存/);
  assert.match(app,/尚未輸入新 PIN/);
+});
+test("all pre-submit PIN rejects show persistent error and live complexity feedback",()=>{
+ const begin=app.indexOf("async function saveStaffModal()");
+ const end=app.indexOf("\n  return (",begin);
+ const handler=app.slice(begin,end);
+ const guardErrors=[
+  "上一次儲存還在進行","管理員登入狀態已失效","請填寫房務人員姓名",
+  "找不到這位房務人員","請輸入新的 8～32 位數字 PIN",
+ ];
+ for(const message of guardErrors)assert.match(handler,new RegExp("rejectSave\\(\""+message));
+ assert.match(handler,/if\(pinValue && validateNewStaffPin\(pinValue\)\)/);
+ assert.match(handler,/rejectSave\(validateNewStaffPin\(pinValue\)\)/);
+ assert.match(handler,/setStaffSaveStatus\("error"\)/);
+ assert.match(app,/validateNewStaffPin\(newStaffPin\.trim\(\)\)/);
+ assert.match(app,/PIN 格式符合安全規則，可以點選儲存/);
+ assert.match(app,/setStaffButtonPresses\(0\)/);
 });
 test("admin assignment dropdown sends immutable cleaner IDs",()=>{
  assert.match(app,/assignedCleanerId:\s*e\.target\.value\s*\?\s*Number\(e\.target\.value\)\s*:\s*null/);
