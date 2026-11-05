@@ -3,6 +3,7 @@ on:
   push:
     branches:
       - feature/remember-login-30d
+      - integration/full-release-review-20261105
   pull_request:
     branches:
       - main
