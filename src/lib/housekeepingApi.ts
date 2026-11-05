@@ -162,3 +162,12 @@ export function deleteQaRoom(roomId:number):Promise<{ok:boolean}> {
     method:"DELETE",body:jsonBody({roomId}),
   });
 }
+
+/** Atomically move one exact guest name between rooms in the same activity. */
+export function moveGuestAtomic(input:{
+  fromRoomId:number;toRoomId:number;name:string;expectedFrom:string;expectedTo:string;
+}):Promise<{ok:boolean}> {
+  return request("/api/data/guest-move",{
+    method:"POST",body:jsonBody(input),
+  });
+}
