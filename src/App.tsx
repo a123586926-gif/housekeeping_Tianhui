@@ -2505,76 +2505,49 @@ export default function App() {
                             key={room.id}
                             className="rounded-[16px] border border-[#e5ddd0] bg-white px-3 py-2 shadow-[0_4px_10px_rgba(84,69,45,0.04)]"
                           >
-                            <div className="text-[16px] font-semibold text-[#524736]">
-                              {roomLabel(room)}
+                            <div className="flex min-w-0 items-center gap-2">
+                              <input type="checkbox" checked={selectedPrintRoomIds.includes(room.id)}
+                                onChange={()=>togglePrintRoom(room.id)}
+                                aria-label={"勾選列印 "+roomLabel(room)}
+                                className="h-5 w-5 shrink-0 accent-[#8b8462]"/>
+                              <Printer className="h-5 w-5 shrink-0 text-[#8b7755]"/>
+                              <div className="min-w-0 flex-1 truncate text-[16px] font-semibold text-[#524736]">{roomLabel(room)}</div>
+                              <span className="shrink-0 rounded-full bg-[#efe5d6] px-2 py-1 text-[13px] font-semibold text-[#64563c]">
+                                {splitGuestLines(occupantDrafts[room.id] ?? room.occupant).length} 位
+                              </span>
+                              <button type="button" onClick={()=>deleteSelectedActivityRoom(room.id)}
+                                className="shrink-0 rounded-full px-1 text-[16px] text-[#9b8974]" title="刪除此房間">−</button>
                             </div>
-
-                            <div className="mt-2 grid grid-cols-[24px_minmax(0,1fr)_106px] items-start gap-2 sm:grid-cols-[24px_minmax(0,1fr)_112px_64px_36px_30px]">
-                              <div className="pt-3">
-                                <input
-                                  type="checkbox"
-                                  checked={selectedPrintRoomIds.includes(room.id)}
-                                  onChange={() => togglePrintRoom(room.id)}
-                                  className="h-4 w-4 accent-[#8b8462]"
-                                  title="勾選列印此房"
-                                />
-                              </div>
-
-                              <textarea
-                                value={occupantDrafts[room.id] ?? splitGuestLines(room.occupant).join("、")}
-                                disabled={savingRoomAdministrationIds.includes(room.id)}
-                                onChange={(e) => setOccupantDrafts(prev=>({...prev,[room.id]:e.target.value}))}
-                                onBlur={() => {
-                                  const draft=occupantDrafts[room.id];
-                                  if(draft===undefined)return;
-                                  void saveOccupantList(selectedActivity.id,room.id,draft);
-                                }}
-                                ref={node=>{if(node){node.style.height="auto";node.style.height=node.scrollHeight+"px";}}}
-                                className="min-w-0 w-full resize-none overflow-hidden rounded-[14px] border border-[#ddd4c6] bg-[#fdfaf6] px-3 py-2 text-[16px] leading-6 text-[#5f5444] focus:outline-none"
-                                rows={Math.max(1,Math.ceil((occupantDrafts[room.id] ?? splitGuestLines(room.occupant).join("、")).length / 18))}
-                                placeholder="直接填寫住宿人姓名，可用、或換行分隔"
-                              />
-
-                              <button
-                                type="button"
+                            <textarea
+                              value={occupantDrafts[room.id] ?? splitGuestLines(room.occupant).join("、")}
+                              disabled={savingRoomAdministrationIds.includes(room.id)}
+                              onChange={e=>setOccupantDrafts(prev=>({...prev,[room.id]:e.target.value}))}
+                              onBlur={()=>{
+                                const draft=occupantDrafts[room.id];
+                                if(draft!==undefined)void saveOccupantList(selectedActivity.id,room.id,draft);
+                              }}
+                              ref={node=>{if(node){node.style.height="auto";node.style.height=node.scrollHeight+"px";}}}
+                              rows={Math.max(1,Math.ceil((occupantDrafts[room.id] ?? splitGuestLines(room.occupant).join("、")).length / 17))}
+                              placeholder="直接填寫住宿人姓名，例如：李貞儀、陳美華"
+                              className="mt-2 min-h-[48px] w-full resize-none overflow-hidden rounded-[12px] border border-[#ded4c5] bg-[#fffcf8] px-3 py-2 text-[15px] leading-6 text-[#514837] focus:outline-[#9a946f] disabled:opacity-60"
+                            />
+                            <div className="mt-2 flex items-center gap-2">
+                              <span className="shrink-0 text-[20px] leading-none" aria-label="房務指派">🧹</span>
+                              <button type="button"
                                 aria-expanded={openCleanerPickerRoomId===room.id}
-                                aria-controls={`cleaner-options-${room.id}`}
+                                aria-controls={"cleaner-options-"+room.id}
                                 disabled={savingRoomAdministrationIds.includes(room.id)}
-                                onClick={() => setOpenCleanerPickerRoomId(prev=>prev===room.id?"":room.id)}
-                                className="col-start-3 row-start-1 min-w-0 min-h-[48px] rounded-[14px] border border-[#ddd4c6] bg-[#fdfaf6] px-2 text-[14px] font-medium text-[#5f5444] focus:outline-[#9a946f] disabled:opacity-70 sm:col-start-auto sm:row-start-auto"
-                                title="點選指派房務人員"
-                              >
-                                <span className="block truncate">{savingRoomAdministrationIds.includes(room.id)
-                                  ? "儲存中…" : room.assignedTo || "未分配"}</span>
-                                <span className="block text-[11px] text-[#8a7756]">點選更換</span>
+                                onClick={()=>setOpenCleanerPickerRoomId(prev=>prev===room.id?"":room.id)}
+                                className="min-h-[42px] min-w-0 flex-1 rounded-[12px] border border-[#d9cebc] bg-[#fdfaf6] px-3 text-[15px] font-medium text-[#5f5444] disabled:opacity-60">
+                                <span className="flex items-center justify-between gap-2">
+                                  <span className="truncate">{savingRoomAdministrationIds.includes(room.id)?"儲存中…":room.assignedTo||"未分配"}</span>
+                                  <ChevronDown className="h-4 w-4 shrink-0"/>
+                                </span>
                               </button>
-
-                              <div className="col-start-2 row-start-2 text-[14px] font-semibold text-[#7c715c] sm:col-start-auto sm:row-start-auto sm:pt-3">
-                                {roomProgress(room)}%
-                              </div>
-
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  printSingleRoomA4(room);
-                                }}
-                                className="col-start-3 row-start-2 mt-1 flex h-7 w-7 items-center justify-center rounded-full bg-[#efe7db] text-[#7f735d] sm:col-start-auto sm:row-start-auto"
-                                title="列印此房"
-                              >
-                                <Printer className="h-3.5 w-3.5" />
-                              </button>
-
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  deleteSelectedActivityRoom(room.id);
-                                }}
-                                className="col-start-3 row-start-3 mt-1 flex h-7 w-7 items-center justify-center rounded-full bg-[#efe7db] text-[12px] text-[#7f735d] sm:col-start-auto sm:row-start-auto"
-                              >
-                                -
-                              </button>
+                              <span className="shrink-0 text-[13px] text-[#8b7d69]">{roomProgress(room)}%</span>
+                              <button type="button" onClick={()=>printSingleRoomA4(room)}
+                                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#eee6d9] text-[#76674f]"
+                                title="單房A4列印"><Printer className="h-5 w-5"/></button>
                             </div>
                             {openCleanerPickerRoomId===room.id && (
                               <div id={`cleaner-options-${room.id}`} role="group"
