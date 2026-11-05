@@ -204,6 +204,20 @@ function buildChecklist(): ChecklistItem[] {
   }));
 }
 
+function validateNewStaffPin(value: string): string {
+  if(value.length === 0)return "請輸入新 PIN。";
+  if(!/^[0-9]{8,32}$/.test(value))
+    return "新 PIN 必須是 8～32 位半形數字，不能有空格、英文字或其他符號。";
+  if(/^([0-9]{1,4})\\1+$/.test(value))
+    return "這組 PIN 是重複數字或重複組合，請改用較不規律的數字。";
+  const digits=[...value].map(Number);
+  if(digits.every((digit,i)=>i===0||digit===(digits[i-1]+1)%10))
+    return "這組 PIN 是連續遞增數字，請改用不連續的數字。";
+  if(digits.every((digit,i)=>i===0||digit===(digits[i-1]+9)%10))
+    return "這組 PIN 是連續遞減數字，請改用不連續的數字。";
+  return "";
+}
+
 function computeRoomStatus(checklist: ChecklistItem[]): RoomStatus {
   const total = checklist.length;
   const completed = checklist.filter((item) => item.done).length;
@@ -1555,6 +1569,7 @@ export default function App() {
     setEditingStaffId("");
     setNewStaffName("");
     setNewStaffPin("");
+    setStaffButtonPresses(0);
     setStaffFeedback("");
     setStaffSaveStatus("idle");
     setStaffSuccess("");
@@ -1566,6 +1581,7 @@ export default function App() {
     setEditingStaffId(user.id);
     setNewStaffName(user.name);
     setNewStaffPin("");
+    setStaffButtonPresses(0);
     setStaffFeedback("");
     setStaffSaveStatus("idle");
     setStaffSuccess("");
@@ -1574,15 +1590,19 @@ export default function App() {
 
   async function saveStaffModal() {
     setStaffButtonPresses(x=>x+1);
+    const rejectSave=(message:string)=>{
+      setStaffSaveStatus("error");
+      setStaffFeedback(message);
+    };
     if(staffMutationBusy.current){
-      setStaffFeedback("上一次儲存還在進行，請勿重複點擊。");
+      rejectSave("上一次儲存還在進行，請勿重複點擊。");
       return;
     }
     setStaffFeedback("");
     setStaffSuccess("");
     setStaffSaveStatus("idle");
     if(currentUser?.role!=="admin"){
-      setStaffFeedback("管理員登入狀態已失效，請重新登入後設定 PIN。");
+      rejectSave("管理員登入狀態已失效，請重新登入後設定 PIN。");
       return;
     }
     const name=newStaffName.trim();
@@ -1590,23 +1610,23 @@ export default function App() {
     const staff=staffModalMode==="edit"
       ? staffUsers.find(x=>x.id===editingStaffId) : null;
     if(!name){
-      setStaffFeedback("請填寫房務人員姓名。");
+      rejectSave("請填寫房務人員姓名。");
       return;
     }
     if(staffModalMode==="edit" && !staff?.dbId){
-      setStaffFeedback("找不到這位房務人員，請重新整理人員清單後再操作。");
+      rejectSave("找不到這位房務人員，請重新整理人員清單後再操作。");
       return;
     }
     if(!__HOUSEKEEPING_PRODUCTION__ && !name.startsWith("【權限驗收】")){
-      setStaffFeedback("獨立測試版只允許建立或修改【權限驗收】帳號");
+      rejectSave("獨立測試版只允許建立或修改【權限驗收】帳號");
       return;
     }
     if(!pinValue && (staffModalMode==="add" || staff?.name===name)){
-      setStaffFeedback("請輸入新的 8～32 位數字 PIN，才能啟用或更新登入密碼。");
+      rejectSave("請輸入新的 8～32 位數字 PIN，才能啟用或更新登入密碼。");
       return;
     }
-    if(pinValue && (!/^[0-9]{8,32}$/.test(pinValue) || /^([0-9]{1,4})\1+$/.test(pinValue) || [...pinValue].every((d,i,a)=>i===0 || Number(d)===(Number(a[i-1])+1)%10) || [...pinValue].every((d,i,a)=>i===0 || Number(d)===(Number(a[i-1])+9)%10))){
-      setStaffFeedback("PIN 請使用 8～32 位數字，不能是連續數字、重複組合或簡單規律。");
+    if(pinValue && validateNewStaffPin(pinValue)){
+      rejectSave(validateNewStaffPin(pinValue));
       return;
     }
     staffMutationBusy.current=true;
@@ -2830,7 +2850,7 @@ export default function App() {
               {staffModalMode === "edit" ? "編輯打掃人員" : "新增打掃人員"}
             </div>
 
-            <p className="mt-2 text-xs text-[#8b7755]" role="status">房務 PIN 修正版 11/05-D · 按鈕點擊紀錄：{staffButtonPresses}</p>
+            <p className="mt-2 text-xs text-[#8b7755]" role="status">房務 PIN 修正版 11/05-E · 本次點擊：{staffButtonPresses}</p>
             <div className="mt-3 space-y-3">
               <input
                 value={newStaffName}
@@ -2848,7 +2868,15 @@ export default function App() {
                 autoComplete="new-password"
                 type="password"
               />
-              <p className="text-xs text-[#786b54]" id="new-staff-pin-help">PIN 需為 8～32 位數字；避免 12345678、87654321、11111111、12121212 或重複組合。</p>
+              <p className="text-xs text-[#786b54]" id="new-staff-pin-help">PIN 需為 8～32 位半形數字，不可使用連號或重複組合。</p>
+              {newStaffPin.length>0 && (
+                <p role="status" aria-live="polite"
+                  className={`rounded-xl border px-3 py-2 text-xs ${validateNewStaffPin(newStaffPin.trim())
+                    ? "border-red-300 bg-red-50 text-red-800" : "border-green-300 bg-green-50 text-green-800"}`}>
+                  {validateNewStaffPin(newStaffPin.trim())
+                    ? validateNewStaffPin(newStaffPin.trim()) : "PIN 格式符合安全規則，可以點選儲存。"}
+                </p>
+              )}
             </div>
 
             <p className="mt-3 text-xs text-[#786b54]" role="status">
@@ -2872,7 +2900,7 @@ export default function App() {
                 disabled={staffSaving}
                 className="rounded-[20px] bg-[linear-gradient(135deg,#8b8462_0%,#9a946f_52%,#b5ae86_100%)] px-3 py-2 text-sm font-medium text-white"
               >
-                {staffSaving ? "PIN 處理中…" : "儲存 PIN（11/05-D）"}
+                {staffSaving ? "PIN 處理中…" : "儲存 PIN（11/05-E）"}
               </button>
             </div>
           </div>
