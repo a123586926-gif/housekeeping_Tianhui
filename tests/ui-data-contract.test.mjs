@@ -135,6 +135,29 @@ test("production-only UI is keyed to the actual official hostname, not a missing
  assert.match(app,/event_name:!isApprovedProductionUI\(\)/);
  assert.match(vite,/vercelEnvironment === 'production' && releaseReady && ref === 'main'/);
 });
+test("activity sorting puts today and future first, past dates last, and refreshes across midnight",()=>{
+ assert.match(app,/function sortActivitiesByClosestDate\(list: Activity\[\], today: Date\)/);
+ assert.match(app,/if \(aPast !== bPast\) return aPast \? 1 : -1/);
+ assert.match(app,/if \(!aPast && !bPast\) return aDate - bDate/);
+ assert.match(app,/return bDate - aDate/);
+ assert.match(app,/window\.setInterval\(refreshDate, 60_000\)/);
+});
+test("activity room search covers room number, assigned cleaner, occupant and resets on activity switch",()=>{
+ assert.match(app,/const \[activityRoomSearch,setActivityRoomSearch\] = useState\(" "\)/.source === "no-match" ? /activityRoomSearch/ : /activityRoomSearch/);
+ assert.match(app,/const term=activityRoomSearch\.trim\(\)\.toLocaleLowerCase\(\)/);
+ assert.match(app,/\[roomLabel\(room\),room\.roomNo,room\.assignedTo,room\.occupant\]/);
+ assert.match(app,/setActivityRoomSearch\(" "\)|setActivityRoomSearch\(""\)/);
+ assert.match(app,/顯示 \{filteredActivityRooms\.length\} \/ \{selectedActivity\.rooms\.length\} 間房/);
+});
+test("admin room creation validates room number before invoking service and still checks duplicates",()=>{
+ const start=app.indexOf("async function saveNewRoom()");
+ const end=app.indexOf("function selectActivity(",start);
+ const body=app.slice(start,end);
+ assert.match(body,/!\/\^\[A-Z0-9\]\{1,8\}\$\/\.test\(roomNo\)/);
+ assert.ok(body.indexOf("^[A-Z0-9]")<body.indexOf("createQaRoom("));
+ assert.match(body,/selectedActivity\.rooms\.some/);
+ assert.match(body,/roomMutationBusy\.current=true/);
+});
 test("admin assignment dropdown sends immutable cleaner IDs",()=>{
  assert.match(app,/assignedCleanerId:\s*e\.target\.value\s*\?\s*Number\(e\.target\.value\)\s*:\s*null/);
  assert.match(app,/value=\{room\.cleanerId == null \? "" : String\(room\.cleanerId\)\}/);
