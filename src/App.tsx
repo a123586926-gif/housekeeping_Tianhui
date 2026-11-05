@@ -66,6 +66,16 @@ type Room = {
   checklist: ChecklistItem[];
 };
 
+type PendingChecklistWrite = {
+  activityId: string;
+  roomId: string;
+  dbId: number;
+  epoch: number;
+  committed: ChecklistItem[];
+  desired: ChecklistItem[];
+  writing: boolean;
+};
+
 type Activity = {
   id: string;
   dbId?: number;
@@ -394,6 +404,9 @@ export default function App() {
   const [overviewSearch, setOverviewSearch] = useState("");
   const [expandedRoomId, setExpandedRoomId] = useState("");
   const checklistSavingRooms = useRef(new Set<string>());
+  // One serialized write stream per room. Other checkboxes remain interactive
+  // while pending writes are submitted in the order needed for optimistic locks.
+  const pendingChecklistWrites = useRef(new Map<string, PendingChecklistWrite>());
   const [savingChecklistRoomIds, setSavingChecklistRoomIds] = useState<string[]>([]);
   const roomAdministrationSaving = useRef(new Set<string>());
   const [savingRoomAdministrationIds,setSavingRoomAdministrationIds] = useState<string[]>([]);
@@ -521,7 +534,9 @@ export default function App() {
       const relatedRooms = eventRooms
         .filter((room) => room.event_id === event.id)
         .map((room) => {
-          const checklist = normalizeDbChecklist(room.checklist);
+          const pending = pendingChecklistWrites.current.get(`room-${room.id}`);
+          const checklist = pending && pending.epoch === epoch
+            ? pending.desired : normalizeDbChecklist(room.checklist);
 
           // The checklist is the canonical source of UI progress and status.
           // Fallback supports older records that do not yet contain a checklist.
@@ -635,6 +650,9 @@ export default function App() {
 
   useEffect(()=>{
     dataEpoch.current+=1;
+    pendingChecklistWrites.current.clear();
+    checklistSavingRooms.current.clear();
+    setSavingChecklistRoomIds([]);
     if(!currentUser){
       setActivities([]);setStaffUsers([]);setSharedCalendarEvents([]);
       setSelectedPrintRoomIds([]);setOccupantDrafts({});
@@ -1006,65 +1024,95 @@ export default function App() {
     }
   }
 
-  async function updateLatestActivityChecklist(roomId: string, itemId: string, checked: boolean) {
-    if (!latestCleaningActivity) return;
-    const room = latestCleaningActivity.rooms.find((r) => r.id === roomId);
-    if (!room) return;
+  const checklistFlags=(items:ChecklistItem[])=>items.map(item=>({
+    id:item.id,done:item.done,photo:item.photo,
+    subItems:item.subItems.map(sub=>({id:sub.id,done:sub.done})),
+  }));
 
-    const nextChecklist = room.checklist.map((item) => {
-      if (item.id !== itemId) return item;
-
-      if (!checked) {
-        return {
-          ...item,
-          done: false,
-          photo: item.photo,
-          subItems: item.subItems.map((sub) => ({ ...sub, done: false })),
-        };
+  async function flushChecklistQueue(roomId:string) {
+    const task=pendingChecklistWrites.current.get(roomId);
+    if(!task || task.writing)return;
+    task.writing=true;
+    try {
+      while(task.epoch===dataEpoch.current &&
+        pendingChecklistWrites.current.get(roomId)===task){
+        const next=task.desired;
+        if(JSON.stringify(checklistFlags(next))===JSON.stringify(checklistFlags(task.committed)))break;
+        // Server-owned room assignment and compare-and-swap prevent cross-account
+        // and concurrent edits. Never send overlapping writes for the same room.
+        await updateRoomChecklist(task.dbId,checklistFlags(next),checklistFlags(task.committed));
+        task.committed=next;
       }
-
-      return {
-        ...item,
-        done: true,
-        photo: item.photo,
-        subItems: item.subItems.map((sub) => ({ ...sub, done: true })),
-      };
-    });
-
-    await updateRoomField(latestCleaningActivity.id, roomId, {
-      checklist: nextChecklist,
-      status: computeRoomStatus(nextChecklist),
-    });
+    }catch(error){
+      if(task.epoch===dataEpoch.current &&
+        pendingChecklistWrites.current.get(roomId)===task){
+        pendingChecklistWrites.current.delete(roomId);
+        window.alert((error instanceof Error?error.message:"清潔項目儲存失敗")+
+          "；已停止後續勾選，正在重新同步房間資料，請確認最新狀態。");
+        await loadEventsFromSupabase();
+      }
+    }finally{
+      if(pendingChecklistWrites.current.get(roomId)===task){
+        pendingChecklistWrites.current.delete(roomId);
+      }
+      if(task.epoch===dataEpoch.current &&
+        !pendingChecklistWrites.current.has(roomId)){
+        checklistSavingRooms.current.delete(roomId);
+        setSavingChecklistRoomIds(prev=>prev.filter(id=>id!==roomId));
+      }
+    }
   }
 
-  async function updateLatestActivitySubItem(
-    roomId: string,
-    itemId: string,
-    subItemId: string,
-    checked: boolean
-  ) {
-    if (!latestCleaningActivity) return;
-    const room = latestCleaningActivity.rooms.find((r) => r.id === roomId);
-    if (!room) return;
-
-    const nextChecklist = room.checklist.map((item) => {
-      if (item.id !== itemId) return item;
-
-      const nextSubItems = item.subItems.map((sub) =>
-        sub.id === subItemId ? { ...sub, done: checked } : sub
-      );
-
-      return {
-        ...item,
-        subItems: nextSubItems,
-        done: checked && nextSubItems.every((sub) => sub.done),
+  function queueChecklistChange(roomId:string,transform:(items:ChecklistItem[])=>ChecklistItem[]) {
+    if(!latestCleaningActivity)return;
+    const activityId=latestCleaningActivity.id;
+    const room=latestCleaningActivity.rooms.find(entry=>entry.id===roomId);
+    if(!room?.dbId)return;
+    const epoch=dataEpoch.current;
+    let task=pendingChecklistWrites.current.get(roomId);
+    // The queue's desired state, not an old React render, is the source for
+    // rapid successive clicks in the same room.
+    if(task && task.epoch!==epoch) {
+      pendingChecklistWrites.current.delete(roomId);
+      task=undefined;
+    }
+    const desired=transform(task?.desired??room.checklist);
+    if(task){
+      task.desired=desired;
+    }else{
+      task={
+        activityId,roomId,dbId:room.dbId,epoch,
+        committed:room.checklist,desired,writing:false,
       };
-    });
+      pendingChecklistWrites.current.set(roomId,task);
+      checklistSavingRooms.current.add(roomId);
+      setSavingChecklistRoomIds(prev=>prev.includes(roomId)?prev:[...prev,roomId]);
+    }
+    setActivities(prev=>prev.map(activity=>activity.id!==activityId?activity:{
+      ...activity,
+      rooms:activity.rooms.map(entry=>entry.id!==roomId?entry:{
+        ...entry,checklist:desired,status:computeRoomStatus(desired),
+      }),
+    }));
+    void flushChecklistQueue(roomId);
+  }
 
-    await updateRoomField(latestCleaningActivity.id, roomId, {
-      checklist: nextChecklist,
-      status: computeRoomStatus(nextChecklist),
-    });
+  function updateLatestActivityChecklist(roomId:string,itemId:string,checked:boolean) {
+    queueChecklistChange(roomId,checklist=>checklist.map(item=>{
+      if(item.id!==itemId)return item;
+      return {
+        ...item,done:checked,photo:item.photo,
+        subItems:item.subItems.map(sub=>({...sub,done:checked})),
+      };
+    }));
+  }
+
+  function updateLatestActivitySubItem(roomId:string,itemId:string,subItemId:string,checked:boolean) {
+    queueChecklistChange(roomId,checklist=>checklist.map(item=>{
+      if(item.id!==itemId)return item;
+      const subItems=item.subItems.map(sub=>sub.id===subItemId?{...sub,done:checked}:sub);
+      return {...item,subItems,done:subItems.every(sub=>sub.done)};
+    }));
   }
 
   async function confirmPhotoUploadAndComplete() {
@@ -1758,6 +1806,9 @@ export default function App() {
                         </div>
 
                         <div className="flex items-center gap-2">
+                          {savingChecklistRoomIds.includes(room.id) && (
+                            <span className="text-[11px]" aria-live="polite">同步中…</span>
+                          )}
                           <div
                             className={`rounded-full px-3 py-1 text-[11px] font-semibold shadow-sm ${
                               expanded ? "bg-white text-[#6b604b]" : "bg-[#efe7d7] text-[#75684f]"
@@ -1781,7 +1832,6 @@ export default function App() {
                               <input
                                 type="checkbox"
                                 checked={item.done}
-                                disabled={savingChecklistRoomIds.includes(room.id)}
                                 onChange={(e) => {
                                   const checked = e.target.checked;
 
@@ -1851,7 +1901,6 @@ export default function App() {
                                       <input
                                         type="checkbox"
                                         checked={sub.done}
-                                        disabled={savingChecklistRoomIds.includes(room.id)}
                                         onChange={(e) => {
                                           const checked = e.target.checked;
 
