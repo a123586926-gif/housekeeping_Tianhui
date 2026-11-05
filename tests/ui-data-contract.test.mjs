@@ -6,6 +6,7 @@ import {fileURLToPath} from "node:url";
 const app=fs.readFileSync(fileURLToPath(new URL("../src/App.tsx",import.meta.url)),"utf8");
 const api=fs.readFileSync(fileURLToPath(new URL("../api/data/rooms.js",import.meta.url)),"utf8");
 const auth=fs.readFileSync(fileURLToPath(new URL("../src/lib/authSession.ts",import.meta.url)),"utf8");
+const vite=fs.readFileSync(fileURLToPath(new URL("../vite.config.ts",import.meta.url)),"utf8");
 
 test("room assignment is scoped by immutable cleaner ID rather than display name",()=>{
  assert.match(app,/cleanerId:\s*room\.cleaner_id\s*\?\?\s*null/);
