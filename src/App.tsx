@@ -2992,7 +2992,7 @@ export default function App() {
           onClick={() => { if(!activitySaving) setShowActivityModal(false); }}
         >
           <div
-            className="my-auto w-full max-w-sm min-w-0 max-h-[calc(100dvh-2rem)] overflow-y-auto overscroll-contain rounded-[28px] bg-white p-4 shadow-[0_18px_40px_rgba(15,23,42,0.14)]"
+            className="my-auto box-border w-full max-w-sm min-w-0 max-h-[calc(100dvh-2rem)] overflow-x-hidden overflow-y-auto overscroll-contain rounded-[28px] bg-white p-4 shadow-[0_18px_40px_rgba(15,23,42,0.14)]"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="text-lg font-semibold text-[#4f4435]">
@@ -3001,26 +3001,28 @@ export default function App() {
             {!isApprovedProductionUI() && <p className="mt-2 text-[11px] text-[#847663]">獨立測試環境：新活動將自動加上「【權限驗收】」標記；原有測試活動 A／B／C 可以調整日期與名稱。</p>}
 
             <div className="mt-3 space-y-3">
-              <input
-                type="date"
-                value={activityDate}
-                onChange={(e) => setActivityDate(e.target.value)}
-                className="w-full rounded-[18px] border border-[#ddd3c4] bg-[#fffdfa] px-3 py-2.5 text-sm text-[#5f5444]"
-              />
-
-              <input
-                value={activityName}
-                onChange={(e) => setActivityName(e.target.value)}
-                className="w-full rounded-[18px] border border-[#ddd3c4] bg-[#fffdfa] px-3 py-2.5 text-sm text-[#5f5444]"
-                placeholder="活動名稱"
-              />
-
-              <input
-                value={activityContact}
-                onChange={(e) => setActivityContact(e.target.value)}
-                className="w-full rounded-[18px] border border-[#ddd3c4] bg-[#fffdfa] px-3 py-2.5 text-sm text-[#5f5444]"
-                placeholder="聯絡人 / 備註"
-              />
+              <label className="block min-w-0 text-[15px] font-semibold text-[#5f5444]">
+                活動日期
+                <input type="date" value={activityDate}
+                  onChange={e=>setActivityDate(e.target.value)}
+                  className="mt-1 box-border block min-h-[52px] w-full max-w-full min-w-0 rounded-[16px] border border-[#ddd3c4] bg-[#fffdfa] px-3 py-2 text-[16px] font-normal text-[#5f5444]"/>
+              </label>
+              <label className="block min-w-0 text-[15px] font-semibold text-[#5f5444]">
+                活動名稱
+                <textarea value={activityName} onChange={e=>setActivityName(e.target.value)}
+                  onInput={e=>{const n=e.currentTarget;n.style.height="auto";n.style.height=n.scrollHeight+"px";}}
+                  ref={n=>{if(n){n.style.height="auto";n.style.height=n.scrollHeight+"px";}}}
+                  rows={1} placeholder="活動名稱"
+                  className="mt-1 box-border block min-h-[52px] w-full max-w-full min-w-0 resize-none overflow-hidden rounded-[16px] border border-[#ddd3c4] bg-[#fffdfa] px-3 py-3 text-[16px] font-normal leading-6 text-[#5f5444]"/>
+              </label>
+              <label className="block min-w-0 text-[15px] font-semibold text-[#5f5444]">
+                聯絡人／備註
+                <textarea value={activityContact} onChange={e=>setActivityContact(e.target.value)}
+                  onInput={e=>{const n=e.currentTarget;n.style.height="auto";n.style.height=n.scrollHeight+"px";}}
+                  ref={n=>{if(n){n.style.height="auto";n.style.height=n.scrollHeight+"px";}}}
+                  rows={2} placeholder="聯絡人／備註（可多行）"
+                  className="mt-1 box-border block min-h-[72px] w-full max-w-full min-w-0 resize-none overflow-hidden rounded-[16px] border border-[#ddd3c4] bg-[#fffdfa] px-3 py-3 text-[16px] font-normal leading-6 text-[#5f5444]"/>
+              </label>
 
               <label className="flex items-center justify-between rounded-[18px] border border-[#ddd3c4] bg-[#fffdfa] px-3 py-2.5 text-sm text-[#5f5444]">
                 <span>需打掃</span>
