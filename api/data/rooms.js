@@ -178,6 +178,9 @@ export function createRoomsHandler({
           p_room_no:roomNo.toUpperCase(),p_checklist:buildChecklist(),
         });
         if(error) return json(res,409,{error:"Room create rejected (duplicate, limit or unsupported event)"});
+        // Do not report success for a malformed or missing RPC result: the
+        // client needs a stable positive room ID to assign staff safely.
+        if(!validId(id)) return json(res,503,{error:"Room creation response was invalid; refresh before retrying"});
         return json(res,201,{ok:true,roomId:Number(id)});
       }
       const roomId=validId(body.roomId);
