@@ -425,6 +425,8 @@ export default function App() {
   const [viewMode, setViewMode] = useState<"staff" | "admin">("staff");
   const [roomFilter, setRoomFilter] = useState<"all" | "completed" | "pending">("all");
   const [adminView, setAdminView] = useState<AdminView>("overview");
+  const [activitySection,setActivitySection] = useState<"summary"|"rooms">("summary");
+  const [activityScope,setActivityScope] = useState(()=>String(new Date().getFullYear()));
   const [overviewFilter, setOverviewFilter] = useState<OverviewFilter>("all");
   const [overviewSearch, setOverviewSearch] = useState("");
   const [expandedRoomId, setExpandedRoomId] = useState("");
@@ -765,6 +767,9 @@ export default function App() {
     [activities, today]
   );
 
+  const activityYears = useMemo(()=>Array.from(new Set([today.getFullYear(),...activities.map(a=>Number(a.date.slice(0,4)))]))
+    .filter(y=>Number.isSafeInteger(y) && y>=2000 && y<=2100).sort((a,b)=>b-a),[activities,today]);
+  const scopedActivities = useMemo(()=>sortedActivities.filter(a=>a.date.startsWith(activityScope)),[sortedActivities,activityScope]);
   const selectedActivity = useMemo(
     () =>
       sortedActivities.find((a) => a.id === selectedActivityId) ||
@@ -2135,6 +2140,73 @@ export default function App() {
 
             {adminView === "activity" && (
               <div className="rounded-[28px] border border-[#e2d8c8] bg-[linear-gradient(180deg,#fffdfa_0%,#f7f3eb_100%)] p-3 shadow-[0_12px_26px_rgba(84,69,45,0.08)]">
+                {activitySection==="summary" ? (
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between gap-2">
+                      <SectionTitle title="活動總覽" sub="預設當年全年，可選擇單一月份" icon={<CalendarDays className="h-4 w-4"/>}/>
+                      <button type="button" onClick={()=>openAddActivityModal()}
+                        className="shrink-0 rounded-full bg-[#898567] px-3 py-2 text-[14px] font-medium text-white">
+                        ＋ 新增活動
+                      </button>
+                    </div>
+                    <div className="flex items-stretch gap-2">
+                      <label className="min-w-0 flex-1">
+                        <span className="sr-only">選擇活動年度或月份</span>
+                        <select value={activityScope} onChange={e=>setActivityScope(e.target.value)}
+                          className="h-12 w-full min-w-0 rounded-[15px] border border-[#d7cbb8] bg-[#fffdfa] px-3 text-[16px] font-semibold text-[#544735]">
+                          {activityYears.flatMap(year=>[
+                            <option key={year} value={String(year)}>{year} 年（全年）</option>,
+                            ...Array.from({length:12},(_,m)=>{
+                              const value=`${year}-${String(m+1).padStart(2,"0")}`;
+                              return <option key={value} value={value}>{year} 年 {m+1} 月</option>;
+                            }),
+                          ])}
+                        </select>
+                      </label>
+                      <div className="flex min-w-[91px] flex-col items-center justify-center rounded-[15px] border border-[#d7cbb8] bg-[#f2eadc] px-3">
+                        <span className="text-[11px] text-[#75684f]">活動總數</span>
+                        <span className="text-[17px] font-bold text-[#524736]">{scopedActivities.length} 場</span>
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      {scopedActivities.map(activity=>{
+                        const done=activity.rooms.filter(room=>room.status==="completed").length;
+                        return (
+                          <button key={activity.id} type="button"
+                            onClick={()=>{selectActivity(activity.id);setActivitySection("rooms");}}
+                            className="flex w-full items-center gap-3 rounded-[17px] border border-[#e2d8c8] bg-white px-3 py-3 text-left shadow-sm">
+                            <div className="shrink-0 rounded-[11px] bg-[#f2eadc] px-2 py-2 text-center text-[14px] font-semibold text-[#594933]">
+                              {activity.date.slice(5).replace("-","/")}
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <div className="flex flex-wrap items-center gap-1.5">
+                                <span className="text-[16px] font-semibold text-[#514331]">{activity.name}</span>
+                                <span className="rounded-full bg-[#ede4d5] px-2 py-0.5 text-[11px] text-[#75684f]">
+                                  {activity.requiresCleaning?"需打掃":"一般活動"}
+                                </span>
+                              </div>
+                              <div className="mt-1 text-[13px] text-[#8a7b64]">
+                                房間：{activity.rooms.length} 間
+                                {activity.requiresCleaning ? `｜進度：${activity.rooms.length?Math.round(done/activity.rooms.length*100):0}%` : ""}
+                              </div>
+                            </div>
+                            <ChevronRight className="h-5 w-5 shrink-0 text-[#887b5e]"/>
+                          </button>
+                        );
+                      })}
+                      {scopedActivities.length===0 && (
+                        <div className="rounded-[16px] border border-dashed border-[#d6cbbb] px-3 py-8 text-center text-[14px] text-[#8a806f]">
+                          目前選擇的年度或月份沒有活動
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ) : (
+                  <div>
+                    <button type="button" onClick={()=>setActivitySection("summary")}
+                      className="mb-3 inline-flex items-center gap-1 rounded-full bg-[#ede7dc] px-3 py-2 text-[14px] font-medium text-[#65563e]">
+                      <ChevronLeft className="h-4 w-4"/> 返回活動總覽
+                    </button>
                 <div className="mb-2 flex items-center justify-between gap-2">
                   <SectionTitle
                     title="活動列表"
@@ -2480,6 +2552,8 @@ export default function App() {
                     )}
                   </>
                 )}
+                  </div>
+                )}
               </div>
             )}
 
@@ -2680,7 +2754,7 @@ export default function App() {
         <div className="fixed inset-x-0 bottom-0 z-40 border-t border-[#e2d8c8] bg-[#fcfaf6]/96 px-3 pt-3 pb-[calc(env(safe-area-inset-bottom)+1.25rem)] shadow-[0_-10px_24px_rgba(84,69,45,0.10)] backdrop-blur">
           <div className="mx-auto grid max-w-md grid-cols-4 gap-2">
             <button
-              onClick={() => setAdminView("activity")}
+              onClick={() => {setAdminView("activity");setActivitySection("summary");}}
               className={`min-h-[46px] rounded-[16px] border px-2 py-2 text-[13px] font-semibold ${gradientButton(
                 adminView === "activity"
               )}`}
