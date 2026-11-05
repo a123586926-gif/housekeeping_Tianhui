@@ -1324,12 +1324,17 @@ export default function App() {
 
   function buildA4RoomPage(room: Room) {
     const guests = splitGuestLines(room.occupant);
-    const useTwoColumns = guests.length > 6;
+    const useTwoColumns = guests.length > 10;
     // The six-person layout can be especially tall if names wrap. Keep the
     // established 6/7/8-column behavior, with compact type when needed.
     const hasLongNames = guests.some((guest) => [...guest].length > (useTwoColumns ? 4 : 7));
-    const compactPrint = hasLongNames || guests.length > 8;
-    const pageClass = compactPrint ? "a4-page compact-print" : "a4-page";
+    const compactPrint = hasLongNames || guests.length > 10;
+    const layoutClass = guests.length <= 2 ? "single-xl" : guests.length <= 6 ? "single-lg"
+      : guests.length <= 10 ? "single-md" : "double";
+    const pageClass = "a4-page " + layoutClass + (compactPrint ? " compact-print" : "");
+    const printedRoomNo = (room.building + room.roomNo).toUpperCase();
+    const titleLength = [...printedRoomNo].length;
+    const titleSizeClass = titleLength <= 4 ? "title-xl" : titleLength <= 6 ? "title-md" : "title-sm";
 
     const splitAt = Math.ceil(guests.length / 2);
     const leftGuests = useTwoColumns ? guests.slice(0, splitAt) : guests;
@@ -1370,8 +1375,8 @@ export default function App() {
     `;
 
     return `
-      <section class="${pageClass}">
-        <div class="room-title">${escapeHtml(roomLabel(room))}</div>
+      <section class="${pageClass} ${titleSizeClass}">
+        <div class="room-title">${escapeHtml(printedRoomNo)}</div>
         <div class="guest-area">
           ${
             useTwoColumns
@@ -1422,9 +1427,9 @@ export default function App() {
               display: flex;
               flex-direction: column;
               align-items: center;
-              padding-top: 18mm;
-              padding-left: 14mm;
-              padding-right: 14mm;
+              padding-top: 12mm;
+              padding-left: 12mm;
+              padding-right: 12mm;
               padding-bottom: 12mm;
               box-sizing: border-box;
               overflow: hidden;
@@ -1440,13 +1445,15 @@ export default function App() {
             .room-title {
               width: 100%;
               text-align: center;
-              font-size: 27mm;
-              line-height: 1.12;
-              overflow-wrap: anywhere;
+              font-size: 46mm;
+              line-height: 0.98;
+              white-space: nowrap;
               font-weight: 700;
               letter-spacing: 0;
-              margin-bottom: 20mm;
+              flex-shrink: 0;
             }
+            .title-md .room-title { font-size: 32mm; }
+            .title-sm .room-title { font-size: 23mm; }
 
             .guest-area {
               width: 100%;
@@ -1454,60 +1461,65 @@ export default function App() {
               display: flex;
               justify-content: center;
               align-items: flex-start;
+              min-height: 0;
+              box-sizing: border-box;
             }
-
             .guest-grid-one {
               width: 100%;
-              max-width: 120mm;
+              max-width: 148mm;
               display: flex;
               flex-direction: column;
               align-items: center;
-              gap: 9mm;
             }
-
             .guest-grid-two {
               width: 100%;
-              max-width: 170mm;
+              max-width: 174mm;
               display: grid;
-              grid-template-columns: 1fr 1fr;
+              grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
               column-gap: 12mm;
               align-items: start;
             }
-
             .guest-col {
+              min-width: 0;
               display: flex;
               flex-direction: column;
               align-items: center;
-              gap: 9mm;
             }
-
             .guest-row {
               width: 100%;
               text-align: center;
-              font-size: 18mm;
-              line-height: 1.15;
-              white-space: normal;
-              break-inside: avoid;
-              page-break-inside: avoid;
               overflow-wrap: anywhere;
               word-break: break-word;
-            }
-
-            /* Long names and larger rosters fit without changing the usual
-               six-person single column / seven-eight-person two columns. */
-            .compact-print .room-title {
-              font-size: 23mm;
-              margin-bottom: 12mm;
-            }
-            .compact-print .guest-row {
-              font-size: 13mm;
               line-height: 1.12;
-            }
-            .compact-print .guest-grid-one,
-            .compact-print .guest-col {
-              gap: 5mm;
+              break-inside: avoid;
+              page-break-inside: avoid;
             }
 
+            /* A205 / A301: one to two names are centered with wide spacing. */
+            .single-xl .guest-area { padding-top: 65mm; }
+            .single-xl .guest-grid-one { gap: 37mm; }
+            .single-xl .guest-row { font-size: 23mm; }
+            .single-xl:has(.guest-row:only-child) .guest-area { padding-top: 93mm; }
+
+            /* A201 / A208: one large name per line. */
+            .single-lg .guest-area { padding-top: 37mm; }
+            .single-lg .guest-grid-one { gap: 10mm; }
+            .single-lg .guest-row { font-size: 18mm; }
+            .single-lg:has(.guest-row:nth-child(6)) .guest-grid-one { gap: 5mm; }
+
+            /* Seven to ten people still fit a single centered column. */
+            .single-md .guest-area { padding-top: 26mm; }
+            .single-md .guest-grid-one { gap: 4mm; }
+            .single-md .guest-row { font-size: 13mm; }
+
+            /* AR: dense roster splits into balanced columns. */
+            .double .guest-area { padding-top: 20mm; }
+            .double .guest-col { gap: 5mm; }
+            .double .guest-row { font-size: 14mm; }
+
+            .compact-print .guest-row { font-size: 11mm; }
+            .compact-print.single-xl .guest-row { font-size: 17mm; }
+            .compact-print.single-lg .guest-row { font-size: 14mm; }
             @media screen {
               .a4-page { margin: 0 auto 12px; }
             }
