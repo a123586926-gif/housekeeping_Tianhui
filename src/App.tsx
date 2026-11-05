@@ -383,6 +383,7 @@ export default function App() {
   const [authBusy,setAuthBusy] = useState(false);
   const [loginFeedback,setLoginFeedback] = useState("");
   const [staffFeedback,setStaffFeedback] = useState("");
+  const [staffSaveStatus,setStaffSaveStatus] = useState<"idle"|"saving"|"error">("idle");
   const [staffButtonPresses,setStaffButtonPresses] = useState(0);
   const [staffSuccess,setStaffSuccess] = useState("");
   const [currentUser, setCurrentUser] = useState<User | null>(null);
@@ -1555,6 +1556,7 @@ export default function App() {
     setNewStaffName("");
     setNewStaffPin("");
     setStaffFeedback("");
+    setStaffSaveStatus("idle");
     setStaffSuccess("");
     setShowStaffModal(true);
   }
@@ -1564,6 +1566,9 @@ export default function App() {
     setEditingStaffId(user.id);
     setNewStaffName(user.name);
     setNewStaffPin("");
+    setStaffFeedback("");
+    setStaffSaveStatus("idle");
+    setStaffSuccess("");
     setShowStaffModal(true);
   }
 
@@ -1575,6 +1580,7 @@ export default function App() {
     }
     setStaffFeedback("");
     setStaffSuccess("");
+    setStaffSaveStatus("idle");
     if(currentUser?.role!=="admin"){
       setStaffFeedback("管理員登入狀態已失效，請重新登入後設定 PIN。");
       return;
@@ -1604,7 +1610,8 @@ export default function App() {
       return;
     }
     staffMutationBusy.current=true;
-    setStaffFeedback("正在向伺服器設定 PIN，請勿重複點擊。");
+    setStaffSaveStatus("saving");
+    setStaffFeedback("正在安全設定 PIN，儲存期間請勿關閉視窗。");
     setStaffSaving(true);
     try {
       if(staffModalMode==="edit"){
@@ -1627,15 +1634,17 @@ export default function App() {
       }
       setNewStaffPin("");
       setShowStaffModal(false);
+      setStaffSaveStatus("idle");
       setStaffFeedback("");
       setStaffSuccess(pinValue ? "PIN 已設定成功，這位房務人員可以使用新 PIN 登入。" : "房務人員資料已儲存。");
       void loadCleanersFromSupabase();
       void loadEventsFromSupabase();
     }catch(error){
-      setNewStaffPin("");
+      // Keep the user's in-progress form in place. Previously clearing it here
+      // made a failed PIN submission appear to do absolutely nothing.
+      setStaffSaveStatus("error");
       setStaffFeedback((error instanceof Error?error.message:"人員操作失敗")+
-        "；PIN 可能尚未設定成功，請先檢查人員狀態，不要連續重複提交。");
-      await loadCleanersFromSupabase();
+        "。新 PIN 尚未確認儲存，請先檢查訊息再決定是否重試。");
     }finally{
       staffMutationBusy.current=false;
       setStaffSaving(false);
@@ -2821,7 +2830,7 @@ export default function App() {
               {staffModalMode === "edit" ? "編輯打掃人員" : "新增打掃人員"}
             </div>
 
-            <p className="mt-2 text-xs text-[#8b7755]" role="status">房務 PIN 修正版 11/05-C · 按鈕點擊紀錄：{staffButtonPresses}</p>
+            <p className="mt-2 text-xs text-[#8b7755]" role="status">房務 PIN 修正版 11/05-D · 按鈕點擊紀錄：{staffButtonPresses}</p>
             <div className="mt-3 space-y-3">
               <input
                 value={newStaffName}
@@ -2832,7 +2841,7 @@ export default function App() {
 
               <input
                 value={newStaffPin}
-                onChange={(e) => setNewStaffPin(e.target.value)}
+                onChange={(e) => { setNewStaffPin(e.target.value); setStaffFeedback(""); setStaffSaveStatus("idle"); }}
                 className="w-full rounded-[20px] border border-[#ddd3c4] bg-[#fffdfa] px-3 py-2.5 text-sm text-[#5f5444]"
                 placeholder="輸入新 PIN（8～32 位數字）"
                 inputMode="numeric"
@@ -2842,7 +2851,13 @@ export default function App() {
               <p className="text-xs text-[#786b54]" id="new-staff-pin-help">PIN 需為 8～32 位數字；避免 12345678、87654321、11111111、12121212 或重複組合。</p>
             </div>
 
-            {staffFeedback && <p role="alert" className="mt-3 rounded-xl border border-red-300 bg-red-50 p-3 text-sm text-red-800">{staffFeedback}</p>}
+            <p className="mt-3 text-xs text-[#786b54]" role="status">
+              {staffSaveStatus==="saving"?"正在儲存，請稍候…":
+               staffSaveStatus==="error"?"儲存未成功，請看下方錯誤訊息。":
+               newStaffPin.trim().length===0?"尚未輸入新 PIN。":
+               `已輸入 ${newStaffPin.trim().length} 位數字，按儲存後會驗證。`}
+            </p>
+            {staffFeedback && <p role={staffSaveStatus==="saving"?"status":"alert"} className={`mt-2 rounded-xl border p-3 text-sm ${staffSaveStatus==="saving"?"border-amber-300 bg-amber-50 text-amber-900":"border-red-300 bg-red-50 text-red-800"}`}>{staffFeedback}</p>}
             <div className="mt-4 flex justify-end gap-2">
               <button
                 onClick={() => { if(!staffSaving) setShowStaffModal(false); }}
@@ -2857,7 +2872,7 @@ export default function App() {
                 disabled={staffSaving}
                 className="rounded-[20px] bg-[linear-gradient(135deg,#8b8462_0%,#9a946f_52%,#b5ae86_100%)] px-3 py-2 text-sm font-medium text-white"
               >
-                {staffSaving ? "PIN 處理中…" : "儲存 PIN（11/05-C）"}
+                {staffSaving ? "PIN 處理中…" : "儲存 PIN（11/05-D）"}
               </button>
             </div>
           </div>
