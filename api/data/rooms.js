@@ -40,7 +40,8 @@ function statusOf(checklist) {
   if (checklist.length > 0 && count === checklist.length) return "completed";
   return "in_progress";
 }
-const PHOTO_BUCKET = "hk-qa-cleaning-photos";
+const PHOTO_BUCKET = process.env.VERCEL_ENV === "production"
+  ? "cleaning-photos" : "hk-qa-cleaning-photos";
 const PHOTO_MAX_BYTES = 2 * 1024 * 1024;
 const PHOTO_FIELDS = { flooring: "floor_photo", bathroom: "bathroom_photo" };
 
