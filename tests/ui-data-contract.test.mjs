@@ -253,7 +253,7 @@ test("admin room writes cannot overlap and failed occupant edits keep drafts",()
  assert.match(app,/disabled=\{savingRoomAdministrationIds\.includes\(room\.id\)\}/);
  assert.match(app,/void saveOccupantList\(selectedActivity\.id,room\.id,draft\)/);
  assert.match(app,/if\(saved\)setOccupantDrafts\(prev=>/);
- assert.match(app,/if\(prev\[room\.id\]!==draft\)return prev/);
+ assert.match(app,/if\(prev\[roomId\]!==text && prev\[roomId\]!==normalized\)return prev/);
 });
 test("V2.1 new annual overview, quick paste and exact-match duplicate warnings",()=>{
  assert.match(app,/activitySection,setActivitySection/);
