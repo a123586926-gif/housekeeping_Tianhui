@@ -34,11 +34,17 @@ function sanitizeChecklist(items) {
     subItems: item.subItems.map(sub => ({ id: sub.id, done: sub.done })),
   }));
 }
-function statusOf(checklist) {
-  const count = checklist.filter(item => item.done).length;
-  if (count === 0) return "pending";
-  if (checklist.length > 0 && count === checklist.length) return "completed";
-  return "in_progress";
+// Calculate all persisted status fields from the same immutable checklist
+// snapshot so the admin overview cannot drift from the room percentage.
+export function summarizeChecklist(checklist) {
+  const total = checklist.length;
+  const completed = checklist.filter(item => item.done).length;
+  const status = completed === 0 ? "pending" :
+    completed === total ? "completed" : "in_progress";
+  const progress = total === 0 ? 0 : Math.round(100 * completed / total);
+  const cleaningStatus = status === "completed" ? "已完成" :
+    status === "in_progress" ? "進行中" : "未開始";
+  return { status, progress, cleaningStatus };
 }
 const PHOTO_BUCKET = process.env.VERCEL_ENV === "production"
   ? "cleaning-photos" : "hk-qa-cleaning-photos";
@@ -276,12 +282,11 @@ export function createRoomsHandler({
       // Keep the persisted photo flag unchanged: only the photo endpoint may set it.
       // Reject inconsistent completion flags; a completed parent must have all children done.
       if (merged.some(item => item.done && item.subItems.some(sub => !sub.done))) return bad(res);
-      const status = statusOf(merged);
-      const progress = merged.length ? Math.round(100 * merged.filter(i => i.done).length / merged.length) : 0;
+      const { status, progress, cleaningStatus } = summarizeChecklist(merged);
       payload.checklist = merged;
       payload.status = status;
       payload.progress = progress;
-      payload.cleaning_status = status === "completed" ? "已完成" : status === "in_progress" ? "進行中" : "未開始";
+      payload.cleaning_status = cleaningStatus;
       payload.cleaning_progress = progress;
     }
     // Repeat ownership constraint in the UPDATE itself. A reassignment between
