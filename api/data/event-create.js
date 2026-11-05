@@ -4,7 +4,7 @@ import { buildDefaultEventRooms } from "../_lib/defaultRooms.js";
 
 // Admin-only atomic event + default rooms creation.
 // The database RPC must be installed in the isolated test environment first.
-export function createEventHandler({dbFactory=adminDb,sessionReader=getSession,originAllowed=allowSameOrigin}={}) {
+export function createEventHandler({dbFactory=adminDb,sessionReader=getSession,originAllowed=allowSameOrigin,releaseScope="qa"}={}) {
   return async function handler(req, res) {
   if (!["POST", "PATCH", "DELETE"].includes(req.method)) return json(res, 405, { error: "Method not allowed" });
   if (!originAllowed(req)) return json(res, 403, { error: "Origin rejected" });
@@ -23,10 +23,10 @@ export function createEventHandler({dbFactory=adminDb,sessionReader=getSession,o
       if (guardError) throw guardError;
       if (!existing) return json(res,404,{error:"Event not found"});
       existingEvent = existing;
-      if (!existing.event_name.startsWith("【權限驗收】") && ![9101,9102,9103].includes(Number(eventId)))
+      if (releaseScope !== "production" && !existing.event_name.startsWith("【權限驗收】") && ![9101,9102,9103].includes(Number(eventId)))
         return json(res,403,{error:"Only QA events may be modified in sandbox"});
       if (req.method === "DELETE") {
-        if ([9101,9102,9103].includes(Number(eventId)))
+        if (releaseScope !== "production" && [9101,9102,9103].includes(Number(eventId)))
           return json(res,403,{error:"Seed fixture event cannot be deleted"});
         const {data: photos,error: photoError} = await db.from("event_rooms")
           .select("id").eq("event_id",eventId)
@@ -46,7 +46,7 @@ export function createEventHandler({dbFactory=adminDb,sessionReader=getSession,o
     }
     const event = validateEvent(req.body?.event);
     if (!event) return json(res, 400, { error: "Invalid event data" });
-    if (req.method === "POST" && !event.event_name.startsWith("【權限驗收】"))
+    if (req.method === "POST" && releaseScope !== "production" && !event.event_name.startsWith("【權限驗收】"))
       return json(res,403,{error:"Sandbox only accepts QA-labeled activities"});
     if (req.method === "PATCH") {
       // Switching between cleaning and non-cleaning would leave old rooms hidden,
