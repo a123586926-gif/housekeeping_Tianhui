@@ -371,6 +371,8 @@ export default function App() {
   const [staffUsers, setStaffUsers] = useState<User[]>([]);
   const [loginUsers,setLoginUsers] = useState<User[]>([]);
   const [authBusy,setAuthBusy] = useState(false);
+  const [loginFeedback,setLoginFeedback] = useState("");
+  const [staffFeedback,setStaffFeedback] = useState("");
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const dataEpoch=useRef(0);
   const overviewRequestSequence=useRef(0);
@@ -857,7 +859,8 @@ export default function App() {
 
   async function handleLogin() {
     if(authBusy||authRestoring)return;
-    if(!selectedUserId||!pin){window.alert("請先選擇帳號並輸入 PIN。");return;}
+    setLoginFeedback("");
+    if(!selectedUserId||!pin){setLoginFeedback("請先選擇帳號並輸入 PIN。");return;}
     setAuthBusy(true);
     try {
       const session=await signInWithPin(selectedUserId,pin);
@@ -881,7 +884,7 @@ export default function App() {
       setViewMode(session.user.role==="admin"?"admin":"staff");
     }catch(error) {
       setPin("");
-      window.alert(error instanceof Error?error.message:"登入失敗");
+      setLoginFeedback(error instanceof Error?error.message:"登入失敗");
     }finally {setAuthBusy(false);}
   }
 
@@ -1488,6 +1491,7 @@ export default function App() {
     setEditingStaffId("");
     setNewStaffName("");
     setNewStaffPin("");
+    setStaffFeedback("");
     setShowStaffModal(true);
   }
 
@@ -1501,8 +1505,9 @@ export default function App() {
 
   async function saveStaffModal() {
     if(staffMutationBusy.current)return;
+    setStaffFeedback("");
     if(currentUser?.role!=="admin"){
-      window.alert("管理員登入狀態已失效，請重新登入後設定 PIN。");
+      setStaffFeedback("管理員登入狀態已失效，請重新登入後設定 PIN。");
       return;
     }
     const name=newStaffName.trim();
@@ -1510,23 +1515,23 @@ export default function App() {
     const staff=staffModalMode==="edit"
       ? staffUsers.find(x=>x.id===editingStaffId) : null;
     if(!name){
-      window.alert("請填寫房務人員姓名。");
+      setStaffFeedback("請填寫房務人員姓名。");
       return;
     }
     if(staffModalMode==="edit" && !staff?.dbId){
-      window.alert("找不到這位房務人員，請重新整理人員清單後再操作。");
+      setStaffFeedback("找不到這位房務人員，請重新整理人員清單後再操作。");
       return;
     }
     if(!__HOUSEKEEPING_PRODUCTION__ && !name.startsWith("【權限驗收】")){
-      window.alert("獨立測試版只允許建立或修改【權限驗收】帳號");
+      setStaffFeedback("獨立測試版只允許建立或修改【權限驗收】帳號");
       return;
     }
     if(!pinValue && (staffModalMode==="add" || staff?.name===name)){
-      window.alert("請輸入新的 8～32 位數字 PIN，才能啟用或更新登入密碼。");
+      setStaffFeedback("請輸入新的 8～32 位數字 PIN，才能啟用或更新登入密碼。");
       return;
     }
     if(pinValue && !/^[0-9]{8,32}$/.test(pinValue)){
-      window.alert("PIN 必須是 8～32 位數字，不能有空格或其他符號。");
+      setStaffFeedback("PIN 必須是 8～32 位數字，不能有空格或其他符號。");
       return;
     }
     staffMutationBusy.current=true;
@@ -1559,7 +1564,7 @@ export default function App() {
         : "房務人員資料已儲存。");
     }catch(error){
       setNewStaffPin("");
-      window.alert((error instanceof Error?error.message:"人員操作失敗")+
+      setStaffFeedback((error instanceof Error?error.message:"人員操作失敗")+
         "；PIN 可能尚未設定成功，請先檢查人員狀態，不要連續重複提交。");
       await loadCleanersFromSupabase();
     }finally{
@@ -1643,6 +1648,7 @@ export default function App() {
                 type="password"
               />
 
+              {loginFeedback && <p role="alert" className="rounded-xl border border-red-300 bg-red-50 p-3 text-sm text-red-800">{loginFeedback.includes("401") ? "PIN 不正確或帳號暫時鎖定。請確認使用原本管理員 PIN，避免連續嘗試。" : loginFeedback}</p>}
               <button
                 onClick={handleLogin}
                 className="w-full rounded-[16px] bg-[linear-gradient(135deg,#8b8462_0%,#9a946f_52%,#b5ae86_100%)] px-3 py-2.5 text-sm font-semibold text-white shadow-[0_10px_20px_rgba(110,99,67,0.20)]"
@@ -2761,6 +2767,7 @@ export default function App() {
               />
             </div>
 
+            {staffFeedback && <p role="alert" className="mt-3 rounded-xl border border-red-300 bg-red-50 p-3 text-sm text-red-800">{staffFeedback}</p>}
             <div className="mt-4 flex justify-end gap-2">
               <button
                 onClick={() => { if(!staffSaving) setShowStaffModal(false); }}
