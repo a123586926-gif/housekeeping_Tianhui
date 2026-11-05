@@ -3,7 +3,7 @@ import { manageQaCleaner } from "../_lib/qaCleanerManagement.js";
 import {validateCleanerManagementInput} from "../_lib/cleanerManagementPolicy.js";
 
 // No PIN values are ever sent to the browser.
-export function createCleanersHandler({dbFactory=adminDb,sessionReader=getSession,originAllowed=allowSameOrigin}={}) {
+export function createCleanersHandler({dbFactory=adminDb,sessionReader=getSession,originAllowed=allowSameOrigin,scope="qa"}={}) {
   return async function handler(req, res) {
   if (!["GET","POST","PATCH"].includes(req.method)) return json(res, 405, { error: "Method not allowed" });
   if (req.method !== "GET" && !originAllowed(req)) return json(res, 403, { error: "Origin rejected" });
@@ -12,7 +12,7 @@ export function createCleanersHandler({dbFactory=adminDb,sessionReader=getSessio
     if (!session) return json(res, 401, { error: "Not authenticated" });
     if (session.user?.role !== "admin" || session.user.id !== "admin") return json(res, 403, { error: "Admin required" });
     if (req.method !== "GET") {
-      if (process.env.VERCEL_ENV==="production") {
+      if (scope==="production") {
         const parsed=validateCleanerManagementInput({
           method:req.method,action:req.body?.action,name:req.body?.name,
           cleanerId:req.body?.cleanerId,mode:"production-planning",
@@ -49,4 +49,4 @@ export function createCleanersHandler({dbFactory=adminDb,sessionReader=getSessio
   };
 }
 
-export default createCleanersHandler();
+export default createCleanersHandler({scope:process.env.VERCEL_ENV==="production"?"production":"qa"});
