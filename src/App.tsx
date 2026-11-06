@@ -1668,14 +1668,41 @@ export default function App() {
         </head>
         <body>
           ${pagesHtml}
+          <div id="print-controls" role="toolbar" aria-label="列印視窗操作">
+            <button type="button" id="print-now" onclick="window.print()">重新列印</button>
+            <button type="button" id="print-exit" onclick="window.close()">關閉並返回網站</button>
+          </div>
+          <style>
+            #print-controls { position:fixed;top:10px;right:10px;z-index:9999;display:flex;gap:8px; }
+            #print-controls button {background:#858264;color:white;border:0;border-radius:10px;padding:12px;font:16px sans-serif;cursor:pointer;}
+            #print-exit {background:#65543e !important;}
+            @media print { #print-controls {display:none !important;} }
+          </style>
           <script>
-            window.onload = function () {
-              if (document.fonts && document.fonts.ready) {
-                document.fonts.ready.then(() => window.print()).catch(() => window.print());
-              } else {
+            (function () {
+              var printed = false;
+              var closed = false;
+              function closeAfterPrint() {
+                if (closed) return;
+                closed = true;
+                // The preview may be cancelled: close only this popup to
+                // return to the existing Housekeeping page.
+                setTimeout(function () { window.close(); }, 200);
+              }
+              window.addEventListener("afterprint", closeAfterPrint, { once: true });
+              function printOnce() {
+                if (printed) return;
+                printed = true;
                 window.print();
               }
-            };
+              window.addEventListener("load", function () {
+                if (document.fonts && document.fonts.ready) {
+                  document.fonts.ready.then(printOnce).catch(printOnce);
+                } else {
+                  printOnce();
+                }
+              }, { once: true });
+            })();
           </script>
         </body>
       </html>
