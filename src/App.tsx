@@ -464,6 +464,7 @@ export default function App() {
   const [printAdvancedOpen,setPrintAdvancedOpen] = useState(false);
   const [occupantSaveStatus,setOccupantSaveStatus] = useState<Record<string,"saving"|"saved"|"error">>({});
   const [expandedStaffName, setExpandedStaffName] = useState("");
+  const [staffActivityId,setStaffActivityId] = useState("");
   const [calendarMonth, setCalendarMonth] = useState(new Date());
   const [calendarSheetDate, setCalendarSheetDate] = useState("");
 
@@ -827,6 +828,8 @@ export default function App() {
   );
 
   const latestRooms = latestCleaningActivity?.rooms || [];
+  const staffViewedActivity = sortedActivities.find(a=>a.id===staffActivityId && a.requiresCleaning) || latestCleaningActivity;
+  const staffViewedRooms = staffViewedActivity?.rooms || [];
 
   const cleanerRooms = useMemo(() => {
     if (!currentUser) return [];
@@ -2901,8 +2904,8 @@ export default function App() {
               <div className="rounded-[28px] border border-[#e2d8c8] bg-[linear-gradient(180deg,#fffdfa_0%,#f7f3eb_100%)] p-3 shadow-[0_12px_26px_rgba(84,69,45,0.08)]">
                 <div className="mb-2 flex items-center justify-between gap-2">
                   <SectionTitle
-                    title="打掃人員"
-                    sub="點選人員顯示房號與完成度"
+                    title="人員"
+                    sub="選擇活動查看每位人員的工作量"
                     icon={<Users className="h-4 w-4" />}
                   />
                   <button
@@ -2913,10 +2916,20 @@ export default function App() {
                   </button>
                 </div>
 
+                <label className="mb-3 block text-[13px] font-medium text-[#73654e]">
+                  查詢活動
+                  <select aria-label="選擇人員工作量活動" value={staffViewedActivity?.id??""}
+                    onChange={e=>{setStaffActivityId(e.target.value);setExpandedStaffName("");}}
+                    className="mt-1 min-h-[46px] w-full min-w-0 rounded-[13px] border border-[#d9cfbe] bg-white px-3 text-[16px] text-[#584936]">
+                    {sortedActivities.filter(activity=>activity.requiresCleaning).map(activity=>(
+                      <option key={activity.id} value={activity.id}>{formatDate(activity.date)}　{activity.name}</option>
+                    ))}
+                  </select>
+                </label>
                 <div className="space-y-2">
                   {staffSuccess && <p role="status" className="mb-2 rounded-xl border border-green-300 bg-green-50 p-3 text-sm text-green-800">{staffSuccess}</p>}
                   {staffUsers.map((user) => {
-                    const assignedRooms = latestRooms.filter(
+                    const assignedRooms = staffViewedRooms.filter(
                       (room) => user.dbId != null && room.cleanerId === user.dbId
                     );
                     const expanded = expandedStaffName === user.id;
@@ -2945,13 +2958,13 @@ export default function App() {
                                 {user.name}
                               </div>
                               <div className="mt-0.5 truncate text-[11px] text-[#8d8272]">
-                                {latestCleaningActivity
-                                  ? `${formatDate(latestCleaningActivity.date)} ${latestCleaningActivity.name}`
+                                {staffViewedActivity
+                                  ? `${formatDate(staffViewedActivity.date)} ${staffViewedActivity.name}`
                                   : "目前無活動"}
                               </div>
                             </div>
                             <div className="text-[11px] font-semibold text-[#8d8272]">
-                              房數 {assignedRooms.length}
+                              完成 {assignedRooms.filter(room=>room.status==="completed").length}/{assignedRooms.length} 間
                             </div>
                           </button>
                         </div>
