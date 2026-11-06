@@ -287,6 +287,38 @@ test("activity room details show only one selected activity, year/month selector
  assert.match(app,/aria-label="選擇活動月份"/);
  assert.match(app,/maxWidth:"100%",minWidth:0,boxSizing:"border-box"/);
 });
+test("management replaces bottom status and exposes lodging/cafe submodules",()=>{
+ assert.match(app,/const \[managementSection,setManagementSection\] = useState/);
+ assert.match(app,/const \[lodgingPanel,setLodgingPanel\] = useState/);
+ assert.match(app,/const \[cafePanel,setCafePanel\] = useState/);
+ assert.match(app,/title="管理中心"/);
+ assert.match(app,/>住宿管理</);
+ assert.match(app,/>咖啡廳管理</);
+ assert.match(app,/>重複住宿人</);
+ assert.match(app,/>資料異常</);
+ assert.match(app,/>備品管理</);
+ assert.match(app,/>活動通知</);
+ assert.match(app,/>收支管理</);
+ assert.match(app,/>庫存管理</);
+ assert.match(app,/IncenseStatusIcon className="mx-auto mb-1 h-6 w-6"\/>管理/);
+});
+test("lodging duplicates and anomalies derive from activity rooms and allow safe navigation",()=>{
+ const start=app.indexOf("const lodgingDiagnostics=useMemo(");
+ const end=app.indexOf("const filteredActivityRooms = useMemo(",start);
+ const body=app.slice(start,end);
+ assert.ok(start>0 && end>start);
+ assert.match(body,/for\(const activity of activities\)/);
+ assert.match(body,/if\(!activity\.requiresCleaning\)continue/);
+ assert.match(body,/for\(const room of activity\.rooms\)/);
+ assert.match(body,/splitGuestLines\(occupantDrafts\[room\.id\]\?\?room\.occupant\)/);
+ assert.match(body,/if\(locations\.length<2\)continue/);
+ assert.match(body,/list\.length>0 && room\.cleanerId==null/);
+ assert.match(body,/kind:"未指派房務"/);
+ assert.match(body,/kind:"名單待儲存"/);
+ assert.match(body,/function openManagedRoom\(activityId:string,roomNo:string\)/);
+ assert.match(body,/selectActivity\(activityId\)/);
+ assert.match(body,/setActivityRoomSearch\(roomNo\)/);
+});
 test("V2.1 new annual overview, quick paste and exact-match duplicate warnings",()=>{
  assert.match(app,/activitySection,setActivitySection/);
  assert.match(app,/activityYear,setActivityYear/);
