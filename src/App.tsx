@@ -1556,7 +1556,7 @@ export default function App() {
 
   function selectActivity(activityId: string) {
     setSelectedActivityId(activityId);
-    setOpenCleanerPickerRoomId("");setOpenRoomActionsId("");setPrintAdvancedOpen(false);setDuplicateReport(null);
+    setOpenCleanerPickerRoomId("");setOpenRoomActionsId("");setPrintDialogOpen(false);setDuplicateReport(null);
     setActivitySelectedBuilding("all");
     setActivitySelectedFloor("all");
     setActivityRoomSearch("");
