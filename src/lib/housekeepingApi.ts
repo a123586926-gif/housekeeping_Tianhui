@@ -171,3 +171,21 @@ export function moveGuestAtomic(input:{
     method:"PATCH",body:jsonBody({action:"moveGuest",...input}),
   });
 }
+
+export type GuestRevision = {
+  id:number; room_id:number; event_id:number;
+  previous_names:string; current_names:string; changed_at:string;
+};
+/** Private manager-only change history, never accessible to cleaners. */
+export async function getGuestHistory(roomId:number):Promise<GuestRevision[]> {
+  const data=await request<{revisions:GuestRevision[]}>("/api/data/rooms",{
+    method:"PATCH",body:jsonBody({action:"guestHistory",roomId}),
+  });
+  return data.revisions;
+}
+/** Restore an earlier name list only if no concurrent edit changed the room. */
+export function restoreGuestHistory(revisionId:number,expectedCurrent:string):Promise<{ok:boolean}> {
+  return request("/api/data/rooms",{
+    method:"PATCH",body:jsonBody({action:"restoreGuestHistory",revisionId,expectedCurrent}),
+  });
+}
