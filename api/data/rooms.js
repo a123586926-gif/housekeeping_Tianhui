@@ -166,6 +166,28 @@ export function createRoomsHandler({
     const db = dbFactory();
     // Reuse the existing serverless room route so Hobby deployments do not
     // exceed the twelve-function limit. This RPC is a single DB transaction.
+    if (req.method === "PATCH" && req.body?.action === "guestHistory") {
+      if (role !== "admin") return json(res,403,{error:"Admin only"});
+      const roomId=validId(req.body?.roomId);
+      if(!roomId)return bad(res);
+      const {data,error}=await db.from("hk_guest_revisions")
+        .select("id,room_id,event_id,previous_names,current_names,changed_at")
+        .eq("room_id",roomId).order("changed_at",{ascending:false}).limit(15);
+      if(error)return json(res,503,{error:"Unable to load room guest history"});
+      return json(res,200,{revisions:Array.isArray(data)?data:[]});
+    }
+    if (req.method === "PATCH" && req.body?.action === "restoreGuestHistory") {
+      if (role !== "admin") return json(res,403,{error:"Admin only"});
+      const revisionId=validId(req.body?.revisionId);
+      const expectedCurrent=req.body?.expectedCurrent;
+      if(!revisionId || !validText(expectedCurrent,3000))return bad(res);
+      const {data,error}=await db.rpc("hk_restore_guest_revision",{
+        p_revision_id:revisionId,p_expected_current:expectedCurrent,
+      });
+      if(error || data!==true)
+        return json(res,409,{error:"Guest list changed or revision unavailable; reload before restoring"});
+      return json(res,200,{ok:true});
+    }
     if (req.method === "PATCH" && req.body?.action === "moveGuest") {
       if (role !== "admin") return json(res,403,{error:"Admin only"});
       const {fromRoomId,toRoomId,name,expectedFrom,expectedTo}=req.body;
