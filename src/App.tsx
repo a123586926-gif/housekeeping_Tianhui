@@ -460,6 +460,9 @@ export default function App() {
   const roomAdministrationSaving = useRef(new Set<string>());
   const [savingRoomAdministrationIds,setSavingRoomAdministrationIds] = useState<string[]>([]);
   const [openCleanerPickerRoomId,setOpenCleanerPickerRoomId] = useState("");
+  const [openRoomActionsId,setOpenRoomActionsId] = useState("");
+  const [printAdvancedOpen,setPrintAdvancedOpen] = useState(false);
+  const [occupantSaveStatus,setOccupantSaveStatus] = useState<Record<string,"saving"|"saved"|"error">>({});
   const [expandedStaffName, setExpandedStaffName] = useState("");
   const [calendarMonth, setCalendarMonth] = useState(new Date());
   const [calendarSheetDate, setCalendarSheetDate] = useState("");
@@ -713,7 +716,7 @@ export default function App() {
     setSavingChecklistRoomIds([]);
     if(!currentUser){
       setActivities([]);setStaffUsers([]);setSharedCalendarEvents([]);
-      setSelectedPrintRoomIds([]);setOccupantDrafts({});
+      setSelectedPrintRoomIds([]);setOccupantDrafts({});setOpenRoomActionsId("");setPrintAdvancedOpen(false);setOccupantSaveStatus({});
       setQuickPasteRoomId("");setQuickPasteText("");setDuplicatePending(null);setDuplicateReport(null);
       setGuestMove(null);
       setOpenCleanerPickerRoomId("");
@@ -1094,6 +1097,7 @@ export default function App() {
     if(!room)return false;
     const normalized=splitGuestLines(text).join("、");
     if(normalized===splitGuestLines(room.occupant).join("、")){
+      setOccupantSaveStatus(prev=>({...prev,[roomId]:"saved"}));
       setOccupantDrafts(prev=>{const next={...prev};if(next[roomId]===text || splitGuestLines(next[roomId]??"").join("、")===normalized)delete next[roomId];return next;});
       return true;
     }
@@ -1102,11 +1106,14 @@ export default function App() {
       const introduced=splitGuestLines(normalized).filter(name=>!existingNames.includes(name));
       const duplicates=findDuplicateOccupants(activityId,roomId,introduced);
       if(duplicates.length){
+        setOccupantSaveStatus(prev=>({...prev,[roomId]:"error"}));
         setDuplicatePending({activityId,roomId,names:normalized,person:duplicates[0].person,locations:duplicates[0].locations});
         return false;
       }
     }
+    setOccupantSaveStatus(prev=>({...prev,[roomId]:"saving"}));
     const saved=await updateRoomField(activityId,roomId,{occupant:normalized});
+    setOccupantSaveStatus(prev=>({...prev,[roomId]:saved?"saved":"error"}));
     if(saved)setOccupantDrafts(prev=>{
       if(prev[roomId]!==text && splitGuestLines(prev[roomId]??"").join("、")!==normalized)return prev;
       const next={...prev};delete next[roomId];return next;
@@ -1510,7 +1517,7 @@ export default function App() {
 
   function selectActivity(activityId: string) {
     setSelectedActivityId(activityId);
-    setOpenCleanerPickerRoomId("");setDuplicateReport(null);
+    setOpenCleanerPickerRoomId("");setOpenRoomActionsId("");setPrintAdvancedOpen(false);setDuplicateReport(null);
     setActivitySelectedBuilding("all");
     setActivitySelectedFloor("all");
     setActivityRoomSearch("");
@@ -2748,7 +2755,7 @@ export default function App() {
                                   <td className="min-w-[260px] p-2">
                                     <textarea
                                       value={occupantDrafts[room.id]??splitGuestLines(room.occupant).join("、")}
-                                      onChange={e=>setOccupantDrafts(prev=>({...prev,[room.id]:e.target.value}))}
+                                      onChange={e=>{setOccupantDrafts(prev=>({...prev,[room.id]:e.target.value}));setOccupantSaveStatus(prev=>({...prev,[room.id]:"saving"}));}}
                                       onBlur={()=>{
                                         const draft=occupantDrafts[room.id];
                                         if(draft!==undefined)void saveOccupantList(selectedActivity.id,room.id,draft);
@@ -2805,7 +2812,7 @@ export default function App() {
                             <textarea
                               value={occupantDrafts[room.id] ?? splitGuestLines(room.occupant).join("、")}
                               disabled={savingRoomAdministrationIds.includes(room.id)}
-                              onChange={e=>setOccupantDrafts(prev=>({...prev,[room.id]:e.target.value}))}
+                              onChange={e=>{setOccupantDrafts(prev=>({...prev,[room.id]:e.target.value}));setOccupantSaveStatus(prev=>({...prev,[room.id]:"saving"}));}}
                               onBlur={()=>{
                                 const draft=occupantDrafts[room.id];
                                 if(draft!==undefined)void saveOccupantList(selectedActivity.id,room.id,draft);
