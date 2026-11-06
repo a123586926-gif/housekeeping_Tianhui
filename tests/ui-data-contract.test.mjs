@@ -229,7 +229,7 @@ test("manual print selection can pick every room with saved or drafted guest nam
  assert.match(app,/setSelectedPrintRoomIds\(occupiedRooms\.map\(room=>room\.id\)\)/);
  assert.match(app,/有住宿人全選/);
  assert.match(app,/selectedRooms\.some\(roomHasPendingOccupant\)/);
- const cardStart=app.indexOf('title="移動住宿人到其他房間"');
+ const cardStart=app.indexOf('title="更多操作"');
  const header=app.slice(cardStart-800,cardStart);
  assert.doesNotMatch(header,/<Printer className="h-5 w-5 shrink-0/);
  assert.match(header,/勾選列印/);
@@ -238,7 +238,28 @@ test("print selection persists across floor/building filters and counts whole ac
  assert.match(app,/selectedActivity\?\.rooms\.filter\(room =>\s*selectedPrintRoomIds\.includes\(room\.id\)\)/);
  assert.match(app,/setSelectedPrintRoomIds\(prev => Array\.from\(new Set\(\[/);
  assert.match(app,/const selectedRooms = selectedActivity\.rooms\.filter\(room =>/);
- assert.match(app,/將目前篩選的房間加入列印勾選/);
+ assert.match(app,/加選目前篩選房間/);
+});
+test("V2.5 removes redundant print controls and hides rare room actions",()=>{
+ assert.match(app,/const \[printAdvancedOpen,setPrintAdvancedOpen\] = useState\(false\)/);
+ assert.match(app,/const \[openRoomActionsId,setOpenRoomActionsId\] = useState\(""\)/);
+ assert.match(app,/aria-label=\{roomLabel\(room\)\+"更多操作"\}/);
+ assert.match(app,/openRoomActionsId===room\.id/);
+ assert.match(app,/onClick=\{printSelectedRoomsA4\}/);
+ const activity=app.slice(app.indexOf('title="房間管理"'),app.indexOf('{adminView === "staff" && ('));
+ assert.equal((activity.match(/onClick=\{printSelectedRoomsA4\}/g)||[]).length,1);
+ assert.doesNotMatch(activity,/onClick=\{scanDuplicateOccupants\}/);
+ assert.match(activity,/收起進階列印與匯入/);
+ assert.match(activity,/刪除房間/);
+ assert.match(activity,/快速貼上/);
+});
+test("V2.5 shows guest save state without losing unsaved drafts",()=>{
+ assert.match(app,/occupantSaveStatus,setOccupantSaveStatus/);
+ assert.match(app,/setOccupantSaveStatus\(prev=>\(\{\.\.\.prev,\[roomId\]:"saving"\}\)\)/);
+ assert.match(app,/setOccupantSaveStatus\(prev=>\(\{\.\.\.prev,\[roomId\]:saved\?"saved":"error"\}\)\)/);
+ assert.match(app,/尚未儲存，請確認提示並重試/);
+ assert.match(app,/名單編輯中／儲存中/);
+ assert.match(app,/已儲存/);
 });
 test("mobile dialogs scroll safely on small portrait screens without clipping action buttons",()=>{
  assert.ok((app.match(/max-h-\[calc\(100dvh-2rem\)\]/g)||[]).length>=5);
