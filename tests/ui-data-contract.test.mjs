@@ -294,10 +294,10 @@ test("management replaces bottom status and exposes lodging/cafe submodules",()=
  assert.match(app,/title="管理中心"/);
  assert.match(app,/>住宿管理</);
  assert.match(app,/>咖啡廳管理</);
- assert.match(app,/>重複住宿人</);
- assert.match(app,/>資料異常</);
- assert.match(app,/>備品管理</);
- assert.match(app,/>活動通知</);
+ assert.match(app,/title:"重複住宿人"/);
+ assert.match(app,/title:"資料異常"/);
+ assert.match(app,/title:"備品管理"/);
+ assert.match(app,/title:"活動通知"/);
  assert.match(app,/>收支管理</);
  assert.match(app,/>庫存管理</);
  assert.match(app,/IncenseStatusIcon className="mx-auto mb-1 h-6 w-6"\/>管理/);
