@@ -489,3 +489,61 @@ test("atomic guest transfer requires exact names and delegates to one SQL transa
  assert.equal(reply.statusCode,409);
  assert.notEqual(reply.body.ok,true);
 });
+
+test("private guest history rejects cleaner access before database reads",async()=>{
+ let queried=false;
+ const handler=createRoomsHandler({
+  originAllowed:()=>true,sessionReader:async()=>cleaner901,
+  dbFactory:()=>({from(){queried=true;throw Error("Should not access guest history");}}),
+ });
+ const res=response();
+ await handler({method:"PATCH",body:{action:"guestHistory",roomId:701}},res);
+ assert.equal(res.statusCode,403);
+ assert.equal(queried,false);
+});
+test("admin guest history lists only the requested room's last fifteen revisions",async()=>{
+ const calls=[];
+ const mock={from(table){
+  calls.push(["from",table]);
+  assert.equal(table,"hk_guest_revisions");
+  return {select(cols){calls.push(["select",cols]);return this;},
+   eq(key,val){calls.push(["eq",key,val]);return this;},
+   order(key,sort){calls.push(["order",key,sort]);return this;},
+   async limit(n){calls.push(["limit",n]);return {data:[{id:5,previous_names:"A",current_names:"B"}],error:null};},
+  };
+ }};
+ const handler=createRoomsHandler({originAllowed:()=>true,sessionReader:async()=>admin,dbFactory:()=>mock});
+ const res=response();
+ await handler({method:"PATCH",body:{action:"guestHistory",roomId:701}},res);
+ assert.equal(res.statusCode,200);
+ assert.equal(res.body.revisions[0].id,5);
+ assert.deepEqual(calls.find(x=>x[0]==="eq"),["eq","room_id",701]);
+ assert.deepEqual(calls.find(x=>x[0]==="limit"),["limit",15]);
+});
+test("admin guest restore delegates to single guarded RPC and fails closed on conflict",async()=>{
+ let invocation;
+ const handler=createRoomsHandler({
+  originAllowed:()=>true,sessionReader:async()=>admin,
+  dbFactory:()=>({rpc:async(name,args)=>{
+   invocation={name,args};return {data:true,error:null};
+  }}),
+ });
+ const res=response();
+ await handler({method:"PATCH",body:{action:"restoreGuestHistory",revisionId:19,expectedCurrent:"住宿人一、住宿人二"}},res);
+ assert.equal(res.statusCode,200);
+ assert.equal(res.body.ok,true);
+ assert.deepEqual(invocation,{name:"hk_restore_guest_revision",args:{
+   p_revision_id:19,p_expected_current:"住宿人一、住宿人二",
+ }});
+ const invalid=response();
+ await handler({method:"PATCH",body:{action:"restoreGuestHistory",revisionId:-1,expectedCurrent:"x"}},invalid);
+ assert.equal(invalid.statusCode,400);
+ const conflict=createRoomsHandler({
+  originAllowed:()=>true,sessionReader:async()=>admin,
+  dbFactory:()=>({rpc:async()=>({data:null,error:{message:"ROOM_CHANGED"}})}),
+ });
+ const rejected=response();
+ await conflict({method:"PATCH",body:{action:"restoreGuestHistory",revisionId:19,expectedCurrent:"older"}},rejected);
+ assert.equal(rejected.statusCode,409);
+ assert.notEqual(rejected.body.ok,true);
+});
