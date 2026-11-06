@@ -2574,55 +2574,12 @@ export default function App() {
                       className="mb-3 inline-flex items-center gap-1 rounded-full bg-[#ede7dc] px-3 py-2 text-[14px] font-medium text-[#65563e]">
                       <ChevronLeft className="h-4 w-4"/> 返回活動總覽
                     </button>
-                <div className="mb-2 flex items-center justify-between gap-2">
-                  <SectionTitle
-                    title="活動列表"
-                    sub="直接編輯所選活動的房間與住宿人"
-                    icon={<CalendarDays className="h-4 w-4" />}
-                  />
-
-                  <div className="flex flex-wrap items-center justify-end gap-2">
-                    <div className="rounded-full bg-[#efe7d7] px-3 py-2 text-[12px] font-semibold text-[#75684f] shadow-[0_8px_16px_rgba(110,99,67,0.08)]">
-                      已勾選 {selectedPrintCount} 間
-                    </div>
-
-                    <button
-                      onClick={selectAllPrintRooms}
-                      className="rounded-full bg-[linear-gradient(180deg,#fffdfa_0%,#f2ecdf_100%)] px-3 py-2 text-[12px] text-[#75684f] shadow-[0_8px_16px_rgba(110,99,67,0.12)]"
-                      title="將目前篩選的房間加入列印勾選"
-                    >
-                      加選目前
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={selectOccupiedPrintRooms}
-                      className="rounded-full border border-[#d9cfbe] bg-[#f1e9db] px-3 py-2 text-[12px] font-semibold text-[#65563f] shadow-[0_4px_10px_rgba(110,99,67,0.08)]"
-                      title="勾選此活動所有已填寫住宿人的房間，並取消未入住房間的列印勾選"
-                    >
-                      有住宿人全選
-                    </button>
-
-                    <button
-                      onClick={clearAllPrintRooms}
-                      className="rounded-full bg-[linear-gradient(180deg,#fffdfa_0%,#f2ecdf_100%)] px-3 py-2 text-[12px] text-[#75684f] shadow-[0_8px_16px_rgba(110,99,67,0.12)]"
-                      title="清除本活動所有列印勾選"
-                    >
-                      全部清除
-                    </button>
-
-                    <button
-                      onClick={printSelectedRoomsA4}
-                      className="flex h-9 items-center justify-center rounded-full bg-[linear-gradient(180deg,#fffdfa_0%,#f2ecdf_100%)] px-3 text-[#75684f] shadow-[0_8px_16px_rgba(110,99,67,0.12)]"
-                      title="列印已勾選房間"
-                    >
-                      <Printer className="h-4 w-4" />
-                    </button>
-
-
-                  </div>
+                <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                  <SectionTitle title="房間管理" sub="直接編輯住宿人、指派房務與列印" icon={<CalendarDays className="h-4 w-4" />}/>
+                  <span className="rounded-full bg-[#efe7d7] px-3 py-2 text-[13px] font-semibold text-[#75684f]">
+                    已勾選 {selectedPrintCount} 間
+                  </span>
                 </div>
-
                 {selectedActivity && (
                   <>
                     <div className="mt-3 rounded-[20px] bg-[linear-gradient(135deg,#f8f3ea_0%,#eee4d5_100%)] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.8)]">
@@ -2711,13 +2668,42 @@ export default function App() {
                     </div>
 
                     {selectedActivity.requiresCleaning && (
-                      <div className="mt-2 grid grid-cols-3 gap-2">
-                        <button type="button" onClick={()=>openQuickPaste(filteredActivityRooms[0]?.id??selectedActivity.rooms[0]?.id??"")}
-                          className="rounded-[13px] border border-[#ded1bc] bg-[#fffdfa] px-1 py-2 text-[13px] font-medium text-[#6a5a3c]">快速貼上</button>
-                        <button type="button" onClick={scanDuplicateOccupants}
-                          className="rounded-[13px] border border-[#ded1bc] bg-[#fffdfa] px-1 py-2 text-[13px] font-medium text-[#6a5a3c]">重複檢查</button>
+                      <div className="mt-3 space-y-2 rounded-[18px] border border-[#e2d8c8] bg-[#faf7f0] p-3">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-[15px] font-semibold text-[#5f503a]">列印房間</span>
+                          <span className="text-[13px] text-[#867660]">已勾選 {selectedPrintCount} 間</span>
+                        </div>
+                        <div className="grid grid-cols-2 gap-2">
+                          <button type="button" onClick={selectOccupiedPrintRooms}
+                            className="min-h-[44px] rounded-[12px] border border-[#d8cbb6] bg-white px-2 text-[14px] font-medium text-[#65563d]">
+                            有住宿人全選
+                          </button>
+                          <button type="button" onClick={clearAllPrintRooms}
+                            className="min-h-[44px] rounded-[12px] border border-[#d8cbb6] bg-white px-2 text-[14px] font-medium text-[#65563d]">
+                            全部清除
+                          </button>
+                        </div>
                         <button type="button" onClick={printSelectedRoomsA4}
-                          className="rounded-[13px] border border-[#ded1bc] bg-[#fffdfa] px-1 py-2 text-[13px] font-medium text-[#6a5a3c]">批次列印</button>
+                          className="flex min-h-[46px] w-full items-center justify-center gap-2 rounded-[13px] bg-[#888465] px-3 text-[15px] font-semibold text-white">
+                          <Printer className="h-5 w-5"/>列印已勾選房間
+                        </button>
+                        <button type="button" onClick={()=>setPrintAdvancedOpen(prev=>!prev)}
+                          aria-expanded={printAdvancedOpen}
+                          className="w-full py-1 text-center text-[13px] text-[#796a53]">
+                          {printAdvancedOpen?"收起進階列印與匯入":"進階選項"}
+                        </button>
+                        {printAdvancedOpen && (
+                          <div className="grid grid-cols-2 gap-2 border-t border-[#e1d7c7] pt-3">
+                            <button type="button" onClick={selectAllPrintRooms}
+                              className="rounded-[12px] border border-[#ddd1bf] bg-white px-2 py-3 text-[13px] text-[#665741]">
+                              加選目前篩選房間
+                            </button>
+                            <button type="button" onClick={()=>openQuickPaste(filteredActivityRooms[0]?.id??selectedActivity.rooms[0]?.id??"")}
+                              className="rounded-[12px] border border-[#ddd1bf] bg-white px-2 py-3 text-[13px] text-[#665741]">
+                              快速貼上名單
+                            </button>
+                          </div>
+                        )}
                       </div>
                     )}
                     {selectedActivity.requiresCleaning && (
