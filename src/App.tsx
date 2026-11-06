@@ -446,6 +446,9 @@ export default function App() {
   const activityScope = activityMonth==="all" ? activityYear : `${activityYear}-${activityMonth}`;
   const [overviewFilter, setOverviewFilter] = useState<OverviewFilter>("all");
   const [overviewSearch, setOverviewSearch] = useState("");
+  const [managementSection,setManagementSection] = useState<"home"|"lodging"|"cafe">("home");
+  const [lodgingPanel,setLodgingPanel] = useState<"duplicates"|"anomalies"|"supplies"|"notices"|"progress">("duplicates");
+  const [cafePanel,setCafePanel] = useState<"income"|"inventory">("income");
   const [expandedRoomId, setExpandedRoomId] = useState("");
   const checklistSavingRooms = useRef(new Set<string>());
   // One serialized write stream per room. Other checkboxes remain interactive
@@ -853,6 +856,54 @@ export default function App() {
         .some(value => value.toLocaleLowerCase().includes(search));
     });
   }, [latestRooms, overviewFilter, overviewSearch]);
+
+  // Read-only diagnostics from the same event/room state used by Activity.
+  // Identity comparison is exact (including character variants), and separate
+  // events are never treated as duplicates of each other.
+  const lodgingDiagnostics=useMemo(()=>{
+    const duplicates:Array<{id:string;activityId:string;activityName:string;name:string;rooms:string[];roomNo:string}>=[];
+    const anomalies:Array<{id:string;activityId:string;activityName:string;roomNo:string;roomName:string;kind:string;detail:string}>=[];
+    for(const activity of activities){
+      if(!activity.requiresCleaning)continue;
+      const names=new Map<string,Array<{room:Room;label:string}>>();
+      for(const room of activity.rooms){
+        const list=splitGuestLines(occupantDrafts[room.id]??room.occupant);
+        for(const name of list){
+          const found=names.get(name)??[];
+          found.push({room,label:roomLabel(room)});
+          names.set(name,found);
+        }
+        if(list.length>0 && room.cleanerId==null){
+          anomalies.push({id:activity.id+"/"+room.id+"/unassigned",activityId:activity.id,
+            activityName:activity.name,roomNo:room.roomNo,roomName:roomLabel(room),
+            kind:"未指派房務",detail:"已有住宿人，但尚未指派打掃人員"});
+        }
+        if(occupantDrafts[room.id]!==undefined &&
+          splitGuestLines(occupantDrafts[room.id]).join("、")!==splitGuestLines(room.occupant).join("、")){
+          anomalies.push({id:activity.id+"/"+room.id+"/draft",activityId:activity.id,
+            activityName:activity.name,roomNo:room.roomNo,roomName:roomLabel(room),
+            kind:"名單待儲存",detail:"有尚未同步至資料庫的住宿人修改"});
+        }
+      }
+      for(const [name,locations] of names){
+        if(locations.length<2)continue;
+        duplicates.push({
+          id:activity.id+"/"+name,activityId:activity.id,activityName:activity.name,
+          name,rooms:locations.map(x=>x.label),roomNo:locations[0].room.roomNo,
+        });
+      }
+    }
+    return {duplicates,anomalies};
+  },[activities,occupantDrafts]);
+
+  function openManagedRoom(activityId:string,roomNo:string) {
+    setAdminView("activity");
+    setActivitySection("rooms");
+    selectActivity(activityId);
+    // selectActivity clears stale filter and search. Set the new room number
+    // only after changing the selected activity.
+    setActivityRoomSearch(roomNo);
+  }
 
   const filteredActivityRooms = useMemo(() => {
     if (!selectedActivity) return [];
@@ -2232,6 +2283,101 @@ export default function App() {
           <div className="mt-3 space-y-3">
             {adminView === "overview" && (
               <div className="rounded-[28px] border border-[#e2d8c8] bg-[linear-gradient(180deg,#fffdfa_0%,#f7f3eb_100%)] p-3 shadow-[0_12px_26px_rgba(84,69,45,0.08)]">
+                <div className="mb-3 flex items-center justify-between gap-2">
+                  <SectionTitle title="管理中心" sub="住宿與咖啡廳日常管理" icon={<IncenseStatusIcon className="h-5 w-5"/>}/>
+                  {managementSection!=="home" && (
+                    <button type="button" onClick={()=>setManagementSection("home")}
+                      className="shrink-0 rounded-full border border-[#d7cbbb] bg-[#f6f0e6] px-3 py-2 text-[13px] font-medium text-[#6a5b43]">
+                      返回管理
+                    </button>
+                  )}
+                </div>
+                {managementSection==="home" && (
+                  <div className="grid grid-cols-2 gap-3">
+                    <button type="button" onClick={()=>{setManagementSection("lodging");setLodgingPanel("duplicates");}}
+                      className="flex min-h-[140px] flex-col items-center justify-center gap-2 rounded-[20px] border border-[#ded2bc] bg-[#f9f4eb] px-2 text-[#584a38]">
+                      <House className="h-9 w-9 text-[#8b8462]"/>
+                      <span className="text-[18px] font-semibold">住宿管理</span>
+                      <span className="text-[12px]">名單 · 異常 · 備品</span>
+                    </button>
+                    <button type="button" onClick={()=>{setManagementSection("cafe");setCafePanel("income");}}
+                      className="flex min-h-[140px] flex-col items-center justify-center gap-2 rounded-[20px] border border-[#ded2bc] bg-[#f9f4eb] px-2 text-[#584a38]">
+                      <Coffee className="h-9 w-9 text-[#8b8462]"/>
+                      <span className="text-[18px] font-semibold">咖啡廳管理</span>
+                      <span className="text-[12px]">收支 · 庫存</span>
+                    </button>
+                  </div>
+                )}
+                {managementSection==="lodging" && (
+                  <div className="space-y-3">
+                    <div className="grid grid-cols-2 gap-2">
+                      {[
+                        {key:"duplicates",title:"重複住宿人",count:lodgingDiagnostics.duplicates.length},
+                        {key:"anomalies",title:"資料異常",count:lodgingDiagnostics.anomalies.length},
+                        {key:"supplies",title:"備品管理",count:null},
+                        {key:"notices",title:"活動通知",count:null},
+                        {key:"progress",title:"清潔進度",count:null},
+                      ].map(item=>(
+                        <button type="button" key={item.key}
+                          onClick={()=>setLodgingPanel(item.key as typeof lodgingPanel)}
+                          className={`flex min-h-[52px] items-center justify-between rounded-[14px] border px-3 py-2 text-left text-[14px] font-semibold ${lodgingPanel===item.key
+                            ?"border-[#8b8462] bg-[#e8e3d3] text-[#514635]"
+                            :"border-[#ded5c6] bg-white text-[#655742]"}`}>
+                          <span>{item.title}</span>
+                          {item.count!==null && <span className="rounded-full bg-[#f2eee5] px-2 py-0.5 text-[12px]">{item.count}</span>}
+                        </button>
+                      ))}
+                    </div>
+                    {lodgingPanel==="duplicates" && (
+                      <div className="space-y-2">
+                        <p className="text-[13px] leading-5 text-[#786d5c]">按同一場活動檢查完全相同的姓名，包含同房重複；不同活動不會混在一起。</p>
+                        {lodgingDiagnostics.duplicates.map(entry=>(
+                          <button key={entry.id} type="button" onClick={()=>openManagedRoom(entry.activityId,entry.roomNo)}
+                            className="w-full rounded-[15px] border border-[#e0d3c3] bg-white p-3 text-left">
+                            <div className="text-[16px] font-semibold text-[#584936]">{entry.name}</div>
+                            <div className="mt-1 text-[13px] text-[#776851]">{entry.activityName}</div>
+                            <div className="mt-1 break-words text-[14px] text-[#8a674c]">出現於：{entry.rooms.join("、")}</div>
+                            <div className="mt-2 text-right text-[12px] text-[#827553]">查看房間 ›</div>
+                          </button>
+                        ))}
+                        {lodgingDiagnostics.duplicates.length===0 &&
+                          <p role="status" className="rounded-[15px] border border-[#e3dacb] bg-[#faf7f1] px-3 py-8 text-center text-[14px] text-[#77705c]">目前沒有同活動完全同名的住宿人。</p>}
+                      </div>
+                    )}
+                    {lodgingPanel==="anomalies" && (
+                      <div className="space-y-2">
+                        <p className="text-[13px] leading-5 text-[#786d5c]">目前檢查已有住宿人卻未指派房務，以及尚未儲存的名單；空房不會直接判為異常。</p>
+                        {lodgingDiagnostics.anomalies.map(item=>(
+                          <button key={item.id} type="button" onClick={()=>openManagedRoom(item.activityId,item.roomNo)}
+                            className="w-full rounded-[15px] border border-[#e0d3c3] bg-white p-3 text-left">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span className="text-[15px] font-semibold text-[#584936]">{item.roomName}</span>
+                              <span className="rounded-full bg-[#f7e9da] px-2 py-1 text-[12px] text-[#956b43]">{item.kind}</span>
+                            </div>
+                            <div className="mt-1 text-[13px] text-[#776851]">{item.activityName} · {item.detail}</div>
+                            <div className="mt-2 text-right text-[12px] text-[#827553]">查看房間 ›</div>
+                          </button>
+                        ))}
+                        {lodgingDiagnostics.anomalies.length===0 &&
+                          <p role="status" className="rounded-[15px] border border-[#e3dacb] bg-[#faf7f1] px-3 py-8 text-center text-[14px] text-[#77705c]">目前沒有符合已設定規則的資料異常。</p>}
+                      </div>
+                    )}
+                    {lodgingPanel==="supplies" && (
+                      <div className="rounded-[16px] border border-[#e0d5c4] bg-white p-4">
+                        <h3 className="text-[17px] font-semibold text-[#584936]">備品管理 · 下一階段</h3>
+                        <p className="mt-2 text-[14px] leading-6 text-[#766a59]">規劃品項、安全庫存、進貨、領用及盤點紀錄；尚未開放資料輸入，避免資料未有備份與異動紀錄。</p>
+                      </div>
+                    )}
+                    {lodgingPanel==="notices" && (
+                      <div className="rounded-[16px] border border-[#e0d5c4] bg-white p-4">
+                        <h3 className="text-[17px] font-semibold text-[#584936]">活動通知 · 下一階段</h3>
+                        <p className="mt-2 text-[14px] leading-6 text-[#766a59]">預計在活動前七天提醒指定人員，需先完成通知對象、渠道、同意及防重複通知設定。目前沒有自動發送訊息。</p>
+                      </div>
+                    )}
+                    {lodgingPanel==="progress" && (
+                      <div className="space-y-2">
+                        <p className="text-[13px] text-[#786d5c]">保留原本最近清潔活動的統計與搜尋功能。</p>
+                                      <div className="rounded-[28px] border border-[#e2d8c8] bg-[linear-gradient(180deg,#fffdfa_0%,#f7f3eb_100%)] p-3 shadow-[0_12px_26px_rgba(84,69,45,0.08)]">
                 <SectionTitle
                   title="整理現況"
                   sub={
@@ -2318,6 +2464,27 @@ export default function App() {
                     </div>
                   )}
                 </div>
+              </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+                {managementSection==="cafe" && (
+                  <div className="space-y-3">
+                    <div className="grid grid-cols-2 gap-2">
+                      <button type="button" onClick={()=>setCafePanel("income")}
+                        className={`rounded-[14px] border p-3 text-[15px] font-semibold ${cafePanel==="income"?"border-[#8b8462] bg-[#e8e3d3]":"border-[#ded5c6] bg-white"}`}>收支管理</button>
+                      <button type="button" onClick={()=>setCafePanel("inventory")}
+                        className={`rounded-[14px] border p-3 text-[15px] font-semibold ${cafePanel==="inventory"?"border-[#8b8462] bg-[#e8e3d3]":"border-[#ded5c6] bg-white"}`}>庫存管理</button>
+                    </div>
+                    <div className="rounded-[16px] border border-[#e0d5c4] bg-white p-4">
+                      <h3 className="text-[17px] font-semibold text-[#584936]">{cafePanel==="income"?"咖啡廳收支":"咖啡廳庫存"} · 下一階段</h3>
+                      <p className="mt-2 text-[14px] leading-6 text-[#766a59]">{cafePanel==="income"
+                        ?"規劃每日收入、支出、付款方式及月結統計；尚未建立正式交易紀錄。"
+                        :"規劃食材、商品、包材與耗材的入出庫、盤點與低庫存提醒；尚未建立正式庫存紀錄。"}</p>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 
@@ -2936,12 +3103,12 @@ export default function App() {
               <CalendarDays className="mx-auto mb-1 h-6 w-6"/>日曆
             </button>
             <button
-              onClick={() => setAdminView("overview")}
+              onClick={() => {setAdminView("overview");setManagementSection("home");}}
               className={`rounded-[16px] border px-2 py-2 text-[11px] font-semibold ${gradientButton(
                 adminView === "overview"
               )}`}
             >
-              <IncenseStatusIcon className="mx-auto mb-1 h-6 w-6"/>現況
+              <IncenseStatusIcon className="mx-auto mb-1 h-6 w-6"/>管理
             </button>
           </div>
         </div>
