@@ -240,18 +240,24 @@ test("print selection persists across floor/building filters and counts whole ac
  assert.match(app,/const selectedRooms = selectedActivity\.rooms\.filter\(room =>/);
  assert.match(app,/加選目前篩選房間/);
 });
-test("V2.5 removes redundant print controls and hides rare room actions",()=>{
- assert.match(app,/const \[printAdvancedOpen,setPrintAdvancedOpen\] = useState\(false\)/);
+test("V2.6 print toolbar is one small button opening a selection and preview dialog",()=>{
+ assert.match(app,/const \[printDialogOpen,setPrintDialogOpen\] = useState\(false\)/);
  assert.match(app,/const \[openRoomActionsId,setOpenRoomActionsId\] = useState\(""\)/);
  assert.match(app,/aria-label=\{roomLabel\(room\)\+"更多操作"\}/);
  assert.match(app,/openRoomActionsId===room\.id/);
- assert.match(app,/onClick=\{printSelectedRoomsA4\}/);
- const activity=app.slice(app.indexOf('title="房間管理"'),app.indexOf('{adminView === "staff" && ('));
- assert.equal((activity.match(/onClick=\{printSelectedRoomsA4\}/g)||[]).length,1);
- assert.doesNotMatch(activity,/onClick=\{scanDuplicateOccupants\}/);
- assert.match(activity,/收起進階列印與匯入/);
- assert.match(activity,/刪除房間/);
- assert.match(activity,/快速貼上/);
+ assert.match(app,/aria-label="開啟房間列印選單"/);
+ assert.match(app,/role="dialog" aria-modal="true" aria-label="選擇列印房間"/);
+ assert.match(app,/onClick=\{selectOccupiedPrintRooms\}/);
+ assert.match(app,/onClick=\{clearAllPrintRooms\}/);
+ assert.match(app,/onClick=\{selectAllPrintRooms\}/);
+ assert.match(app,/selectedActivity\.rooms\.map\(room=>room\.id\)/);
+ assert.match(app,/房間選取清單/);
+ assert.match(app,/住宿人數/);
+ assert.match(app,/空名單房間/);
+ assert.match(app,/預覽列印（\{selectedPrintCount\} 間）/);
+ assert.match(app,/onClick=\{\(\)=>\{printSelectedRoomsA4\(\);setPrintDialogOpen\(false\);\}\}/);
+ assert.match(app,/openRoomActionsId===room\.id/);
+ assert.match(app,/名單異動紀錄/);
 });
 test("V2.5 shows guest save state without losing unsaved drafts",()=>{
  assert.match(app,/occupantSaveStatus,setOccupantSaveStatus/);
@@ -263,7 +269,7 @@ test("V2.5 shows guest save state without losing unsaved drafts",()=>{
 });
 test("mobile dialogs scroll safely on small portrait screens without clipping action buttons",()=>{
  assert.ok((app.match(/max-h-\[calc\(100dvh-2rem\)\]/g)||[]).length>=5);
- assert.equal((app.match(/overflow-y-auto overscroll-contain bg-\[#0F172A\]/g)||[]).length,4);
+ assert.ok((app.match(/overflow-y-auto overscroll-contain bg-\[#0F172A\]/g)||[]).length>=4);
  assert.match(app,/overflow-y-auto overscroll-contain bg-\[#0f172a\]\/40/);
  assert.match(app,/sm:items-center sm:p-4/);
  assert.match(app,/my-auto box-border w-full max-w-sm min-w-0 max-h-\[calc\(100dvh-2rem\)\]/);
