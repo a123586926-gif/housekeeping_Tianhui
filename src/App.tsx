@@ -19,7 +19,7 @@ import { readSession, signInWithPin, signOutSession, provisionQaPin } from "./li
 import SharedActivityCalendar from "./components/SharedActivityCalendar";
 import { HousekeepingApiError, getBusinessOverview, getCleaners, createActivity, editActivity, deleteActivity, type CalendarEvent,
   createQaRoom, deleteQaRoom, updateRoomChecklist, updateRoomAdministration,
-  createQaCleaner, renameQaCleaner, moveGuestAtomic } from "./lib/housekeepingApi";
+  createQaCleaner, renameQaCleaner, moveGuestAtomic, getGuestHistory, restoreGuestHistory, type GuestRevision } from "./lib/housekeepingApi";
 
 type Role = "cleaner" | "admin";
 type RoomStatus = "pending" | "in_progress" | "completed";
@@ -463,6 +463,10 @@ export default function App() {
   const [openRoomActionsId,setOpenRoomActionsId] = useState("");
   const [printAdvancedOpen,setPrintAdvancedOpen] = useState(false);
   const [occupantSaveStatus,setOccupantSaveStatus] = useState<Record<string,"saving"|"saved"|"error">>({});
+  const [guestHistoryRoomId,setGuestHistoryRoomId] = useState("");
+  const [guestHistoryEntries,setGuestHistoryEntries] = useState<GuestRevision[]>([]);
+  const [guestHistoryBusy,setGuestHistoryBusy] = useState(false);
+  const [guestHistoryError,setGuestHistoryError] = useState("");
   const [expandedStaffName, setExpandedStaffName] = useState("");
   const [staffActivityId,setStaffActivityId] = useState("");
   const [calendarMonth, setCalendarMonth] = useState(new Date());
@@ -717,7 +721,7 @@ export default function App() {
     setSavingChecklistRoomIds([]);
     if(!currentUser){
       setActivities([]);setStaffUsers([]);setSharedCalendarEvents([]);
-      setSelectedPrintRoomIds([]);setOccupantDrafts({});setOpenRoomActionsId("");setPrintAdvancedOpen(false);setOccupantSaveStatus({});
+      setSelectedPrintRoomIds([]);setOccupantDrafts({});setOpenRoomActionsId("");setPrintAdvancedOpen(false);setOccupantSaveStatus({});setGuestHistoryRoomId("");setGuestHistoryEntries([]);
       setQuickPasteRoomId("");setQuickPasteText("");setDuplicatePending(null);setDuplicateReport(null);
       setGuestMove(null);
       setOpenCleanerPickerRoomId("");
@@ -1122,6 +1126,38 @@ export default function App() {
       const next={...prev};delete next[roomId];return next;
     });
     return saved;
+  }
+
+  async function openRoomGuestHistory(roomId:string) {
+    const room=selectedActivity?.rooms.find(r=>r.id===roomId);
+    if(!room?.dbId || currentUser?.role!=="admin")return;
+    setOpenRoomActionsId("");
+    setGuestHistoryRoomId(roomId);
+    setGuestHistoryEntries([]);
+    setGuestHistoryError("");
+    setGuestHistoryBusy(true);
+    try{
+      setGuestHistoryEntries(await getGuestHistory(room.dbId));
+    }catch(error){
+      setGuestHistoryError(error instanceof Error?error.message:"無法讀取異動紀錄");
+    }finally{setGuestHistoryBusy(false);}
+  }
+
+  async function restoreRoomGuestHistory(revision:GuestRevision) {
+    const room=selectedActivity?.rooms.find(r=>r.id===guestHistoryRoomId);
+    if(!room?.dbId || guestHistoryBusy || currentUser?.role!=="admin")return;
+    if(roomHasPendingOccupant(room)){
+      setGuestHistoryError("此房間有尚未儲存的編輯，請先完成儲存。");return;
+    }
+    if(!window.confirm("確定還原此房間的住宿人名單？還原操作也會保留異動紀錄。"))return;
+    setGuestHistoryBusy(true);setGuestHistoryError("");
+    try{
+      await restoreGuestHistory(revision.id,room.occupant);
+      setGuestHistoryRoomId("");setGuestHistoryEntries([]);
+      await loadEventsFromSupabase();
+    }catch(error){
+      setGuestHistoryError(error instanceof Error?error.message:"還原失敗，請重新整理最新名單。");
+    }finally{setGuestHistoryBusy(false);}
   }
 
   function openQuickPaste(roomId:string) {
@@ -2811,6 +2847,8 @@ export default function App() {
                                   setOpenRoomActionsId("");
                                 }}
                                   className="rounded-[11px] bg-white px-2 py-3 text-[14px] font-medium text-[#655842]">複製名單</button>
+                                <button type="button" onClick={()=>void openRoomGuestHistory(room.id)}
+                                  className="rounded-[11px] bg-white px-2 py-3 text-[14px] font-medium text-[#655842]">名單異動紀錄</button>
                                 <button type="button" onClick={()=>{setOpenRoomActionsId("");void deleteSelectedActivityRoom(room.id);}}
                                   className="rounded-[11px] border border-[#ead1cc] bg-white px-2 py-3 text-[14px] font-medium text-[#a34839]">刪除房間</button>
                               </div>
