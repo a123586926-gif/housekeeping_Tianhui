@@ -6,6 +6,8 @@ import {
   ChevronLeft,
   ChevronRight,
   ClipboardList,
+  Coffee,
+  House,
   Image as ImageIcon,
   Plus,
   Printer,
