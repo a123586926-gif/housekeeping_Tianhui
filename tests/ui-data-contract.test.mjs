@@ -243,7 +243,9 @@ test("mobile cleaner picker avoids iOS native wheel and keeps larger touch contr
 test("mobile room editor has fluid columns and print waits for fonts",()=>{
  assert.match(app,/flex min-w-0 items-center gap-2/);
  assert.match(app,/直接填寫住宿人姓名/);
- assert.match(app,/document\.fonts\.ready\.then\(\(\) => window\.print\(\)\)/);
+ assert.match(app,/document\.fonts\.ready\.then\(printOnce\)\.catch\(printOnce\)/);
+ assert.match(app,/window\.addEventListener\("afterprint", closeAfterPrint/);
+ assert.match(app,/關閉並返回網站/);
 });
 
 test("admin room writes cannot overlap and failed occupant edits keep drafts",()=>{
@@ -255,9 +257,23 @@ test("admin room writes cannot overlap and failed occupant edits keep drafts",()
  assert.match(app,/if\(saved\)setOccupantDrafts\(prev=>/);
  assert.match(app,/splitGuestLines\(prev\[roomId\]\?\?""\)\.join\("、"\)!==normalized/);
 });
+test("activity room details show only one selected activity, year/month selectors are separate",()=>{
+ const summary=app.indexOf('activitySection==="summary" ?');
+ const details=app.indexOf('返回活動總覽',summary);
+ const room=app.indexOf('selectedActivity && (',details);
+ assert.ok(summary>0 && details>summary && room>details);
+ assert.doesNotMatch(app.slice(details,room),/sortedActivities\.map\(/);
+ assert.match(app.slice(details,room),/編輯活動/);
+ assert.match(app,/aria-label="選擇活動年度"/);
+ assert.match(app,/aria-label="選擇活動月份"/);
+ assert.match(app,/maxWidth:"100%",minWidth:0,boxSizing:"border-box"/);
+});
 test("V2.1 new annual overview, quick paste and exact-match duplicate warnings",()=>{
  assert.match(app,/activitySection,setActivitySection/);
- assert.match(app,/activityScope,setActivityScope/);
+ assert.match(app,/activityYear,setActivityYear/);
+ assert.match(app,/activityMonth,setActivityMonth/);
+ assert.match(app,/setActivityYear\(e\.target\.value\);setActivityMonth\("all"\)/);
+ assert.match(app,/<option value="all">全年<\/option>/);
  assert.match(app,/活動總覽/);
  assert.match(app,/活動總數/);
  assert.match(app,/findDuplicateOccupants\(/);
