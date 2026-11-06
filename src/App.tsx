@@ -441,7 +441,9 @@ export default function App() {
   const [adminView, setAdminView] = useState<AdminView>("overview");
   const [activitySection,setActivitySection] = useState<"summary"|"rooms">("summary");
   const [roomDisplay,setRoomDisplay] = useState<"cards"|"table">("cards");
-  const [activityScope,setActivityScope] = useState(()=>String(new Date().getFullYear()));
+  const [activityYear,setActivityYear] = useState(()=>String(new Date().getFullYear()));
+  const [activityMonth,setActivityMonth] = useState("all");
+  const activityScope = activityMonth==="all" ? activityYear : `${activityYear}-${activityMonth}`;
   const [overviewFilter, setOverviewFilter] = useState<OverviewFilter>("all");
   const [overviewSearch, setOverviewSearch] = useState("");
   const [expandedRoomId, setExpandedRoomId] = useState("");
@@ -2282,19 +2284,27 @@ export default function App() {
                       </button>
                     </div>
                     <div className="flex items-stretch gap-2">
-                      <label className="min-w-0 flex-1">
-                        <span className="sr-only">選擇活動年度或月份</span>
-                        <select value={activityScope} onChange={e=>setActivityScope(e.target.value)}
-                          className="h-12 w-full min-w-0 rounded-[15px] border border-[#d7cbb8] bg-[#fffdfa] px-3 text-[16px] font-semibold text-[#544735]">
-                          {activityYears.flatMap(year=>[
-                            <option key={year} value={String(year)}>{year} 年（全年）</option>,
-                            ...Array.from({length:12},(_,m)=>{
-                              const value=`${year}-${String(m+1).padStart(2,"0")}`;
-                              return <option key={value} value={value}>{year} 年 {m+1} 月</option>;
-                            }),
-                          ])}
-                        </select>
-                      </label>
+                      <div className="flex min-w-0 flex-1 gap-2">
+                        <label className="min-w-0 flex-1">
+                          <span className="sr-only">選擇活動年度</span>
+                          <select aria-label="選擇活動年度" value={activityYear}
+                            onChange={e=>{setActivityYear(e.target.value);setActivityMonth("all");}}
+                            className="h-12 w-full min-w-0 rounded-[15px] border border-[#d7cbb8] bg-[#fffdfa] px-2 text-[15px] font-semibold text-[#544735]">
+                            {activityYears.map(year=><option key={year} value={String(year)}>{year} 年</option>)}
+                          </select>
+                        </label>
+                        <label className="min-w-0 flex-1">
+                          <span className="sr-only">選擇活動月份</span>
+                          <select aria-label="選擇活動月份" value={activityMonth}
+                            onChange={e=>setActivityMonth(e.target.value)}
+                            className="h-12 w-full min-w-0 rounded-[15px] border border-[#d7cbb8] bg-[#fffdfa] px-2 text-[15px] font-semibold text-[#544735]">
+                            <option value="all">全年</option>
+                            {Array.from({length:12},(_,m)=>(
+                              <option key={m+1} value={String(m+1).padStart(2,"0")}>{m+1} 月</option>
+                            ))}
+                          </select>
+                        </label>
+                      </div>
                       <div className="flex min-w-[91px] flex-col items-center justify-center rounded-[15px] border border-[#d7cbb8] bg-[#f2eadc] px-3">
                         <span className="text-[11px] text-[#75684f]">活動總數</span>
                         <span className="text-[17px] font-bold text-[#524736]">{scopedActivities.length} 場</span>
@@ -2342,7 +2352,7 @@ export default function App() {
                 <div className="mb-2 flex items-center justify-between gap-2">
                   <SectionTitle
                     title="活動列表"
-                    sub="點選活動才顯示下方房間表單"
+                    sub="直接編輯所選活動的房間與住宿人"
                     icon={<CalendarDays className="h-4 w-4" />}
                   />
 
@@ -2375,109 +2385,22 @@ export default function App() {
                       <Printer className="h-4 w-4" />
                     </button>
 
-                    <button
-                      onClick={() => openAddActivityModal()}
-                      className="flex h-9 w-9 items-center justify-center rounded-full bg-[linear-gradient(135deg,#8b8462_0%,#9a946f_52%,#b5ae86_100%)] text-white shadow-[0_10px_18px_rgba(110,99,67,0.22)]"
-                    >
-                      <Plus className="h-4 w-4" />
-                    </button>
+
                   </div>
-                </div>
-
-                <div className="space-y-2">
-                  {sortedActivities.map((activity) => {
-                    const active = selectedActivity?.id === activity.id;
-                    const expired = isPastActivity(activity.date, today);
-
-                    return (
-                      <div
-                        key={activity.id}
-                        onClick={() => selectActivity(activity.id)}
-                        className={`w-full cursor-pointer rounded-[18px] border px-3 py-2 ${
-                          active
-                            ? "border-transparent bg-[linear-gradient(135deg,#8b8462_0%,#9a946f_52%,#b5ae86_100%)] text-white shadow-[0_10px_20px_rgba(110,99,67,0.20)]"
-                            : expired
-                            ? "border-[#d7d2cb] bg-[#ece8e1] text-[#7b746b]"
-                            : "border-[#e2d8c8] bg-white"
-                        }`}
-                      >
-                        <div className="flex items-center justify-between gap-2">
-                          <button
-                            type="button"
-                            onClick={() => selectActivity(activity.id)}
-                            className="min-w-0 flex-1 text-left"
-                          >
-                            <div className="truncate text-[13px] font-medium">
-                              {formatDate(activity.date)} {activity.name}
-                            </div>
-                          </button>
-
-                          <div className="flex shrink-0 items-center gap-2">
-                            {activity.requiresCleaning ? (
-                              <span
-                                className={
-                                  active
-                                    ? "text-white"
-                                    : expired
-                                    ? "text-[#8f887e]"
-                                    : "text-[#8a7756]"
-                                }
-                              >
-                                🧹
-                              </span>
-                            ) : null}
-
-                            <span
-                              role="button"
-                              tabIndex={0}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                openEditActivityModal(activity);
-                              }}
-                              onKeyDown={(e) => {
-                                if (e.key === "Enter" || e.key === " ") {
-                                  e.preventDefault();
-                                  e.stopPropagation();
-                                  openEditActivityModal(activity);
-                                }
-                              }}
-                              className={`inline-flex cursor-pointer items-center justify-center rounded-full px-2 py-1 text-[10px] ${
-                                active
-                                  ? "bg-white/15 text-white"
-                                  : expired
-                                  ? "bg-[#d9d3ca] text-[#7b746b]"
-                                  : "bg-[#efe7d7] text-[#75684f]"
-                              }`}
-                              title="編輯活動"
-                            >
-                              ✎
-                            </span>
-
-                            <span
-                              className={`text-[12px] font-semibold ${
-                                active
-                                  ? "text-white"
-                                  : expired
-                                  ? "text-[#7b746b]"
-                                  : "text-[#7f735d]"
-                              }`}
-                            >
-                              {activity.guestCount || "0"}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
                 </div>
 
                 {selectedActivity && (
                   <>
                     <div className="mt-3 rounded-[20px] bg-[linear-gradient(135deg,#f8f3ea_0%,#eee4d5_100%)] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.8)]">
                       <div className="flex items-center justify-between gap-2">
-                        <div className="text-[13px] font-semibold text-[#524736]">
-                          {selectedActivity.name}
+                        <div className="min-w-0">
+                          <div className="text-[16px] font-semibold text-[#524736]">{selectedActivity.name}</div>
+                          <div className="mt-1 text-[12px] text-[#8a7b64]">{formatDate(selectedActivity.date)}</div>
                         </div>
+                        <button type="button" onClick={()=>openEditActivityModal(selectedActivity)}
+                          className="shrink-0 rounded-[11px] border border-[#ddd1bc] bg-white px-3 py-2 text-[13px] text-[#6e6047]">
+                          編輯活動
+                        </button>
 
                         {selectedActivity.requiresCleaning && (
                           <button
@@ -3151,7 +3074,7 @@ export default function App() {
                 活動日期
                 <input type="date" value={activityDate}
                   onChange={e=>setActivityDate(e.target.value)}
-                  className="mt-1 box-border block min-h-[52px] w-full max-w-full min-w-0 rounded-[16px] border border-[#ddd3c4] bg-[#fffdfa] px-3 py-2 text-[16px] font-normal text-[#5f5444]"/>
+                  className="mt-1 box-border block min-h-[52px] w-full min-w-0 max-w-full appearance-none overflow-hidden rounded-[16px] border border-[#ddd3c4] bg-[#fffdfa] px-2 py-2 text-[16px] font-normal text-[#5f5444] [min-width:0] [&::-webkit-date-and-time-value]:min-w-0" style={{width:"100%",maxWidth:"100%",minWidth:0,boxSizing:"border-box"}}/>
               </label>
               <label className="block min-w-0 text-[15px] font-semibold text-[#5f5444]">
                 活動名稱
