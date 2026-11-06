@@ -2790,11 +2790,28 @@ export default function App() {
                               <span className="shrink-0 rounded-full bg-[#efe5d6] px-2 py-1 text-[13px] font-semibold text-[#64563c]">
                                 {splitGuestLines(occupantDrafts[room.id] ?? room.occupant).length} 位
                               </span>
-                              <button type="button" onClick={()=>openGuestMove(room.id)}
-                                title="移動住宿人到其他房間" className="shrink-0 rounded-full bg-[#f2ecdf] px-2 py-1 text-[12px] font-semibold text-[#76674f]">移動</button>
-                              <button type="button" onClick={()=>deleteSelectedActivityRoom(room.id)}
-                                className="shrink-0 rounded-full px-1 text-[16px] text-[#9b8974]" title="刪除此房間">−</button>
+                              <button type="button" onClick={()=>setOpenRoomActionsId(prev=>prev===room.id?"":room.id)}
+                                aria-expanded={openRoomActionsId===room.id}
+                                aria-label={roomLabel(room)+"更多操作"}
+                                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-[#e4d9c9] bg-[#f8f4ec] text-[21px] text-[#786a51]"
+                                title="更多操作">⋯</button>
                             </div>
+                            {openRoomActionsId===room.id && (
+                              <div className="mt-2 grid grid-cols-2 gap-2 rounded-[14px] border border-[#e0d6c7] bg-[#faf7f0] p-2">
+                                <button type="button" onClick={()=>{setOpenRoomActionsId("");openGuestMove(room.id);}}
+                                  className="rounded-[11px] bg-white px-2 py-3 text-[14px] font-medium text-[#655842]">移動住宿人</button>
+                                <button type="button" onClick={()=>{setOpenRoomActionsId("");openQuickPaste(room.id);}}
+                                  className="rounded-[11px] bg-white px-2 py-3 text-[14px] font-medium text-[#655842]">快速貼上</button>
+                                <button type="button" onClick={()=>{
+                                  const names=splitGuestLines(occupantDrafts[room.id]??room.occupant).join("\n");
+                                  void navigator.clipboard?.writeText(names);
+                                  setOpenRoomActionsId("");
+                                }}
+                                  className="rounded-[11px] bg-white px-2 py-3 text-[14px] font-medium text-[#655842]">複製名單</button>
+                                <button type="button" onClick={()=>{setOpenRoomActionsId("");void deleteSelectedActivityRoom(room.id);}}
+                                  className="rounded-[11px] border border-[#ead1cc] bg-white px-2 py-3 text-[14px] font-medium text-[#a34839]">刪除房間</button>
+                              </div>
+                            )}
                             <textarea
                               value={occupantDrafts[room.id] ?? splitGuestLines(room.occupant).join("、")}
                               disabled={savingRoomAdministrationIds.includes(room.id)}
@@ -2808,6 +2825,14 @@ export default function App() {
                               placeholder="直接填寫住宿人姓名，例如：李貞儀、陳美華"
                               className="mt-2 min-h-[48px] w-full resize-none overflow-hidden rounded-[12px] border border-[#ded4c5] bg-[#fffcf8] px-3 py-2 text-[15px] leading-6 text-[#514837] focus:outline-[#9a946f] disabled:opacity-60"
                             />
+                            <div role="status" aria-live="polite" className="mt-1 min-h-[16px] text-right text-[12px]">
+                              {savingRoomAdministrationIds.includes(room.id) || occupantSaveStatus[room.id]==="saving"
+                                ? <span className="text-[#887350]">名單編輯中／儲存中…</span>
+                                : occupantSaveStatus[room.id]==="error"
+                                  ? <span className="font-semibold text-[#aa4b36]">尚未儲存，請確認提示並重試</span>
+                                  : occupantSaveStatus[room.id]==="saved"
+                                    ? <span className="text-[#71815e]">已儲存</span> : null}
+                            </div>
                             <div className="mt-2 flex items-center gap-2">
                               <span className="shrink-0 text-[20px] leading-none" aria-label="房務指派">🧹</span>
                               <button type="button"
