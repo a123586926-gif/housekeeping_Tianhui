@@ -263,7 +263,7 @@ test("activity room details show only one selected activity, year/month selector
  const room=app.indexOf('selectedActivity && (',details);
  assert.ok(summary>0 && details>summary && room>details);
  assert.doesNotMatch(app.slice(details,room),/sortedActivities\.map\(/);
- assert.match(app.slice(details,room),/編輯活動/);
+ assert.match(app.slice(room,room+1800),/編輯活動/);
  assert.match(app,/aria-label="選擇活動年度"/);
  assert.match(app,/aria-label="選擇活動月份"/);
  assert.match(app,/maxWidth:"100%",minWidth:0,boxSizing:"border-box"/);
