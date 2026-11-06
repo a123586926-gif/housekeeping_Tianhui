@@ -230,7 +230,7 @@ test("manual print selection can pick every room with saved or drafted guest nam
  assert.match(app,/有住宿人全選/);
  assert.match(app,/selectedRooms\.some\(roomHasPendingOccupant\)/);
  const cardStart=app.indexOf('title="更多操作"');
- const header=app.slice(cardStart-800,cardStart);
+ const header=app.slice(cardStart-1900,cardStart);
  assert.doesNotMatch(header,/<Printer className="h-5 w-5 shrink-0/);
  assert.match(header,/勾選列印/);
 });
