@@ -461,7 +461,7 @@ export default function App() {
   const [savingRoomAdministrationIds,setSavingRoomAdministrationIds] = useState<string[]>([]);
   const [openCleanerPickerRoomId,setOpenCleanerPickerRoomId] = useState("");
   const [openRoomActionsId,setOpenRoomActionsId] = useState("");
-  const [printAdvancedOpen,setPrintAdvancedOpen] = useState(false);
+  const [printDialogOpen,setPrintDialogOpen] = useState(false);
   const [occupantSaveStatus,setOccupantSaveStatus] = useState<Record<string,"saving"|"saved"|"error">>({});
   const [guestHistoryRoomId,setGuestHistoryRoomId] = useState("");
   const [guestHistoryEntries,setGuestHistoryEntries] = useState<GuestRevision[]>([]);
@@ -721,7 +721,7 @@ export default function App() {
     setSavingChecklistRoomIds([]);
     if(!currentUser){
       setActivities([]);setStaffUsers([]);setSharedCalendarEvents([]);
-      setSelectedPrintRoomIds([]);setOccupantDrafts({});setOpenRoomActionsId("");setPrintAdvancedOpen(false);setOccupantSaveStatus({});setGuestHistoryRoomId("");setGuestHistoryEntries([]);
+      setSelectedPrintRoomIds([]);setOccupantDrafts({});setOpenRoomActionsId("");setPrintDialogOpen(false);setOccupantSaveStatus({});setGuestHistoryRoomId("");setGuestHistoryEntries([]);
       setQuickPasteRoomId("");setQuickPasteText("");setDuplicatePending(null);setDuplicateReport(null);
       setGuestMove(null);
       setOpenCleanerPickerRoomId("");
@@ -2707,42 +2707,14 @@ export default function App() {
                     </div>
 
                     {selectedActivity.requiresCleaning && (
-                      <div className="mt-3 space-y-2 rounded-[18px] border border-[#e2d8c8] bg-[#faf7f0] p-3">
-                        <div className="flex items-center justify-between gap-2">
-                          <span className="text-[15px] font-semibold text-[#5f503a]">列印房間</span>
-                          <span className="text-[13px] text-[#867660]">已勾選 {selectedPrintCount} 間</span>
-                        </div>
-                        <div className="grid grid-cols-2 gap-2">
-                          <button type="button" onClick={selectOccupiedPrintRooms}
-                            className="min-h-[44px] rounded-[12px] border border-[#d8cbb6] bg-white px-2 text-[14px] font-medium text-[#65563d]">
-                            有住宿人全選
-                          </button>
-                          <button type="button" onClick={clearAllPrintRooms}
-                            className="min-h-[44px] rounded-[12px] border border-[#d8cbb6] bg-white px-2 text-[14px] font-medium text-[#65563d]">
-                            全部清除
-                          </button>
-                        </div>
-                        <button type="button" onClick={printSelectedRoomsA4}
-                          className="flex min-h-[46px] w-full items-center justify-center gap-2 rounded-[13px] bg-[#888465] px-3 text-[15px] font-semibold text-white">
-                          <Printer className="h-5 w-5"/>列印已勾選房間
+                      <div className="mt-2 flex items-center justify-between gap-2">
+                        <button type="button" onClick={()=>setPrintDialogOpen(true)}
+                          className="inline-flex min-h-[44px] items-center gap-2 rounded-[14px] bg-[#888465] px-4 text-[15px] font-semibold text-white shadow-sm"
+                          aria-label="開啟房間列印選單">
+                          <Printer className="h-5 w-5"/>列印房間
+                          {selectedPrintCount>0 && <span className="rounded-full bg-white/20 px-2 py-0.5 text-[12px]">{selectedPrintCount}</span>}
                         </button>
-                        <button type="button" onClick={()=>setPrintAdvancedOpen(prev=>!prev)}
-                          aria-expanded={printAdvancedOpen}
-                          className="w-full py-1 text-center text-[13px] text-[#796a53]">
-                          {printAdvancedOpen?"收起進階列印與匯入":"進階選項"}
-                        </button>
-                        {printAdvancedOpen && (
-                          <div className="grid grid-cols-2 gap-2 border-t border-[#e1d7c7] pt-3">
-                            <button type="button" onClick={selectAllPrintRooms}
-                              className="rounded-[12px] border border-[#ddd1bf] bg-white px-2 py-3 text-[13px] text-[#665741]">
-                              加選目前篩選房間
-                            </button>
-                            <button type="button" onClick={()=>openQuickPaste(filteredActivityRooms[0]?.id??selectedActivity.rooms[0]?.id??"")}
-                              className="rounded-[12px] border border-[#ddd1bf] bg-white px-2 py-3 text-[13px] text-[#665741]">
-                              快速貼上名單
-                            </button>
-                          </div>
-                        )}
+                        <span className="text-[12px] text-[#887b66]">勾選房號可手動選取</span>
                       </div>
                     )}
                     {selectedActivity.requiresCleaning && (
@@ -3247,6 +3219,101 @@ export default function App() {
         </div>
       )}
 
+      {printDialogOpen && selectedActivity && currentUser?.role==="admin" && (
+        <div className="fixed inset-0 z-[60] flex items-start justify-center overflow-y-auto overscroll-contain bg-[#0F172A]/50 px-3 py-4 sm:items-center"
+          onClick={()=>setPrintDialogOpen(false)}>
+          <div role="dialog" aria-modal="true" aria-label="選擇列印房間"
+            className="my-auto flex max-h-[calc(100dvh-2rem)] w-full max-w-md min-w-0 flex-col overflow-hidden rounded-[24px] bg-[#fffdf8] shadow-xl"
+            onClick={event=>event.stopPropagation()}>
+            <div className="flex shrink-0 items-center justify-between gap-2 border-b border-[#e8decc] px-4 py-3">
+              <div>
+                <h3 className="text-[19px] font-bold text-[#514535]">列印房間</h3>
+                <p className="mt-1 max-w-[270px] break-words text-[12px] text-[#817461]">{selectedActivity.name}</p>
+              </div>
+              <button type="button" onClick={()=>setPrintDialogOpen(false)} aria-label="關閉列印選單"
+                className="rounded-full bg-[#eee7db] px-3 py-2 text-[14px] text-[#625641]">✕</button>
+            </div>
+            <div className="min-h-0 flex-1 space-y-3 overflow-y-auto px-4 py-3">
+              <div className="grid grid-cols-2 gap-2">
+                <button type="button" onClick={selectOccupiedPrintRooms}
+                  className="min-h-[46px] rounded-[13px] border border-[#d9cbb7] bg-[#f7f1e7] px-2 text-[14px] font-semibold text-[#605139]">
+                  有住宿人全選
+                </button>
+                <button type="button" onClick={clearAllPrintRooms}
+                  className="min-h-[46px] rounded-[13px] border border-[#d9cbb7] bg-white px-2 text-[14px] font-semibold text-[#605139]">
+                  全部清除
+                </button>
+                <button type="button" onClick={selectAllPrintRooms}
+                  className="min-h-[42px] rounded-[12px] border border-[#e1d6c4] bg-white px-2 text-[13px] text-[#6b5c42]">
+                  加選目前篩選房間
+                </button>
+                <button type="button" onClick={()=>setSelectedPrintRoomIds(selectedActivity.rooms.map(room=>room.id))}
+                  className="min-h-[42px] rounded-[12px] border border-[#e1d6c4] bg-white px-2 text-[13px] text-[#6b5c42]">
+                  全部房間全選
+                </button>
+              </div>
+              <p className="text-[12px] leading-5 text-[#877b69]">
+                也可以在下方逐間勾選或取消。選取範圍為整場活動；「加選目前」只增加目前篩選到的房間。
+              </p>
+              <div className="grid grid-cols-3 gap-2">
+                <div className="rounded-[12px] bg-[#f1ebdf] p-2 text-center">
+                  <div className="text-[11px] text-[#82745f]">已選房間</div>
+                  <div className="text-[20px] font-bold text-[#514535]">{selectedPrintCount}</div>
+                </div>
+                <div className="rounded-[12px] bg-[#f1ebdf] p-2 text-center">
+                  <div className="text-[11px] text-[#82745f]">住宿人數</div>
+                  <div className="text-[20px] font-bold text-[#514535]">
+                    {selectedActivity.rooms.filter(room=>selectedPrintRoomIds.includes(room.id))
+                      .reduce((sum,room)=>sum+splitGuestLines(occupantDrafts[room.id]??room.occupant).length,0)}
+                  </div>
+                </div>
+                <div className="rounded-[12px] bg-[#f1ebdf] p-2 text-center">
+                  <div className="text-[11px] text-[#82745f]">空名單房間</div>
+                  <div className="text-[20px] font-bold text-[#514535]">
+                    {selectedActivity.rooms.filter(room=>selectedPrintRoomIds.includes(room.id)
+                      && splitGuestLines(occupantDrafts[room.id]??room.occupant).length===0).length}
+                  </div>
+                </div>
+              </div>
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-[14px] font-semibold text-[#61523e]">房間選取清單</span>
+                <span className="text-[12px] text-[#8a806d]">共 {selectedActivity.rooms.length} 間</span>
+              </div>
+              <div className="max-h-[220px] space-y-1.5 overflow-y-auto rounded-[14px] border border-[#e5dbc9] bg-white p-2">
+                {selectedActivity.rooms
+                  .slice().sort((a,b)=>a.building.localeCompare(b.building)
+                    || FLOOR_OPTIONS.indexOf(a.floor)-FLOOR_OPTIONS.indexOf(b.floor)
+                    || a.roomNo.localeCompare(b.roomNo,undefined,{numeric:true}))
+                  .map(room=>(
+                  <label key={room.id} className="flex min-h-[39px] items-center gap-3 rounded-[10px] px-2 py-1 hover:bg-[#f9f5ee]">
+                    <input type="checkbox" checked={selectedPrintRoomIds.includes(room.id)}
+                      onChange={()=>togglePrintRoom(room.id)}
+                      className="h-5 w-5 shrink-0 accent-[#858264]"/>
+                    <span className="min-w-0 flex-1 text-[14px] font-medium text-[#564a39]">{roomLabel(room)}</span>
+                    <span className="shrink-0 text-[12px] text-[#867967]">
+                      {splitGuestLines(occupantDrafts[room.id]??room.occupant).length} 位
+                    </span>
+                  </label>
+                ))}
+              </div>
+              {selectedActivity.rooms.some(room=>selectedPrintRoomIds.includes(room.id) && roomHasPendingOccupant(room)) &&
+                <p role="alert" className="rounded-[11px] bg-[#f9eee5] p-2 text-[13px] text-[#9a5738]">
+                  部分勾選房間的名單尚未儲存，完成儲存後才能預覽列印。
+                </p>}
+            </div>
+            <div className="grid shrink-0 grid-cols-[1fr_1.5fr] gap-2 border-t border-[#e8decc] bg-[#fffdf8] px-4 py-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)]">
+              <button type="button" onClick={()=>setPrintDialogOpen(false)}
+                className="min-h-[46px] rounded-[13px] bg-[#eee8dc] text-[15px] text-[#695b45]">取消</button>
+              <button type="button"
+                disabled={selectedPrintCount===0 || selectedActivity.rooms.some(room=>selectedPrintRoomIds.includes(room.id) && roomHasPendingOccupant(room))}
+                onClick={()=>{printSelectedRoomsA4();setPrintDialogOpen(false);}}
+                className="flex min-h-[46px] items-center justify-center gap-2 rounded-[13px] bg-[#858264] text-[15px] font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50">
+                <Printer className="h-4 w-4"/>預覽列印（{selectedPrintCount} 間）
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       {guestHistoryRoomId && selectedActivity && currentUser?.role==="admin" && (
         <div className="fixed inset-0 z-[60] flex items-start justify-center overflow-y-auto bg-[#0F172A]/50 p-3 sm:items-center"
           role="dialog" aria-label="住宿人名單異動紀錄">
