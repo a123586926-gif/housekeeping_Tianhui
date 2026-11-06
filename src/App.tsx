@@ -793,8 +793,17 @@ export default function App() {
     [activities, today]
   );
 
-  const activityYears = useMemo(()=>Array.from(new Set([today.getFullYear(),...activities.map(a=>Number(a.date.slice(0,4)))]))
-    .filter(y=>Number.isSafeInteger(y) && y>=2000 && y<=2100).sort((a,b)=>b-a),[activities,today]);
+  // Offer a broad year range even for years with no events, while including
+  // the earliest and latest saved activity years. Entering Activities always
+  // defaults to the current year, not the previously viewed year/month.
+  const activityYears = useMemo(()=>{
+    const thisYear=today.getFullYear();
+    const eventYears=activities.map(a=>Number(a.date.slice(0,4)))
+      .filter(y=>Number.isSafeInteger(y) && y>=1900 && y<=2200);
+    const earliest=Math.min(2000,...eventYears);
+    const latest=Math.max(thisYear+20,...eventYears);
+    return Array.from({length:latest-earliest+1},(_,i)=>latest-i);
+  },[activities,today]);
   const scopedActivities = useMemo(()=>sortedActivities.filter(a=>a.date.startsWith(activityScope)),[sortedActivities,activityScope]);
   const selectedActivity = useMemo(
     () =>
@@ -1748,6 +1757,19 @@ export default function App() {
     ])));
   }
 
+  function selectOccupiedPrintRooms() {
+    // This action deliberately selects across the entire chosen activity,
+    // not just the currently displayed building/floor/search filter.
+    // Replace the selection so it is clear which rooms will be printed.
+    if (!selectedActivity) return;
+    const occupiedRooms=selectedActivity.rooms.filter(room=>
+      splitGuestLines(occupantDrafts[room.id] ?? room.occupant).length > 0
+    );
+    setSelectedPrintRoomIds(occupiedRooms.map(room=>room.id));
+    if(occupiedRooms.length===0)
+      window.alert("此活動目前沒有填寫住宿人的房間可供列印。");
+  }
+
   function clearAllPrintRooms() {
     setSelectedPrintRoomIds([]);
   }
@@ -2397,6 +2419,15 @@ export default function App() {
                     </button>
 
                     <button
+                      type="button"
+                      onClick={selectOccupiedPrintRooms}
+                      className="rounded-full border border-[#d9cfbe] bg-[#f1e9db] px-3 py-2 text-[12px] font-semibold text-[#65563f] shadow-[0_4px_10px_rgba(110,99,67,0.08)]"
+                      title="勾選此活動所有已填寫住宿人的房間，並取消未入住房間的列印勾選"
+                    >
+                      有住宿人全選
+                    </button>
+
+                    <button
                       onClick={clearAllPrintRooms}
                       className="rounded-full bg-[linear-gradient(180deg,#fffdfa_0%,#f2ecdf_100%)] px-3 py-2 text-[12px] text-[#75684f] shadow-[0_8px_16px_rgba(110,99,67,0.12)]"
                       title="清除本活動所有列印勾選"
@@ -2593,7 +2624,6 @@ export default function App() {
                                 onChange={()=>togglePrintRoom(room.id)}
                                 aria-label={"勾選列印 "+roomLabel(room)}
                                 className="h-5 w-5 shrink-0 accent-[#8b8462]"/>
-                              <Printer className="h-5 w-5 shrink-0 text-[#8b7755]"/>
                               <div className="min-w-0 flex-1 truncate text-[16px] font-semibold text-[#524736]">{roomLabel(room)}</div>
                               <span className="shrink-0 rounded-full bg-[#efe5d6] px-2 py-1 text-[13px] font-semibold text-[#64563c]">
                                 {splitGuestLines(occupantDrafts[room.id] ?? room.occupant).length} 位
@@ -2877,7 +2907,12 @@ export default function App() {
         <div className="fixed inset-x-0 bottom-0 z-40 border-t border-[#e2d8c8] bg-[#fcfaf6]/96 px-3 pt-3 pb-[calc(env(safe-area-inset-bottom)+1.25rem)] shadow-[0_-10px_24px_rgba(84,69,45,0.10)] backdrop-blur">
           <div className="mx-auto grid max-w-md grid-cols-4 gap-2">
             <button
-              onClick={() => {setAdminView("activity");setActivitySection("summary");}}
+              onClick={() => {
+                setAdminView("activity");
+                setActivitySection("summary");
+                setActivityYear(String(new Date().getFullYear()));
+                setActivityMonth("all");
+              }}
               className={`min-h-[46px] rounded-[16px] border px-2 py-2 text-[13px] font-semibold ${gradientButton(
                 adminView === "activity"
               )}`}
