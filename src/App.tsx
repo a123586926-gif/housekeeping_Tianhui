@@ -3247,6 +3247,41 @@ export default function App() {
         </div>
       )}
 
+      {guestHistoryRoomId && selectedActivity && currentUser?.role==="admin" && (
+        <div className="fixed inset-0 z-[60] flex items-start justify-center overflow-y-auto bg-[#0F172A]/50 p-3 sm:items-center"
+          role="dialog" aria-label="住宿人名單異動紀錄">
+          <div className="my-auto max-h-[calc(100dvh-2rem)] w-full max-w-md overflow-y-auto rounded-[24px] bg-[#fffdf8] p-4 shadow-xl">
+            <div className="flex items-center justify-between gap-2">
+              <h3 className="text-[18px] font-bold text-[#514534]">名單異動紀錄</h3>
+              <button type="button" disabled={guestHistoryBusy} onClick={()=>setGuestHistoryRoomId("")}
+                className="rounded-[10px] bg-[#eee6d8] px-3 py-2 text-[14px]">關閉</button>
+            </div>
+            <p className="mt-2 text-[13px] text-[#776c5b]">
+              每次修改住宿人會留下修改前後的名單；只有管理員可以查看及還原。
+            </p>
+            {guestHistoryError && <p role="alert" className="mt-2 rounded-[12px] bg-[#fae9e3] p-3 text-[13px] text-[#a44835]">{guestHistoryError}</p>}
+            {guestHistoryBusy && <p role="status" className="mt-2 text-[14px]">正在處理…</p>}
+            {!guestHistoryBusy && guestHistoryEntries.length===0 && !guestHistoryError &&
+              <p className="mt-3 rounded-[12px] bg-[#f6f1e8] p-4 text-[14px] text-[#766b58]">目前沒有已記錄的名單異動；上線前的修改不在歷程內。</p>}
+            <div className="mt-3 space-y-2">
+              {guestHistoryEntries.map(revision=>(
+                <div key={revision.id} className="rounded-[14px] border border-[#e2d7c7] bg-white p-3">
+                  <div className="text-[12px] text-[#806f5a]">{new Date(revision.changed_at).toLocaleString("zh-TW")}</div>
+                  <div className="mt-2 text-[13px] text-[#887562]">修改前</div>
+                  <div className="whitespace-pre-wrap break-words text-[14px] text-[#544734]">{splitGuestLines(revision.previous_names).join("、")||"空房"}</div>
+                  <div className="mt-2 text-[13px] text-[#887562]">修改後</div>
+                  <div className="whitespace-pre-wrap break-words text-[14px] text-[#544734]">{splitGuestLines(revision.current_names).join("、")||"空房"}</div>
+                  <button type="button" disabled={guestHistoryBusy}
+                    onClick={()=>void restoreRoomGuestHistory(revision)}
+                    className="mt-3 rounded-[11px] border border-[#998765] bg-[#f9f4e9] px-3 py-2 text-[14px] font-medium text-[#65533b]">
+                    還原到此筆修改前
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
       {quickPasteRoomId && selectedActivity && currentUser?.role==="admin" && (
         <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-[#0F172A]/40 px-3 py-5 sm:items-center"
           onClick={()=>setQuickPasteRoomId("")}>
