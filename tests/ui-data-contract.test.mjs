@@ -215,6 +215,25 @@ test("approved A4 preview uses 1.5x bold heading and even single or dual name co
  assert.match(print,/escapeHtml\(guest\)/);
  assert.match(print,/document\.fonts\.ready/);
 });
+test("year dropdown offers a broad range and entering activity defaults to this year",()=>{
+ assert.match(app,/const earliest=Math\.min\(2000,\.\.\.eventYears\)/);
+ assert.match(app,/const latest=Math\.max\(thisYear\+20,\.\.\.eventYears\)/);
+ assert.match(app,/Array\.from\(\{length:latest-earliest\+1\},\(_,i\)=>latest-i\)/);
+ assert.match(app,/setActivityYear\(String\(new Date\(\)\.getFullYear\(\)\)\)/);
+ assert.match(app,/setActivityMonth\("all"\)/);
+});
+test("manual print selection can pick every room with saved or drafted guest names",()=>{
+ assert.match(app,/function selectOccupiedPrintRooms\(\)/);
+ assert.match(app,/selectedActivity\.rooms\.filter\(room=>/);
+ assert.match(app,/splitGuestLines\(occupantDrafts\[room\.id\] \?\? room\.occupant\)\.length > 0/);
+ assert.match(app,/setSelectedPrintRoomIds\(occupiedRooms\.map\(room=>room\.id\)\)/);
+ assert.match(app,/有住宿人全選/);
+ assert.match(app,/selectedRooms\.some\(roomHasPendingOccupant\)/);
+ const cardStart=app.indexOf('title="移動住宿人到其他房間"');
+ const header=app.slice(cardStart-800,cardStart);
+ assert.doesNotMatch(header,/<Printer className="h-5 w-5 shrink-0/);
+ assert.match(header,/勾選列印/);
+});
 test("print selection persists across floor/building filters and counts whole activity",()=>{
  assert.match(app,/selectedActivity\?\.rooms\.filter\(room =>\s*selectedPrintRoomIds\.includes\(room\.id\)\)/);
  assert.match(app,/setSelectedPrintRoomIds\(prev => Array\.from\(new Set\(\[/);
